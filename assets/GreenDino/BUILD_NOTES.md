@@ -1,6 +1,6 @@
 # Green Dino (Roblox)
 
-A blocky green crocodile-dinosaur rebuilt from the reference sheet. It's rigged, has Idle and Walk animations, and is ready to import into Roblox Studio.
+A green crocodile-dinosaur rebuilt from the reference sheet as smooth, rounded low-poly shapes with a painted stud texture (v2: less blocky). It's rigged, has Idle and Walk animations, and is ready to import into Roblox Studio.
 
 ## Files
 | File | Use |
@@ -15,13 +15,13 @@ A blocky green crocodile-dinosaur rebuilt from the reference sheet. It's rigged,
 | `source/` | Scripts that rebuild everything: `make_atlas.py` → `build_dino.py` → `export_roblox.py` (`render_views.py` renders the validation images) |
 
 ## Stats
-- **4,342 triangles** (budget: 5,000), 1 mesh, 1 material, 1 texture.
+- **3,278 triangles** (budget: 5,000), 1 mesh, 1 material, 1 texture.
 - 22 bones: Root, Hips, Spine, Chest, Neck, Head, Jaw, Tail1-3, UpperArm/LowerArm/Hand and Thigh/Shin/Foot for each side (L = +X).
 - At most 2 bone influences per vertex; every vertex is weighted.
-- The limbs are rigid blocky segments, which is the Roblox style. The spine, neck and tail blend smoothly.
+- The body, head and tail are one continuous smooth loft (welded vertices, smooth shading), with weights blending along the spine. The lower jaw and each limb segment are rounded tapered tubes bound rigidly to one bone.
 
 ## Stud texture
-The studs are **painted into the texture, not modelled**. Every block in the atlas has a bevel and a centred raised square stud, matching Roblox's current square stud style. Camo, cream, tan, red mouth and mossy stone patches are packed into 4×4-block tiles. Voxel faces are merged and mapped onto these tiles, so every visible block shows exactly one stud.
+The studs are **painted into the texture, not modelled**. Every block in the atlas has a bevel and a centred raised square stud, matching Roblox's current square stud style. Camo, cream, tan, red mouth and mossy stone patches are packed into 4×4-block tiles. Each surface quad is mapped to whole blocks along its own edges, so the stud rows follow the curve of the body.
 
 ## Roblox import
 1. **3D Importer**: `GreenDino.fbx`. Rig type is auto-detected as a custom rig and the texture is embedded.
@@ -31,6 +31,6 @@ The studs are **painted into the texture, not modelled**. Every block in the atl
 
 ## Known deviations from the reference
 The reference is AI-painted perspective concept art: roughly thousands of individual cubes, with views that don't agree with each other. The model is a faithful low-poly reading of it, not a pixel-exact match:
-- Blocks sit on a regular voxel grid with scattered protruding blocks. The reference's cubes are free-floating and jitter more.
+- v2 swaps the reference's stacked-cube silhouette for smooth rounded forms, as requested. The block look now comes from the texture rather than the geometry. The earlier voxel version is still in git history.
 - The front view in the sheet shows a lowered head under a tall hump. The side and hero views (followed here) show the head raised with the jaw wide open.
 - Glow only shows in Roblox if you use the emissive mask or a Neon eye part. The colour texture alone just makes the eyes bright orange.

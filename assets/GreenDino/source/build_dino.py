@@ -1,8 +1,8 @@
-"""Green Dino builder: voxel-block crocodile-dinosaur, rigged + idle/walk, for Roblox.
+"""Green Dino builder: smooth low-poly crocodile-dinosaur with painted stud texture, rigged + idle/walk, for Roblox.
 
 Run:  python3 make_atlas.py && python3 build_dino.py
 Output (one folder up): GreenDino.blend, GreenDino.fbx, GreenDino_Idle.fbx, GreenDino_Walk.fbx
-Units: 1 voxel = U metres. Dino faces -Y (Blender front), Z up.
+Units: 1 grid unit (= 1 stud block on the texture) = U metres. Dino faces -Y (Blender front), Z up.
 """
 import json, math, os, random
 import numpy as np
@@ -20,10 +20,11 @@ rng = random.Random(11)
 def W(x, y, z):      # grid -> world
   return Vector((x * U, (y - JOFF) * U, z * U))
 
+
 # ----------------------------------------------------------------------------- UV helper
 def face_uv(pts, n, cat, fit=None):
-  """project a planar face into a random 4x4-block patch of its atlas category.
-  fit=(tw,th): scale face to fill tw x th blocks (non-voxel parts)."""
+  """map a face onto whole stud blocks inside a random 4x4-block patch of its atlas category.
+  fit=(tw,th) forces the block count; fit='auto' rounds the face's own size to whole blocks."""
   n = Vector(n).normalized()
   fwd = -n
   right = fwd.cross(Vector((0, 0, 1)))
@@ -33,31 +34,45 @@ def face_uv(pts, n, cat, fit=None):
   s0 = min(s for s, _ in st); t0 = min(t for _, t in st)
   st = [(s - s0, t - t0) for s, t in st]
   ws = max(s for s, _ in st) or 1; ht = max(t for _, t in st) or 1
-  if fit:
-    st = [(s / ws * fit[0], t / ht * fit[1]) for s, t in st]; ws, ht = fit
-  ws, ht = min(ws, 4), min(ht, 4)
-  st = [(min(s, 4), min(t, 4)) for s, t in st]
+  if fit == 'auto':
+    fit = (min(4, max(1, round(ws))), min(4, max(1, round(ht))))
+  st = [(s / ws * fit[0], t / ht * fit[1]) for s, t in st]; ws, ht = fit
   p = rng.choice(LAYOUT[cat]); px, py = p % 8, p // 8
-  ox = rng.uniform(0, 4 - ws) if not fit else rng.randint(0, int(4 - ws))
-  oy = rng.uniform(0, 4 - ht) if not fit else rng.randint(0, int(4 - ht))
-  if not fit: ox, oy = round(ox), round(oy)
+  ox = rng.randint(0, int(4 - ws)); oy = rng.randint(0, int(4 - ht))
   bx, by = px * 4 + ox, (7 - py) * 4 + oy
   return [((bx + s) / ATL, (by + t) / ATL) for s, t in st]
 
+def newell(pts):
+  n = Vector()
+  for a, b in zip(pts, pts[1:] + pts[:1]):
+    n += Vector(((a.y - b.y) * (a.z + b.z), (a.z - b.z) * (a.x + b.x), (a.x - b.x) * (a.y + b.y)))
+  return n
+
 # ----------------------------------------------------------------------------- mesh accumulator
 class MeshAcc:
-  def __init__(self): self.v, self.f, self.uv, self.bone = [], [], [], []
+  def __init__(self): self.v, self.f, self.uv, self.bone, self.smooth, self.vw = [], [], [], [], [], {}
+  def addv(self, p, w):
+    self.v.append(p); self.vw[len(self.v) - 1] = w; return len(self.v) - 1
+  def face(self, idx, cat, fit='auto', smooth=True, bone=None):
+    pts = [self.v[i] for i in idx]
+    if len(pts) == 4:
+      # loft quad: lay whole stud blocks along the quad's own edges so rows follow the body (belly plates)
+      w = min(4, max(1, round(((pts[1] - pts[0]).length + (pts[2] - pts[3]).length) / 2 / U)))
+      h = min(4, max(1, round(((pts[3] - pts[0]).length + (pts[2] - pts[1]).length) / 2 / U)))
+      p = rng.choice(LAYOUT[cat]); px, py = p % 8, p // 8
+      bx, by = px * 4 + rng.randint(0, 4 - w), (7 - py) * 4 + rng.randint(0, 4 - h)
+      uvs = [(bx, by), (bx + w, by), (bx + w, by + h), (bx, by + h)]
+      self.uv.append([(x / ATL, y / ATL) for x, y in uvs])
+    else:
+      self.uv.append(face_uv(pts, newell(pts), cat, fit))
+    self.f.append(list(idx))
+    self.bone.append(bone); self.smooth.append(smooth)
   def quad(self, pts, cat, bone, fit=None, n=None):
-    if n is None:
-      n = (pts[1] - pts[0]).cross(pts[2] - pts[0])
-      if len(pts) == 4: n = n + (pts[2] - pts[0]).cross(pts[3] - pts[0])
-    uvs = face_uv(pts, n, cat, fit)
+    n = n if n is not None else newell(pts)
     base = len(self.v)
-    self.v += pts; self.uv.append(uvs); self.bone.append(bone)
+    self.v += pts; self.uv.append(face_uv(pts, n, cat, fit or 'auto')); self.bone.append(bone); self.smooth.append(False)
     self.f.append(list(range(base, base + len(pts))))
-
   def tris(self): return sum(len(f) - 2 for f in self.f)
-
   def begin(self): self._mark = len(self.f)
   def end(self):
     """make every face of the just-built convex part point away from its centroid"""
@@ -66,58 +81,57 @@ class MeshAcc:
     c = sum((self.v[i] for i in idx), Vector()) / len(idx)
     for fi in fs:
       pts = [self.v[i] for i in self.f[fi]]
-      n = (pts[1] - pts[0]).cross(pts[2] - pts[0])
       fc = sum(pts, Vector()) / len(pts)
-      if n.dot(fc - c) < 0:
+      if newell(pts).dot(fc - c) < 0:
         self.f[fi] = self.f[fi][::-1]; self.uv[fi] = self.uv[fi][::-1]
 
 ACC = MeshAcc()
 
-# ----------------------------------------------------------------------------- face category rules
-def face_cat(cls, d):
-  """d = (axis, sign)"""
-  if cls == 'roof':    return 'red' if d == (2, -1) else 'camo'
-  if cls == 'floor':   return 'red' if d == (2, 1) else 'cream'
-  if cls == 'nostril': return 'dark' if d == (2, 1) else 'camo'
-  if cls == 'moss':    return 'camomoss'
-  return cls
+# ----------------------------------------------------------------------------- lofting (smooth rounded forms)
+def sexp(c, e): return math.copysign(abs(c) ** (2.0 / e), c)
 
-DIRS = [(0, 1), (0, -1), (1, 1), (1, -1), (2, 1), (2, -1)]
+def ring_pts(cx, cy, cz, rx, rz, n, e, axis_u=Vector((1, 0, 0)), axis_v=Vector((0, 0, 1)), jitter=None):
+  """rounded (superellipse) ring in grid space; jitter(k) -> radial scale"""
+  pts = []
+  for k in range(n):
+    th = 2 * math.pi * (k + 0.5) / n
+    j = jitter(k) if jitter else 1.0
+    pts.append(Vector((cx, cy, cz)) + axis_u * (rx * j * sexp(math.cos(th), e)) + axis_v * (rz * j * sexp(math.sin(th), e)))
+  return pts
 
-def greedy(vox, bonefn, maxr=4, infl=0.0):
-  """emit exposed faces of a voxel dict {(i,j,k):cls} as greedy-merged quads"""
-  for ax, sg in DIRS:
-    a1, a2 = [a for a in (0, 1, 2) if a != ax]
-    faces = {}
-    for v, cls in vox.items():
-      nb = list(v); nb[ax] += sg
-      if tuple(nb) in vox: continue
-      faces[(v[ax], v[a1], v[a2])] = face_cat(cls, (ax, sg))
-    done = set()
-    if infl:
-      lo = [min(v[a] for v in vox) for a in range(3)]; hi = [max(v[a] for v in vox) + 1 for a in range(3)]
-      ctr = [(lo[a] + hi[a]) / 2 for a in range(3)]
-    for key in sorted(faces):
-      if key in done: continue
-      L, u, w = key; cat = faces[key]
-      du = 1
-      while du < maxr and (L, u + du, w) in faces and (L, u + du, w) not in done and faces[(L, u + du, w)] == cat: du += 1
-      dw = 1
-      while dw < maxr and all((L, u + x, w + dw) in faces and (L, u + x, w + dw) not in done
-                              and faces[(L, u + x, w + dw)] == cat for x in range(du)): dw += 1
-      for x in range(du):
-        for y in range(dw): done.add((L, u + x, w + y))
-      plane = L + (1 if sg > 0 else 0)
-      corners = []
-      for cu, cw in [(u, w), (u + du, w), (u + du, w + dw), (u, w + dw)]:
-        c = [0, 0, 0]; c[ax] = plane; c[a1] = cu; c[a2] = cw
-        if infl: c = [c[a] + infl * (1 if c[a] > ctr[a] else -1 if c[a] < ctr[a] else 0) for a in range(3)]
-        corners.append(W(*c))
-      nrm = Vector((0, 0, 0)); nrm[ax] = sg
-      e = (corners[1] - corners[0]).cross(corners[2] - corners[0])
-      if e.dot(nrm) < 0: corners.reverse()
-      cen = sum(corners, Vector()) / 4
-      ACC.quad(corners, cat, bonefn(cen), n=nrm)
+def loft(rings, cat_fn, wfn, cap0=True, cap1=True, fit='auto'):
+  """rings: list of equal-length lists of grid points. cat_fn(r, k, centre_grid) -> atlas category"""
+  idx = [[ACC.addv(W(*p), wfn(W(*p))) for p in ring] for ring in rings]
+  n = len(rings[0])
+  for r in range(len(rings) - 1):
+    axis = (sum(rings[r], Vector()) + sum(rings[r + 1], Vector())) / (2 * n)
+    for k in range(n):
+      q = [idx[r][k], idx[r][(k + 1) % n], idx[r + 1][(k + 1) % n], idx[r + 1][k]]
+      pts = [ACC.v[i] for i in q]
+      cen = sum(pts, Vector()) / 4
+      if newell(pts).dot(cen - W(*axis)) < 0: q = q[::-1]
+      g = (rings[r][k] + rings[r][(k + 1) % n] + rings[r + 1][k] + rings[r + 1][(k + 1) % n]) / 4
+      ACC.face(q, cat_fn(r, k, g), fit)
+  for end, ring, ids, other in ((cap0, rings[0], idx[0], rings[1]), (cap1, rings[-1], idx[-1], rings[-2])):
+    if not end: continue
+    c = sum(ring, Vector()) / n
+    out = (c - sum(other, Vector()) / n).normalized()
+    ci = ACC.addv(W(*(c + out * 0.35)), wfn(W(*c)))
+    g = c
+    for k in range(n):
+      t = [ids[k], ids[(k + 1) % n], ci]
+      pts = [ACC.v[i] for i in t]
+      if newell(pts).dot(out) < 0: t = t[::-1]
+      ACC.face(t, cat_fn(-1, k, g), (1, 1))
+
+def tube(path, sides, e, cat, bone, jit=0.0):
+  """rigid limb segment: rounded rings along a path of ((x,y,z), rx, rz)"""
+  d = (Vector(path[-1][0]) - Vector(path[0][0])).normalized()
+  u = d.cross(Vector((0, 0, 1)))
+  u = Vector((1, 0, 0)) if u.length < 1e-4 else u.normalized()
+  v = u.cross(d).normalized()
+  rings = [ring_pts(*c, rx, rz, sides, e, u, v, (lambda k: 1 + rng.uniform(-jit, jit)) if jit else None) for c, rx, rz in path]
+  loft(rings, lambda r, k, g: cat, lambda p: {bone: 1.0})
 
 # ----------------------------------------------------------------------------- body profile (from LEFT SIDE / TOP / BOTTOM crops)
 L = 52
@@ -125,83 +139,12 @@ def prof(pts, j): xs, ys = zip(*pts); return float(np.interp(j, xs, ys))
 HW = [(9, 4.6), (12, 5.8), (15, 6.9), (21, 6.9), (26, 6.1), (31, 5.7), (35, 5.0), (38, 4.0), (42, 3.0), (46, 2.1), (50, 1.3), (52, 0.8)]
 ZB = [(9, 6.0), (12, 4.6), (15, 3.4), (28, 3.0), (35, 3.0), (40, 2.6), (46, 2.2), (52, 1.8)]
 ZT = [(9, 13.6), (12, 13.0), (18, 12.8), (22, 12.2), (26, 11.4), (31, 10.2), (35, 9.0), (40, 7.2), (45, 5.6), (49, 4.6), (52, 3.6)]
-
-body = {}
-for j in range(9, L):
-  hw, zb, zt = prof(HW, j + .5), prof(ZB, j + .5), prof(ZT, j + .5)
-  zc, hh = (zb + zt) / 2, (zt - zb) / 2
-  for i in range(-8, 8):
-    for k in range(0, 18):
-      u = abs(i + .5) / hw; v = (k + .5 - zc) / hh
-      if abs(u) ** 2.6 + abs(v) ** 2.6 <= 1.0:
-        rel = (k + .5 - zb) / (zt - zb)
-        if rel < 0.22 and abs(i + .5) < hw * 0.75: cls = 'cream'
-        elif rel < 0.44: cls = 'tan'
-        else: cls = 'camo'
-        body[(i, j, k)] = cls
-
-# ---- head (upper skull + upper jaw), j 0..11; mouth open like the reference
 def head_hw(j): return prof([(0, 2.8), (4, 3.3), (8, 4.3), (11, 4.8)], j + .5)
 def upj_bot(j): return prof([(0, 10.8), (4, 10.3), (8, 9.6), (11, 9.0)], j + .5)
 def upj_top(j): return prof([(0, 13.2), (3, 13.4), (5, 14.2), (7, 14.8), (10, 14.2), (12, 13.2)], j + .5)
-for j in range(0, 12):
-  hw = head_hw(j); zb = upj_bot(j); zt = upj_top(j)
-  for i in range(-6, 6):
-    if abs(i + .5) > hw: continue
-    # round the top outer corners
-    top = zt - (0.9 if abs(i + .5) > hw - 1 else 0)
-    for k in range(int(round(zb)), int(round(top))):
-      cls = 'camo'
-      if k == int(round(zb)) and abs(i + .5) < hw - 1: cls = 'roof'
-      body[(i, j, k)] = cls
-# nostrils (dark holes on the snout top) + stone nose plate
-for i in (-2, 1): body[(i, 0, int(round(upj_top(0))) - 1)] = 'nostril'
-for i in (-1, 0):
-  for j in (2, 3): body[(i, j, int(round(upj_top(j))) - 1)] = 'stone' if False else 'moss'
-# brow ridges + glowing eyes (DETAIL (HEAD))
-for s in (-1, 1):
-  ei = 4 if s > 0 else -5
-  ek = int(round(upj_top(5.5))) - 3
-  for j in (5, 6):
-    body[(ei, j, ek)] = 'camo'; body[(ei, j, ek + 1)] = 'camo'; body[(ei, j, ek + 2)] = 'camo'
-  body[(ei + s, 5, ek)] = 'eye'          # eye block sticks out of the head side
-  body[(ei + s, 5, ek + 1)] = 'camo'; body[(ei + s, 6, ek + 1)] = 'camo'; body[(ei + s, 4, ek + 1)] = 'camo'
-# throat / back of mouth
-for j in (8, 9, 10, 11):
-  for i in range(-5, 5):
-    for k in range(7, int(round(upj_bot(j)))):
-      if abs(i + .5) > head_hw(j): continue
-      inner = abs(i + .5) < head_hw(j) - 1
-      body.setdefault((i, j, k), ('darkred' if j >= 10 else 'red') if inner else ('cream' if k < 8 else 'camo'))
-
-# ---- surface lumps: extra blocks sticking out (the chunky voxel silhouette)
-lumps = {}
-for (i, j, k), cls in body.items():
-  if cls != 'camo' or j < 12: continue
-  for ax, sg in [(0, 1), (0, -1), (2, 1)]:
-    nb = [i, j, k]; nb[ax] += sg
-    if tuple(nb) in body: continue
-    if rng.random() < 0.2:
-      lumps[tuple(nb)] = 'moss' if rng.random() < 0.15 else 'camo'
-body.update(lumps)
-
-# ---- lower jaw: separate group (Jaw bone)
-def lj_hw(j): return prof([(0, 2.7), (5, 3.3), (10, 4.3)], j + .5)
-def lj_bot(j): return prof([(0, 2.4), (5, 3.4), (10, 5.2)], j + .5)
+def lj_hw(j): return prof([(0, 3.0), (5, 3.7), (10, 4.6)], j + .5)
+def lj_bot(j): return prof([(0, 2.0), (5, 2.9), (10, 4.6)], j + .5)
 def lj_top(j): return prof([(0, 4.6), (5, 5.9), (10, 7.8)], j + .5)
-jaw = {}
-for j in range(0, 11):
-  hw = lj_hw(j)
-  for i in range(-5, 5):
-    if abs(i + .5) > hw: continue
-    zb, zt = int(round(lj_bot(j))), int(round(lj_top(j)))
-    for k in range(zb, zt):
-      jaw[(i, j, k)] = 'floor' if (k == zt - 1 and abs(i + .5) < hw - 1) else 'cream'
-    # outer lip rim one block higher (jaw wall around the tongue)
-    if abs(i + .5) > hw - 1: jaw[(i, j, zt)] = 'cream'
-for j in range(2, 10):   # tongue
-  for i in (-1, 0): jaw[(i, j, int(round(lj_top(j))))] = 'tongue'
-
 # ----------------------------------------------------------------------------- bones
 BONES = {  # name: (head grid, tail grid, parent)
   'Root':      ((0, 30, 0),   (0, 26, 0),    None),
@@ -218,12 +161,12 @@ BONES = {  # name: (head grid, tail grid, parent)
 FRONT_J, REAR_J = 16.5, 34.5
 FRONT_YAW, REAR_YAW = math.radians(22), math.radians(-18)
 for s, side in ((1, 'L'), (-1, 'R')):   # +X is the dino's LEFT (it faces -Y)
-  BONES['UpperArm_' + side] = ((s * 6.5, FRONT_J, 7), (s * 10.0, FRONT_J, 3.5), 'Chest')
-  BONES['LowerArm_' + side] = ((s * 10.0, FRONT_J, 3.5), (s * 10.0, FRONT_J, 1.5), 'UpperArm_' + side)
-  BONES['Hand_' + side] = ((s * 10.0, FRONT_J, 1.2), (s * 10.0, FRONT_J - 4, 0.8), 'LowerArm_' + side)
-  BONES['Thigh_' + side] = ((s * 6.0, REAR_J, 6.5), (s * 9.0, REAR_J, 3.5), 'Hips')
-  BONES['Shin_' + side] = ((s * 9.0, REAR_J, 3.5), (s * 9.0, REAR_J, 1.5), 'Thigh_' + side)
-  BONES['Foot_' + side] = ((s * 9.0, REAR_J, 1.2), (s * 9.0, REAR_J - 4, 0.8), 'Shin_' + side)
+  BONES['UpperArm_' + side] = ((s * 6.0, FRONT_J, 8.0), (s * 10.2, FRONT_J, 4.6), 'Chest')
+  BONES['LowerArm_' + side] = ((s * 10.2, FRONT_J, 4.6), (s * 10.3, FRONT_J, 1.6), 'UpperArm_' + side)
+  BONES['Hand_' + side] = ((s * 10.3, FRONT_J, 1.2), (s * 10.3, FRONT_J - 4, 0.8), 'LowerArm_' + side)
+  BONES['Thigh_' + side] = ((s * 5.6, REAR_J, 7.4), (s * 9.2, REAR_J, 4.4), 'Hips')
+  BONES['Shin_' + side] = ((s * 9.2, REAR_J, 4.4), (s * 9.3, REAR_J, 1.6), 'Thigh_' + side)
+  BONES['Foot_' + side] = ((s * 9.3, REAR_J, 1.2), (s * 9.3, REAR_J - 4, 0.8), 'Shin_' + side)
 
 # spine weight curve: bone centres along y-grid -> smooth 2-bone blend
 CHAIN = [('Head', 7.5), ('Neck', 12), ('Chest', 16.5), ('Spine', 23.5), ('Hips', 31), ('Tail1', 37), ('Tail2', 42.5), ('Tail3', 49)]
@@ -232,84 +175,129 @@ def spine_w(p):
   if j <= CHAIN[0][1]: return {CHAIN[0][0]: 1.0}
   for (a, ja), (b, jb) in zip(CHAIN, CHAIN[1:]):
     if j <= jb:
-      t = (j - ja) / (jb - ja)   # linear: keeps greedy-quad T-junctions closed under skinning
+      t = (j - ja) / (jb - ja)   # linear blend along the spine
       return {a: 1 - t, b: t}
   return {CHAIN[-1][0]: 1.0}
 
 
-# ----------------------------------------------------------------------------- legs (rigid blocky segments, overlap at joints)
-def box_vox(i0, i1, j0, j1, k0, k1, cls='legcamo', round_=False, skip=()):
-  d = {}
-  for i in range(i0, i1):
-    for j in range(j0, j1):
-      for k in range(k0, k1):
-        corner = (i in (i0, i1 - 1)) + (j in (j0, j1 - 1)) + (k in (k0, k1 - 1))
-        if round_ and corner >= 3: continue
-        d[(i, j, k)] = cls
-  return d
 
-def mirror(d):  # +x voxel dict -> -x
-  return {(-i - 1, j, k): c for (i, j, k), c in d.items()}
+# ----------------------------------------------------------------------------- body + head + tail: one smooth loft
+fj, rj = FRONT_J, REAR_J
+E_HEAD, E_BODY = 3.4, 2.5          # superellipse exponents: squarish croc head -> rounded body
+def smooth01(t): t = min(1, max(0, t)); return t * t * (3 - 2 * t)
+def ring_params(j):
+  if j <= 9: hw, zb, zt, e = head_hw(j - .5), upj_bot(j - .5), upj_top(j - .5), E_HEAD
+  elif j >= 12: hw, zb, zt, e = prof(HW, j), prof(ZB, j), prof(ZT, j), E_BODY
+  else:
+    t = smooth01((j - 9) / 3)
+    a, b = ring_params(9), ring_params(12)
+    hw, zb, zt, e = [a[i] * (1 - t) + b[i] * t for i in range(4)]
+  hw = hw * (1.12 if j > 11 else 1.0) + 1.5 * math.exp(-((j - fj) / 3.2) ** 2) + 1.1 * math.exp(-((j - rj) / 3.4) ** 2)   # shoulder / hip bulges
+  zt += 0.5 * math.exp(-((j - fj - 1) / 4.0) ** 2)
+  return hw, zb, zt, e
 
-def camo_mix(d, p=0.35):
-  return dict(d)   # colour variety lives in the atlas patches; mixed classes would break greedy merging
+def z_surf(j, x):
+  hw, zb, zt, e = ring_params(j)
+  u = min(0.999, abs(x) / hw)
+  return (zb + zt) / 2 + (zt - zb) / 2 * (1 - u ** e) ** (1 / e)
 
+NB = 18
+JS = [0, 0.9, 2.0, 3.2, 4.4, 5.6, 6.8, 8.0, 9.2, 10.4, 11.6, 13.0] + [13.0 + 1.6 * i for i in range(1, 23)] + [49.5, 51.0, 52.0]
+JS = sorted(set(round(j, 2) for j in JS if j <= L))
+noise = {}
+def jit_for(ri):
+  def f(k):
+    m = (NB // 2 - 1 - k) % NB            # mirror index across the centre plane -> symmetric lumps
+    key = (ri, min(k, m))
+    if key not in noise: noise[key] = 1 + rng.uniform(-0.05, 0.05) if 0 < ri < len(JS) - 2 else 1.0
+    return noise[key]
+  return f
+rings = []
+for ri, j in enumerate(JS):
+  hw, zb, zt, e = ring_params(j)
+  rings.append(ring_pts(0, j, (zb + zt) / 2, hw, (zt - zb) / 2, NB, e, jitter=jit_for(ri)))
+
+def body_cat(r, k, g):
+  j, x, z = g.y, g.x, g.z
+  hw, zb, zt, e = ring_params(j)
+  v = (z - zb) / max(0.1, zt - zb)
+  if r == -1: return 'camo' if j < 26 else 'tan'           # caps: snout tip / tail tip
+  if j < 9.0 and v < 0.25: return 'red'                        # roof of the open mouth
+  if 9.0 <= j < 11.2 and v < 0.3 and abs(x) < hw * 0.6: return 'darkred'   # throat (inside the mouth only)
+  if j < 1.9 and v > 0.75 and abs(x) < 1.8: return 'dark'      # nostrils
+  if v < 0.2: return 'cream'
+  if v < 0.42: return 'tan'
+  return 'camomoss' if rng.random() < 0.07 else 'camo'
+loft(rings, body_cat, spine_w)
+print('T body', ACC.tris())
+
+# ---- lower jaw (rigid, Jaw bone)
+JJ = [0, 1.2, 2.4, 3.6, 4.8, 6.0, 7.2, 8.4, 9.6, 10.8]
+jrings = [ring_pts(0, j, (lj_bot(j - .5) + lj_top(j - .5)) / 2, lj_hw(j - .5), (lj_top(j - .5) - lj_bot(j - .5)) / 2, 14, 3.2) for j in JJ]
+def jaw_cat(r, k, g):
+  j, x, z = g.y, g.x, g.z
+  v = (z - lj_bot(j - .5)) / (lj_top(j - .5) - lj_bot(j - .5))
+  if r >= 0 and v > 0.8 and abs(x) < lj_hw(j) * 0.7: return 'tongue' if abs(x) < 1.0 and j > 1.5 else 'red'
+  return 'cream'
+loft(jrings, jaw_cat, lambda p: {'Jaw': 1.0})
+print('T jaw', ACC.tris())
+
+# ---- glowing eyes under a brow block (DETAIL (HEAD))
+def box(c, size, cat, bw):
+  ACC.begin()
+  cx, cy, cz = c; hx, hy, hz = [s / 2 for s in size]
+  P = [W(cx + a * hx, cy + b * hy, cz + d * hz) for d in (-1, 1) for b in (-1, 1) for a in (-1, 1)]
+  for q in ((0, 1, 3, 2), (4, 6, 7, 5), (0, 4, 5, 1), (2, 3, 7, 6), (0, 2, 6, 4), (1, 5, 7, 3)):
+    ACC.quad([P[i] for i in q], cat, bw, fit=(1, 1))
+  ACC.end()
+for s in (1, -1):
+  ez = upj_top(5.0) - 2.0
+  box((s * (head_hw(5.0) - 0.15), 5.4, ez), (1.0, 1.3, 1.2), 'eye', {'Head': 1.0})
+  box((s * (head_hw(5.0) - 0.55), 5.4, ez + 1.25), (1.8, 2.6, 1.0), 'camo', {'Head': 1.0})
+
+# ----------------------------------------------------------------------------- legs: rounded tapered limbs + big flat feet
 def claw(x0, x1, y_back, z0, length, height, bone):
   """pentagon-profile claw (DETAIL (FOOT)): flat back, rounded front, pointing -Y"""
   ACC.begin()
   prof2 = [(0, 0), (length, 0), (length, height * 0.45), (length * 0.55, height), (0, height)]
   A = [W(x0, y_back - py, z0 + pz) for py, pz in prof2]
   Bv = [W(x1, y_back - py, z0 + pz) for py, pz in prof2]
-  ACC.quad(list(reversed(Bv)), 'claw', bone, fit=(1, 1))  # side caps
+  ACC.quad(list(reversed(Bv)), 'claw', bone, fit=(1, 1))
   ACC.quad(A, 'claw', bone, fit=(1, 1))
-  for a in range(5):
-    b = (a + 1) % 5
-    if a == 4: continue  # back face buried in the foot
-    ACC.quad([A[a], A[b], Bv[b], Bv[a]], 'claw', bone, fit=(1, 1))
+  for a in range(4):
+    ACC.quad([A[a], A[a + 1], Bv[a + 1], Bv[a]], 'claw', bone, fit=(1, 1))
   ACC.end()
 
-fj, rj = int(FRONT_J), int(REAR_J)
-# shoulder / hip masses (the big rounded limb bulges of the reference) live in the body grid
-def mass(cx, cy, cz, rx, ry, rz):
-  for i in range(int(cx - rx) - 1, int(cx + rx) + 2):
-    for j in range(int(cy - ry) - 1, int(cy + ry) + 2):
-      for k in range(max(0, int(cz - rz) - 1), int(cz + rz) + 2):
-        d = ((i + .5 - cx) / rx) ** 2 + ((j + .5 - cy) / ry) ** 2 + ((k + .5 - cz) / rz) ** 2
-        if d <= 1.0 and (i, j, k) not in body:
-          body[(i, j, k)] = 'tan' if k < 4.5 else ('moss' if rng.random() < 0.08 else 'camo')
-for s in (1, -1):
-  mass(s * 6.8, fj - 0.3, 7.0, 3.9, 4.4, 3.6)
-  mass(s * 6.0, rj, 6.4, 3.5, 4.6, 3.3)
-print('T0', ACC.tris()); greedy(body, spine_w); print('T body', ACC.tris())
-greedy(jaw, lambda p: {'Jaw': 1.0}); print('T jaw', ACC.tris())
-
+LEG = {
+  'front': ([('UpperArm_', [((6.0, fj, 8.4), 3.8, 3.9), ((8.6, fj, 6.4), 3.6, 3.5), ((10.2, fj, 4.6), 3.0, 3.0)]),
+             ('LowerArm_', [((10.2, fj, 5.4), 2.8, 2.9), ((10.3, fj, 2.0), 2.9, 3.0)]),
+             ('Hand_', [((10.3, fj + 2.8, 1.2), 3.3, 1.25), ((10.3, fj, 1.5), 3.7, 1.5), ((10.3, fj - 3.0, 1.2), 3.5, 1.2)])],
+            7.0, fj - 3.2, FRONT_YAW),
+  'rear': ([('Thigh_', [((5.6, rj, 7.6), 3.8, 3.9), ((8.0, rj, 6.0), 3.5, 3.4), ((9.2, rj, 4.4), 2.9, 2.9)]),
+            ('Shin_', [((9.2, rj, 5.0), 2.7, 2.7), ((9.3, rj, 2.0), 2.8, 2.8)]),
+            ('Foot_', [((9.3, rj + 2.8, 1.2), 3.3, 1.25), ((9.3, rj, 1.5), 3.7, 1.5), ((9.3, rj - 3.0, 1.2), 3.5, 1.2)])],
+           6.0, rj - 3.2, REAR_YAW),
+}
 for s, side in ((1, 'L'), (-1, 'R')):
-  upper = box_vox(7, 13, fj - 2, fj + 3, 2, 7, round_=True)
-  lower = box_vox(8, 12, fj - 1, fj + 2, 1, 4)
-  hand = box_vox(7, 14, fj - 3, fj + 3, 0, 2)
-  thigh = box_vox(6, 12, rj - 2, rj + 3, 2, 7, round_=True)
-  shin = box_vox(7, 11, rj - 1, rj + 2, 1, 3)
-  foot = box_vox(6, 13, rj - 3, rj + 3, 0, 2)
-  for group, x0c, base_j, ang in (([(upper, 'UpperArm_', 0.08), (lower, 'LowerArm_', 0.0), (hand, 'Hand_', 0.16)], 7, fj - 3, FRONT_YAW),
-                                   ([(thigh, 'Thigh_', 0.08), (shin, 'Shin_', 0.0), (foot, 'Foot_', 0.16)], 6, rj - 3, REAR_YAW)):
+  for key_, (segs, x0c, base_j, ang) in LEG.items():
     mark = len(ACC.v)
-    for d, b, inf in group:
-      if s < 0: d = mirror(d)
-      greedy(d, (lambda bn: (lambda p: {bn: 1.0}))(b + side), infl=inf)
-    bone = group[-1][1] + side
+    for bn, path in segs:
+      path = [((s * c[0], c[1], c[2]), rx, rz) for c, rx, rz in path]
+      tube(path, 10, 2.6, 'legcamo', bn + side, jit=0.04)
+    bone = segs[-1][0] + side
     for c in range(3):   # claws: 3 per foot, cream, at the front of each foot
-      xa = x0c + 0.4 + c * 2.0; xb = xa + 1.5
+      xa = x0c + 0.4 + c * 2.3; xb = xa + 1.8
       if s < 0: xa, xb = -xb, -xa
-      claw(xa, xb, base_j + 0.6, 0.0, 1.6, 1.9, {bone: 1.0})
+      claw(xa, xb, base_j + 0.8, 0.0, 1.9, 2.2, {bone: 1.0})
     # splay the whole limb around its hip/shoulder (TOP / BOTTOM views: feet point diagonally out)
-    piv = W(*BONES[group[0][1] + side][0]); R = Matrix.Rotation(-s * ang, 3, 'Z')
+    piv = W(*BONES[segs[0][0] + side][0]); R = Matrix.Rotation(-s * ang, 3, 'Z')
     for vi in range(mark, len(ACC.v)): ACC.v[vi] = piv + R @ (ACC.v[vi] - piv)
-    for bn in (g[1] + side for g in group):
+    for bn in (g[0] + side for g in segs):
       h, t, par = BONES[bn]
       rot = lambda q: tuple(((piv + R @ (W(*q) - piv)) - W(0, JOFF, 0)) / U + Vector((0, JOFF, 0)))
       BONES[bn] = (rot(h), rot(t), par)
-
 print('T legs', ACC.tris())
+
 # ----------------------------------------------------------------------------- spikes (mossy stone slabs along the spine + flanks)
 def slab(cx, cy, z0, wx, wy, h, lean=(0, 0), taper=0.72, slope=0.35, bone=None):
   """tapered slab; top is slanted (front lower) like the jagged plates in the reference"""
@@ -330,13 +318,13 @@ def slab(cx, cy, z0, wx, wy, h, lean=(0, 0), taper=0.72, slope=0.35, bone=None):
   ACC.end()
 
 def top_z(j):
-  return prof(ZT, j) if j >= 9 else upj_top(j)
+  return z_surf(j, 0)
 
 CENTRAL = [(8.4, 1.8, 2.6), (11.8, 2.6, 3.0), (15.2, 3.4, 3.4), (18.8, 4.4, 3.8), (22.6, 4.7, 3.8), (26.4, 4.4, 3.6),
            (30.0, 3.9, 3.4), (33.5, 3.3, 3.0), (36.8, 2.8, 2.7), (39.9, 2.4, 2.4), (42.8, 2.1, 2.1), (45.5, 1.8, 1.8),
            (48.0, 1.5, 1.5), (50.3, 1.2, 1.2)]
 for j, h, w in CENTRAL:
-  z0 = top_z(j) - 1.0
+  z0 = top_z(j) - 0.9
   slab(0.0, j, z0, w * 0.95, w * 1.25, h * 1.2 + 1.0, lean=(0, 0.3), slope=0.3)
   if h > 2.2:  # jagged secondary shards next to the big plate (clusters in LEFT SIDE view)
     sx = rng.choice((-0.7, 0.7))
@@ -348,11 +336,11 @@ for j, h, xo in SIDE:
   for s in (1, -1):
     x = s * xo
     hw = prof(HW, j)
-    z0 = prof(ZT, j) - 1.2 - 0.9 * (xo / hw) ** 2 * 1.6
+    z0 = z_surf(j, xo) - 0.9
     slab(x, j, z0, 1.3, 1.7, h + 1.0, lean=(s * 0.4, 0.2), slope=0.35)
 # head crest (FRONT view: central plate + two horns behind the eyes)
 for s in (1, -1):
-  slab(s * 2.4, 8.6, upj_top(8.6) - 0.6, 1.2, 1.5, 2.4, lean=(s * 0.3, 0.3), slope=0.4)
+  slab(s * 2.4, 8.6, z_surf(8.6, 2.4) - 0.6, 1.2, 1.5, 2.4, lean=(s * 0.3, 0.3), slope=0.4)
 
 print('T spikes', ACC.tris())
 # ----------------------------------------------------------------------------- teeth
@@ -372,21 +360,21 @@ def tooth(x, y, zbase, length, down, bone, size=0.85):
 
 for s in (1, -1):
   for n, j in enumerate([0.6, 1.9, 3.2, 4.5, 5.8, 7.1, 8.4]):
-    x = s * (head_hw(j) - 0.55)
+    x = s * (head_hw(j) - 0.7)
     ln = [1.9, 2.2, 1.6, 2.0, 1.5, 1.4, 1.1][n]
     tooth(x, j, upj_bot(j) + 0.2, ln, True, {'Head': 1.0}, 0.9)
   for n, j in enumerate([0.8, 2.1, 3.5, 4.9, 6.3, 7.7]):
-    x = s * (lj_hw(j) - 0.55)
+    x = s * (lj_hw(j) - 0.7)
     ln = [1.6, 2.0, 1.5, 1.7, 1.3, 1.1][n]
-    tooth(x, j, lj_top(j) + 1.0 - 0.1, ln, False, {'Jaw': 1.0}, 0.9)
+    tooth(x, j, lj_top(j) - 0.3, ln, False, {'Jaw': 1.0}, 0.9)
   tooth(s * 1.0, 0.45, upj_bot(0) + 0.2, 1.6, True, {'Head': 1.0}, 0.8)
   tooth(s * 1.0, 0.45, lj_top(0) - 0.1, 1.5, False, {'Jaw': 1.0}, 0.8)
 
 JAW_DROP = math.radians(14)
 piv = W(*BONES['Jaw'][0]); Rj = Matrix.Rotation(JAW_DROP, 3, 'X')
-for fi, bw in enumerate(ACC.bone):
-  if bw == {'Jaw': 1.0}:
-    for vi in ACC.f[fi]: ACC.v[vi] = piv + Rj @ (ACC.v[vi] - piv)
+jaw_v = {vi for fi, bw in enumerate(ACC.bone) if bw == {'Jaw': 1.0} for vi in ACC.f[fi]}
+jaw_v |= {vi for vi, w in ACC.vw.items() if w == {'Jaw': 1.0}}
+for vi in jaw_v: ACC.v[vi] = piv + Rj @ (ACC.v[vi] - piv)
 jt = piv + Rj @ (W(*BONES['Jaw'][1]) - piv)
 BONES['Jaw'] = (BONES['Jaw'][0], tuple((jt - W(0, JOFF, 0)) / U + Vector((0, JOFF, 0))), 'Head')
 print('TRIS', ACC.tris())
@@ -406,7 +394,7 @@ me.validate(); me.update()
 obj = bpy.data.objects.new('GreenDino', me)
 sc.collection.objects.link(obj)
 
-for p in me.polygons: p.use_smooth = False
+for p, sm in zip(me.polygons, ACC.smooth): p.use_smooth = sm
 
 # material
 mat = bpy.data.materials.new('GreenDino_Mat')
@@ -440,10 +428,13 @@ bpy.ops.object.mode_set(mode='OBJECT')
 
 # weights (per-vertex, from each face's bone map; shared positions get identical weights)
 for name in BONES: obj.vertex_groups.new(name=name)
-for poly, bw in zip(me.polygons, ACC.bone):
-  for vi in poly.vertices:
-    for bn, w in bw.items():
-      if w > 1e-3: obj.vertex_groups[bn].add([vi], w, 'REPLACE')
+VW = dict(ACC.vw)
+for fv, bw in zip(ACC.f, ACC.bone):
+  if bw:
+    for vi in fv: VW[vi] = bw
+for vi, bw in VW.items():
+  for bn, w in bw.items():
+    if w > 1e-3: obj.vertex_groups[bn].add([vi], w, 'REPLACE')
 obj.parent = rig
 mod = obj.modifiers.new('Armature', 'ARMATURE'); mod.object = rig
 
