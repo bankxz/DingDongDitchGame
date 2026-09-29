@@ -4,7 +4,7 @@
    "IceDragon_Body",
    "IceDragon_Ice"
   ],
-  "tris": 4896,
+  "tris": 4968,
   "bones": 41,
   "max_influences": 3,
   "actions": {
@@ -32,7 +32,7 @@
    "IceDragon_Body",
    "IceDragon_Ice"
   ],
-  "tris": 4896,
+  "tris": 4968,
   "bones": 41,
   "max_influences": 3,
   "actions": {
@@ -56,7 +56,7 @@
    "IceDragon_Body",
    "IceDragon_Ice"
   ],
-  "tris": 4896,
+  "tris": 4968,
   "bones": 41,
   "max_influences": 3,
   "actions": {
@@ -81,7 +81,7 @@
    "IceDragon_Ice",
    "Icosphere"
   ],
-  "tris": 4976,
+  "tris": 5048,
   "bones": 41,
   "max_influences": 3,
   "actions": {

@@ -39,7 +39,7 @@ views = {
  'persp34': ((22, -22, 12), 'PERSP', 35),
  'closeup': ((9, -14, 9.5), 'PERSP', 45),
  'head_detail': ((11.6, -1.1, 9.2), 'PERSP', 62), 'claw_detail': ((-7.0, -7.5, 1.6), 'PERSP', 75),
- 'heads_front': ((0, -30, 8.3), 'ORTHO', 9.5), 'heads_side': ((30, -3.5, 7.6), 'ORTHO', 7.5), 'ref34': ((24, -14, 9), 'PERSP', 42),
+ 'heads_front': ((0, -30, 8.3), 'ORTHO', 12.5), 'heads_side': ((30, -3.5, 7.6), 'ORTHO', 7.5), 'ref34': ((24, -14, 9), 'PERSP', 42),
 }
 only = os.environ.get('VIEWS')
 for name, (loc, typ, s) in views.items():

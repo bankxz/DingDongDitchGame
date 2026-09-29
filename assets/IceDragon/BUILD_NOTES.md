@@ -17,3 +17,7 @@
   - The claws were rebuilt as chamfered bent blocks with toe blocks, gold chevrons and gems.
   - The side heads now turn further outward.
   - Crystal and tooth faces were wound inside out. Roblox hides backfaces, so these would have looked hollow in Studio. `source/check_normals.py` now checks for this, and it reports 0 inside-out islands.
+- **Round 3 (feedback: eyes, eyebrows, snout width):**
+  - Each eye is now a recessed socket built into the skull: the brow ledge is fused into the cranium cap, the cheek ridge forms the socket floor, and a glowing block sits inside the socket.
+  - The snout was narrowed from 1.66 to 1.25 studs, and the jaw, teeth and gum were narrowed to match.
+  - To stay under 5k tris, I removed the lower-jaw chin sub-block and the small second gold spike on each side.

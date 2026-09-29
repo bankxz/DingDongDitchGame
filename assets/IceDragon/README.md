@@ -15,7 +15,7 @@ It uses the Roblox stud look (the studs are texture, not geometry).
 | `validation/` | Renders compared with the reference, and animation contact sheets. |
 
 ## Stats
-- **4,896 triangles** (the limit is 5,000). `IceDragon_Body` has 3,344 and `IceDragon_Ice` has 1,552.
+- **4,968 triangles** (the limit is 5,000). `IceDragon_Body` has 3,392 and `IceDragon_Ice` has 1,576.
 - **41 bones**, with at most 3 weights per vertex:
   - Root, Torso, Pelvis
   - 3 necks × 3 bones, plus Head and Jaw for each head
@@ -52,8 +52,12 @@ The stud relief comes from [dudeax/Roblox-HD-Studs](https://github.com/dudeax/Ro
 
 ## Heads and claws (matched to the HEAD / EYE and CLAW / FOOT close-ups)
 - **Heads** are built from blocks:
-  - a flat navy skull and a blunt box snout, with a lighter bridge plate and a nose block with nostrils
-  - a heavy angry V-brow over a glowing slit eye at the front corner
+  - a flat navy skull: a narrower core under a full-width cranium cap
+  - a blunt box snout about 60% as wide as the skull, with a lighter bridge plate and a nose block with nostrils
+  - an eye socket cut into each side of the skull:
+    - a brow ledge that grows out of the cranium cap forms the top, overhangs the eye, slopes down toward the front (the angry slant) and rises at the outside (the V seen from the front)
+    - a cheek ridge flush with the skull side forms the bottom
+    - the glow sits recessed in the socket and wraps around the front corner, so the eyes show head-on too
   - a white gum line with big white fangs, including a long pair at the front corners
   - stacked white cheek blocks at the mouth corner
   - a white blocky lower jaw with a chin block and upward fangs, open about 38°, with a red mouth and tongue

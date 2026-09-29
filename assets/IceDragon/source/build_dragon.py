@@ -359,7 +359,7 @@ def gold_spike(base, dirv, length, width, wt):
 
 def build_head(k):
     """Blocky head per the HEAD / EYE DETAIL close-up: flat navy skull, blunt box snout,
-    angry V brow over a glowing slit eye, white gum line with big fangs, white cheek
+    brow ledge fused into the cranium over a recessed glowing eye socket, white gum line with big fangs, white cheek
     blocks, white blocky lower jaw with red mouth, gold horns, ice mane."""
     base = NECKS[k][3]
     d, s, u = head_frame(k)
@@ -369,45 +369,51 @@ def build_head(k):
     def hbox(c, size, slot, rot=None, taper=1.0, slots=None):
         box(BODY, P(*c), [v * HS for v in size], slot, hw, R @ (rot or Matrix.Identity(3)), taper, slots)
     BOT, TOP, BACK, SIDE_P, FRONT, SIDE_N = range(6)
-    # skull + snout (roof of mouth is red)
-    hbox((0, 0.45, 0.26), (2.1, 1.6, 1.05), 'navy', taper=0.88, slots={BOT: 'red'})
-    hbox((0, 2.0, 0.08), (1.66, 1.9, 0.74), 'navy', taper=0.9, slots={BOT: 'red'},
-         rot=Matrix.Rotation(0.1, 3, 'X'))                                   # snout, nose tipped down
-    hbox((0, 2.9, 0.1), (1.3, 0.3, 0.52), 'navy', taper=0.85)                 # blunt nose block
-    hbox((0, 1.5, 0.52), (1.1, 1.3, 0.3), 'royal', taper=0.8)                 # lighter bridge plate
+    # --- skull: narrower core + full-width cranium cap; the eye sockets are the gap
+    #     between the cap/brow ledge and the cheek ridge, cut into the core's sides
+    hbox((0, 0.4, 0.2), (1.7, 1.7, 1.0), 'navy', taper=0.95, slots={BOT: 'red'})         # core
+    hbox((0, 0.3, 0.78), (2.0, 1.5, 0.36), 'navy', taper=0.85)                          # cranium cap
+    # --- snout: ~60 % of skull width, nose tipped down
+    hbox((0, 2.0, 0.08), (1.25, 1.9, 0.74), 'navy', taper=0.9, slots={BOT: 'red'},
+         rot=Matrix.Rotation(0.1, 3, 'X'))
+    hbox((0, 2.9, 0.1), (1.0, 0.3, 0.52), 'navy', taper=0.85)                           # blunt nose block
+    hbox((0, 1.5, 0.5), (0.8, 1.3, 0.3), 'royal', taper=0.8)                            # lighter bridge plate
     # white gum line along the upper jaw edge
-    hbox((0, 1.85, -0.34), (1.74, 2.3, 0.2), 'white', slots={BOT: 'red'})
+    hbox((0, 1.85, -0.34), (1.32, 2.3, 0.2), 'white', slots={BOT: 'red'})
     for sg in (1, -1):
-        # angry V brow: outer end high, inner end low
-        hbox((0.52 * sg, 0.98, 0.84), (0.98, 0.62, 0.38), 'navy', rot=Matrix.Rotation(-0.48 * sg, 3, 'Y'))
-        hbox((0.9 * sg, 0.45, 0.72), (0.4, 0.8, 0.5), 'royal')                 # upper cheek plate
-        # glowing slit eye tucked under the brow
-        gem_plate(GLOW, P(0.6 * sg, 1.3, 0.6), d * 0.75 + s * sg * 0.65, u + s * 0.4 * sg, 0.36 * HS, 0.15 * HS, 0.08 * HS, hw, slot='eye')
+        # brow ledge: grows out of the cranium cap, overhangs the socket, slopes down to the
+        # front (angry slant) and rises to the outside (V seen from the front)
+        tilt = Matrix.Rotation(-0.24, 3, 'X') @ Matrix.Rotation(-0.44 * sg, 3, 'Y')
+        hbox((0.62 * sg, 0.98, 0.74), (0.9, 1.25, 0.4), 'navy', rot=tilt, taper=0.92)
+        # cheek ridge: the socket floor, flush with the skull side, lighter plate at the front
+        hbox((0.8 * sg, 0.72, 0.06), (0.46, 1.35, 0.38), 'navy', rot=Matrix.Rotation(-0.12, 3, 'X'))
+        hbox((0.78 * sg, 1.42, 0.02), (0.36, 0.42, 0.34), 'royal')
+        # recessed glow filling the socket; opens at the front corner so it reads head-on
+        box(GLOW, P(0.72 * sg, 1.32, 0.35), [0.28 * HS, 0.7 * HS, 0.26 * HS], 'eye', hw,
+            R @ Matrix.Rotation(-0.2, 3, 'X'), 0.9)
         # white cheek blocks at the mouth corner (two stacked, as in the close-up)
         hbox((0.93 * sg, 0.35, -0.2), (0.42, 0.95, 0.9), 'white')
         hbox((0.86 * sg, 0.85, -0.55), (0.36, 0.6, 0.5), 'white')
         # nostrils
-        hbox((0.33 * sg, 2.72, 0.42), (0.22, 0.22, 0.1), 'dark', rot=Matrix.Rotation(0.1, 3, 'X'))
+        hbox((0.28 * sg, 2.72, 0.42), (0.2, 0.2, 0.1), 'dark', rot=Matrix.Rotation(0.1, 3, 'X'))
         # gold horn spikes at the back of the skull
-        gold_spike(P(0.72 * sg, -0.05, 0.9), R @ V((0.45 * sg, -0.75, 0.6)), 0.6 * HS, 0.3 * HS, hw)
-        gold_spike(P(0.9 * sg, 0.35, 0.85), R @ V((0.8 * sg, -0.4, 0.6)), 0.4 * HS, 0.24 * HS, hw)
+        gold_spike(P(0.78 * sg, -0.05, 0.92), R @ V((0.55 * sg, -0.75, 0.6)), 0.65 * HS, 0.34 * HS, hw)
         # upper fangs hanging from the gum line (big pair at the front corners)
-        for y, L, x in ((1.0, 0.42, 0.74), (1.5, 0.64, 0.74), (2.0, 0.46, 0.72), (2.55, 0.8, 0.66), (2.88, 0.4, 0.28)):
+        for y, L, x in ((1.0, 0.42, 0.62), (1.5, 0.64, 0.58), (2.0, 0.46, 0.55), (2.55, 0.8, 0.5), (2.88, 0.4, 0.2)):
             shard_tooth(P(x * sg, y, -0.42), -u + d * 0.08, L * HS, 0.3 * HS, hw)
     if k == 'C':  # gold horn in the middle of the forehead
         gold_spike(P(0, 1.25, 0.95), R @ V((0, 0.35, 1)), 0.55 * HS, 0.26 * HS, hw)
     # mouth interior / tongue joining the jaws
-    hbox((0, 0.85, -0.62), (1.4, 1.3, 0.55), 'red')
+    hbox((0, 0.85, -0.62), (1.15, 1.3, 0.55), 'red')
     # lower jaw: white block, red top, hinged open ~38 deg
     hinge = BONES[f'Jaw{k}'][0]
     jd = (BONES[f'Jaw{k}'][1] - hinge).normalized(); ju = s.cross(jd).normalized()
     RJ = Matrix((s, jd, ju)).transposed()
     J = lambda x, y, z: hinge + RJ @ (V((x, y, z)) * HS)
-    box(BODY, J(0, 1.2, -0.12), [1.56 * HS, 2.55 * HS, 0.48 * HS], 'white', jw, RJ, 1.0, {TOP: 'red'})
-    box(BODY, J(0, 1.35, -0.4), [1.1 * HS, 1.9 * HS, 0.22 * HS], 'white', jw, RJ, 0.9)          # chin block
+    box(BODY, J(0, 1.2, -0.12), [1.3 * HS, 2.55 * HS, 0.48 * HS], 'white', jw, RJ, 1.0, {TOP: 'red'})
     for sg in (1, -1):
-        box(BODY, J(0.72 * sg, 1.2, 0.14), [0.16 * HS, 2.5 * HS, 0.12 * HS], 'white', jw, RJ)     # lower gum rim
-        for y, L, x in ((0.6, 0.38, 0.66), (1.15, 0.48, 0.66), (1.75, 0.55, 0.62), (2.3, 0.42, 0.3)):
+        box(BODY, J(0.59 * sg, 1.2, 0.14), [0.16 * HS, 2.5 * HS, 0.12 * HS], 'white', jw, RJ)     # lower gum rim
+        for y, L, x in ((0.6, 0.38, 0.55), (1.15, 0.48, 0.54), (1.75, 0.55, 0.5), (2.3, 0.42, 0.22)):
             shard_tooth(J(x * sg, y, 0.18), ju + jd * 0.05, L * HS, 0.28 * HS, jw)
     # chin icicle
     shard(GLOW, J(0, 1.7, -0.5), -ju + jd * 0.25, 1.0 * HS, 0.34 * HS, jw, twist=0.78)
