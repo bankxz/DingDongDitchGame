@@ -358,17 +358,34 @@ def tooth(x, y, zbase, length, down, bone, size=0.85):
   ACC.quad(tp if down else tp[::-1], 'tooth', bone, fit=(1, 1))
   ACC.end()
 
+def se_height(hw, zb, zt, e, x, top):
+  u = min(0.999, abs(x) / hw); zc, hh = (zb + zt) / 2, (zt - zb) / 2
+  return zc + (1 if top else -1) * hh * (1 - u ** e) ** (1 / e)
+def upper_under(j, x):   # underside of the upper jaw loft
+  hw, zb, zt, e = ring_params(j); return se_height(hw, zb, zt, e, x, False)
+def lower_top(j, x):     # top of the lower jaw loft
+  return se_height(lj_hw(j - .5), lj_bot(j - .5), lj_top(j - .5), 3.2, x, True)
+EMBED = 0.55             # teeth roots sink this far into the gum -> no gap, even with loft facets/jitter
+def seat_tooth(j, x, ln, down, size):
+  hs = size / 2
+  surf = [f(j + dj, x + dx) for dj in (-hs, hs) for dx in (-hs, hs)
+          for f in ((upper_under,) if down else (lower_top,))]
+  if down:
+    base = max(surf) + EMBED; tip = min(surf) - ln
+    tooth(x, j, base, base - tip, True, spine_w(W(x, j, base)), size)   # same blend as the gum it sits in
+  else:
+    base = min(surf) - EMBED; tip = max(surf) + ln
+    tooth(x, j, base, tip - base, False, {'Jaw': 1.0}, size)
+
 for s in (1, -1):
-  for n, j in enumerate([0.6, 1.9, 3.2, 4.5, 5.8, 7.1, 8.4]):
-    x = s * (head_hw(j) - 0.7)
-    ln = [1.9, 2.2, 1.6, 2.0, 1.5, 1.4, 1.1][n]
-    tooth(x, j, upj_bot(j) + 0.2, ln, True, {'Head': 1.0}, 0.9)
-  for n, j in enumerate([0.8, 2.1, 3.5, 4.9, 6.3, 7.7]):
-    x = s * (lj_hw(j) - 0.7)
-    ln = [1.6, 2.0, 1.5, 1.7, 1.3, 1.1][n]
-    tooth(x, j, lj_top(j) - 0.3, ln, False, {'Jaw': 1.0}, 0.9)
-  tooth(s * 1.0, 0.45, upj_bot(0) + 0.2, 1.6, True, {'Head': 1.0}, 0.8)
-  tooth(s * 1.0, 0.45, lj_top(0) - 0.1, 1.5, False, {'Jaw': 1.0}, 0.8)
+  for n, j in enumerate([0.9, 2.1, 3.3, 4.5, 5.7, 6.9, 8.1]):
+    x = s * (ring_params(j)[0] - 0.75)
+    seat_tooth(j, x, [1.9, 2.2, 1.6, 2.0, 1.5, 1.4, 1.1][n], True, 0.9)
+  for n, j in enumerate([1.0, 2.3, 3.6, 4.9, 6.2, 7.5]):
+    x = s * (lj_hw(j - .5) - 0.75)
+    seat_tooth(j, x, [1.6, 2.0, 1.5, 1.7, 1.3, 1.1][n], False, 0.9)
+  seat_tooth(0.6, s * 1.0, 1.6, True, 0.8)
+  seat_tooth(0.7, s * 1.0, 1.5, False, 0.8)
 
 JAW_DROP = math.radians(14)
 piv = W(*BONES['Jaw'][0]); Rj = Matrix.Rotation(JAW_DROP, 3, 'X')

@@ -43,36 +43,24 @@ def noise_fill(d, box, col, amt=10):
         f = 1 + rng.uniform(-amt, amt) / 255 * 2.2
         d.point((x, y), fill=mul(col, f))
 
+def inlet(d, cx, cy, sz, col):
+  """Roblox inlet stud (see stud reference images): recessed square, dark top wall, light bottom wall"""
+  a0, b0, a1, b1 = cx - sz // 2, cy - sz // 2, cx + sz // 2, cy + sz // 2
+  d.rectangle([a0, b0, a1, b1], fill=mul(col, 0.94))                 # recessed floor
+  d.rectangle([a0, b0, a1, b0 + 1], fill=mul(col, 0.66))             # top wall in shadow
+  d.rectangle([a0, b0, a0 + 1, b1], fill=mul(col, 0.76))             # left wall
+  d.rectangle([a0 + 1, b1 - 1, a1, b1], fill=mul(col, 1.13))         # bottom wall catches light
+  d.rectangle([a1 - 1, b0 + 1, a1, b1], fill=mul(col, 1.05))         # right wall
+
 def block(d, x0, y0, w, h, col, moss=0.0, stud=True):
-  """one studded block occupying w*h px starting at x0,y0"""
-  x1, y1 = x0 + w - 1, y0 + h - 1
-  d.rectangle([x0, y0, x1, y1], fill=col)
-  noise_fill(d, (x0, y0, x1 + 1, y1 + 1), col)
-  if moss > 0:
-    mc = hx(rng.choice(['#62902a', '#74a032', '#557f26']))
-    for _ in range(int(w * h * moss / 6)):
-      mx, my = rng.randint(x0, x1), rng.randint(y0, y0 + h // 2)
-      r = rng.randint(1, 3)
-      d.ellipse([mx - r, my - r, mx + r, my + r], fill=mc)
-  # bevel: light top/left, dark bottom/right, dark gap line
-  d.line([x0 + 1, y0 + 1, x1 - 1, y0 + 1], fill=mul(col, 1.28))
-  d.line([x0 + 1, y0 + 1, x0 + 1, y1 - 1], fill=mul(col, 1.18))
-  d.line([x0 + 1, y1 - 1, x1 - 1, y1 - 1], fill=mul(col, 0.62))
-  d.line([x1 - 1, y0 + 1, x1 - 1, y1 - 1], fill=mul(col, 0.7))
-  d.rectangle([x0, y0, x1, y1], outline=mul(col, 0.38))
-  if stud:
-    s = max(8, int(min(w, h) * 0.34))
-    cx, cy = x0 + w // 2, y0 + h // 2
-    a0, b0, a1, b1 = cx - s // 2, cy - s // 2, cx + s // 2, cy + s // 2
-    d.rectangle([a0 + 2, b0 + 2, a1 + 2, b1 + 2], fill=mul(col, 0.72))  # drop shadow
-    d.rectangle([a0, b0, a1, b1], fill=mul(col, 1.06))
-    d.line([a0, b0, a1, b0], fill=mul(col, 1.32)); d.line([a0, b0, a0, b1], fill=mul(col, 1.25))
-    d.line([a0, b1, a1, b1], fill=mul(col, 0.66)); d.line([a1, b0, a1, b1], fill=mul(col, 0.7))
+  """one stud cell: flat colour (no outline, like the reference) + centred inlet"""
+  d.rectangle([x0, y0, x0 + w - 1, y0 + h - 1], fill=col)
+  if stud: inlet(d, x0 + w // 2, y0 + h // 2, max(10, int(min(w, h) * 0.42)), col)
 
 def patch_blocks(d, px, py, cat, big=0.35, moss=0.0):
   ox, oy = px * P * B, py * P * B
   used = [[False] * P for _ in range(P)]
-  if rng.random() < big:  # one 2x2 chunky block, like the shoulder plates in the ref
+  if False:  # single-size cells only (inlet grid is regular in the stud reference)
     bx, by = rng.randint(0, P - 2), rng.randint(0, P - 2)
     for a in range(2):
       for b in range(2): used[by + b][bx + a] = True
@@ -85,53 +73,22 @@ def patch_blocks(d, px, py, cat, big=0.35, moss=0.0):
       block(d, ox + bx * B, oy + by * B, B, B, col, m)
 
 def stone_patch(d, px, py):
-  """spike slab: tall stone faces, cracks, moss at the base (see DETAIL (SPIKES))"""
-  ox, oy = px * P * B, py * P * B; W = P * B
+  """spike slab: flat stone with the same inlet studs; moss shows as whole green cells near the base"""
+  ox, oy = px * P * B, py * P * B
   base = hx(rng.choice(['#b39c80', '#a8977f', '#9c8c78', '#bba486']))
-  d.rectangle([ox, oy, ox + W - 1, oy + W - 1], fill=base)
-  noise_fill(d, (ox, oy, ox + W, oy + W), base, 14)
-  cols = rng.choice([2, 2, 3])
-  xs = sorted(rng.sample(range(24, W - 24), cols - 1)) if cols > 1 else []
-  edges = [0] + xs + [W]
-  for a, b in zip(edges, edges[1:]):
-    c = mul(base, rng.uniform(0.86, 1.08))
-    d.rectangle([ox + a, oy, ox + b - 1, oy + W - 1], fill=c)
-    noise_fill(d, (ox + a, oy, ox + b, oy + W), c, 14)
-    d.line([ox + a + 1, oy, ox + a + 1, oy + W], fill=mul(c, 1.22))
-    d.line([ox + b - 2, oy, ox + b - 2, oy + W], fill=mul(c, 0.62))
-    d.line([ox + b - 1, oy, ox + b - 1, oy + W], fill=mul(c, 0.4))
-    # a couple of studs per slab
-    for _ in range(rng.randint(1, 2)):
-      cx = ox + (a + b) // 2 + rng.randint(-4, 4); cy = oy + rng.randint(20, W - 30); s = 10
-      d.rectangle([cx - s // 2 + 2, cy - s // 2 + 2, cx + s // 2 + 2, cy + s // 2 + 2], fill=mul(c, 0.72))
-      d.rectangle([cx - s // 2, cy - s // 2, cx + s // 2, cy + s // 2], fill=mul(c, 1.05))
-      d.line([cx - s // 2, cy - s // 2, cx + s // 2, cy - s // 2], fill=mul(c, 1.3))
-      d.line([cx + s // 2, cy - s // 2, cx + s // 2, cy + s // 2], fill=mul(c, 0.68))
-  # horizontal cracks
-  for _ in range(rng.randint(1, 3)):
-    y = oy + rng.randint(15, W - 15)
-    d.line([ox + rng.randint(0, 40), y, ox + rng.randint(60, W), y + rng.randint(-3, 3)], fill=mul(base, 0.55))
-  # moss at base + streaks, like the reference
-  mcs = [hx('#5f8a2a'), hx('#76a034'), hx('#4a6e22')]
-  for _ in range(110):
-    mx = ox + rng.randint(0, W - 1)
-    my = oy + int(W - abs(rng.gauss(0, 30)))
-    r = rng.randint(2, 5); d.ellipse([mx - r, my - r, mx + r, my + r], fill=rng.choice(mcs))
-  for _ in range(rng.randint(1, 3)):
-    mx = ox + rng.randint(10, W - 10); my = oy + rng.randint(10, W // 2)
-    for k in range(18):
-      r = rng.randint(2, 4)
-      d.ellipse([mx - r, my + k * 2 - r, mx + r + rng.randint(0, 3), my + k * 2 + r], fill=rng.choice(mcs))
+  for by in range(P):
+    for bx in range(P):
+      c = base
+      if rng.random() < 0.12 + 0.22 * (by / (P - 1)): c = hx(rng.choice(['#5f8a2a', '#6f9a30', '#4f7424']))
+      block(d, ox + bx * B, oy + by * B, B, B, c)
 
 def smooth_patch(d, px, py, col, dark, stud=True):
   """teeth / claws: one smooth cream element with a soft gradient and a single stud"""
   ox, oy = px * P * B, py * P * B; W = P * B
   for y in range(W):
     t = y / W
-    d.line([ox, oy + y, ox + W - 1, oy + y], fill=mix(col, dark, t * 0.55))
-  noise_fill(d, (ox, oy, ox + W, oy + W), col, 6)
-  d.rectangle([ox, oy, ox + W - 1, oy + W - 1], outline=mul(dark, 0.8))
-  if stud:
+    d.line([ox, oy + y, ox + W - 1, oy + y], fill=mix(col, dark, t * 0.25))
+  if stud and False:
     for (cx, cy) in [(W // 2, W // 2)]:
       s = 22; a0, b0 = ox + cx - s // 2, oy + cy - s // 2
       d.rectangle([a0 + 3, b0 + 3, a0 + s + 3, b0 + s + 3], fill=mul(col, 0.8))
@@ -164,9 +121,9 @@ d = ImageDraw.Draw(img)
 for cat, ids in LAYOUT.items():
   for p in ids:
     px, py = p % 8, p // 8
-    if cat == 'camo':      patch_blocks(d, px, py, 'camo', 0.4, moss=0.7 if rng.random() < 0.35 else 0)
-    elif cat == 'camomoss': patch_blocks(d, px, py, 'camo', 0.3, moss=1.5)
-    elif cat == 'legcamo': patch_blocks(d, px, py, 'legcamo', 0.3, moss=0.5 if rng.random() < 0.3 else 0)
+    if cat == 'camo':      patch_blocks(d, px, py, 'camo', 0)
+    elif cat == 'camomoss': patch_blocks(d, px, py, 'camo', 0)
+    elif cat == 'legcamo': patch_blocks(d, px, py, 'legcamo', 0)
     elif cat == 'cream':   patch_blocks(d, px, py, 'cream', 0.25)
     elif cat == 'tan':     patch_blocks(d, px, py, 'tan', 0.3)
     elif cat in ('red', 'tongue', 'darkred', 'dark'): patch_blocks(d, px, py, cat, 0.2)

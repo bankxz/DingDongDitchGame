@@ -21,7 +21,10 @@ A green crocodile-dinosaur rebuilt from the reference sheet as smooth, rounded l
 - The body, head and tail are one continuous smooth loft (welded vertices, smooth shading), with weights blending along the spine. The lower jaw and each limb segment are rounded tapered tubes bound rigidly to one bone.
 
 ## Stud texture
-The studs are **painted into the texture, not modelled**. Every block in the atlas has a bevel and a centred raised square stud, matching Roblox's current square stud style. Camo, cream, tan, red mouth and mossy stone patches are packed into 4×4-block tiles. Each surface quad is mapped to whole blocks along its own edges, so the stud rows follow the curve of the body.
+The studs are **painted into the texture, not modelled**. They copy the stud reference images: Roblox "inlet" studs. Every cell is flat colour with no outline, plus a centred recessed square (about 42% of the cell) with a dark shadowed top wall, a darker left wall, a lit bottom wall and a slightly darker floor. Camo, cream, tan, red mouth and stone (with whole moss-green cells) are packed into 4×4-cell tiles. Each surface quad is mapped to whole cells along its own edges, so the stud rows follow the curve of the body. Teeth and claws are plain, as in the reference.
+
+## Teeth
+Each tooth's root is placed from the actual jaw surface height under all four of its base corners, then sunk 0.55 cells into the gum, so no gap shows. A check that ray-tests all 30 tooth roots against the jaw meshes passes (0 roots outside). Upper teeth use the same bone blend as the gum they sit in, so they stay seated while animating.
 
 ## Roblox import
 1. **3D Importer**: `GreenDino.fbx`. Rig type is auto-detected as a custom rig and the texture is embedded.

@@ -48,6 +48,7 @@ VIEWS = {  # name: (location, target, lens, ortho_scale or None, aspect)
   'hero':   (Vector((11, -11, 3.6)), Vector((0, -0.5, 1.8)), 42, None, (16, 9)),
   'idle34': (Vector((12, -9, 4.0)), Vector((0, 0.3, 1.8)), 45, None, (4, 3)),
   'legzoom': (Vector((9, -3.6, 1.6)), Vector((2.2, -2.0, 1.2)), 40, None, (4, 3)),
+  'mouthlow': (Vector((4.5, -9.5, 1.2)), Vector((0, -4.5, 1.6)), 45, None, (4, 3)),
   'headside': (Vector((6.5, -5.0, 3.6)), Vector((0, -4.8, 3.0)), 50, None, (3, 4)),
   'headfront': (Vector((1.2, -12.0, 3.6)), Vector((0, -5, 3.2)), 60, None, (3, 4)),
 }
