@@ -56,8 +56,8 @@ def draw_cell(x0, y0, base, glow_edges=False, n_studs=1):
     yy, xx = np.mgrid[0:c, 0:c] + 0.5
     # bevelled block: height falls off near the edges
     d = np.minimum(np.minimum(xx, c - xx), np.minimum(yy, c - yy))
-    h = np.clip(d / 8.0, 0, 1) ** 0.6 * 0.6
-    tint = base * (1 + rng.uniform(-0.14, 0.12))
+    h = np.clip(d / 3.0, 0, 1) ** 0.6 * 0.6
+    tint = base * (1 + rng.uniform(-0.06, 0.05))
     cc = np.ones((c, c, 3)) * tint
     # subtle large-scale mottling
     cc *= (1 + 0.04 * np.sin(xx / 9 + rng.uniform(0, 6)) * np.cos(yy / 11 + rng.uniform(0, 6)))[..., None]
@@ -83,9 +83,9 @@ def draw_cell(x0, y0, base, glow_edges=False, n_studs=1):
         else:
             ao *= 1 - 0.25 * np.clip(1 - np.maximum(sd, 0) / 4, 0, 1) * (sd > 0)
     # dark seam line on the outermost pixels
-    seam = (d < 2.2)
-    cc[seam] *= 0.35
-    cc *= (0.8 + 0.2 * np.clip(d / 8.0, 0, 1))[..., None]
+    seam = (d < 1.2)
+    cc[seam] *= 0.82
+    cc *= (0.94 + 0.06 * np.clip(d / 6.0, 0, 1))[..., None]
     cc *= ao[..., None]
     col[y0:y0 + c, x0:x0 + c] = cc
     height[y0:y0 + c, x0:x0 + c] = h
@@ -103,7 +103,7 @@ for j in range(16):
     for i in range(10):
         base = NAVY if rng.random() < 0.55 else NAVY_ALT[rng.integers(0, len(NAVY_ALT))]
         n = 1 if rng.random() < 0.8 else 2
-        draw_cell(i * CELL, j * CELL, base, glow_edges=rng.random() < 0.05, n_studs=n)
+        draw_cell(i * CELL, j * CELL, base, glow_edges=rng.random() < 0.025, n_studs=n)
 # tan region
 for j in range(9):
     for i in range(6):

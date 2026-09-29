@@ -25,7 +25,7 @@ ROOT = os.path.dirname(HERE)
 TEX = os.path.join(ROOT, "textures")
 S_OFF = 14.0
 Z_SCALE = 0.92  # measured reference back-height / length ratio
-DENSITY = float(os.environ.get("DINO_DENSITY", "1.0"))
+DENSITY = float(os.environ.get("DINO_DENSITY", "0.5"))
 TRI_BUDGET = 4990
 
 rng = random.Random(11)
@@ -66,7 +66,7 @@ PRIMS = []
 
 
 def add_prim(verts, faces, group, bone, mirror):
-    PRIMS.append(dict(verts=verts, faces=faces, group=group, bone=bone, mirror=mirror))
+    PRIMS.append(dict(verts=verts, faces=faces, group=group, bone=bone, mirror=mirror, smooth=False))
 
 
 IDENT = lambda v: v
@@ -190,82 +190,6 @@ def pyramid(base, d, length, half, bone, mat="bone", mirror=False, sides=4, grou
     add_prim(verts, faces, group, bone, mirror)
 
 
-# --------------------------------------------------------------------------
-# surface block scatter (the lumpy voxel silhouette of the reference)
-# --------------------------------------------------------------------------
-def scatter(x0, x1, y0, y1, z0, z1, faces, bone, frame=IDENT, p=0.5, tan_p=0.15, taper=(1, 1),
-            step=1.3, half=False, mirror=False, out=(0.2, 0.75), size=(0.9, 1.5), ylim=None):
-    p *= DENSITY
-    cx, cz = (x0 + x1) / 2, (z0 + z1) / 2
-
-    def ext(y):
-        f = (y - y0) / max(y1 - y0, 1e-6)
-        sx = 1 + (taper[0] - 1) * f
-        sz = 1 + (taper[1] - 1) * f
-        return (cx - (cx - x0) * sx, cx + (x1 - cx) * sx, cz - (cz - z0) * sz, cz + (z1 - cz) * sz)
-
-    def frange(a, b):
-        n = max(1, int((b - a) / step))
-        st = (b - a) / n
-        return [a + st * (i + 0.5) for i in range(n)]
-
-    for face in faces:
-        yr = ylim or (y0, y1)
-        if face in ("+z", "-z"):
-            xa = (0.0, x1) if half else (x0, x1)
-            grid = [(a, b) for a in frange(*xa) for b in frange(*yr)]
-        elif face in ("+x", "-x"):
-            grid = [(a, b) for a in frange(*yr) for b in frange(z0, z1)]
-        else:
-            xa = (0.0, x1) if half else (x0, x1)
-            grid = [(a, b) for a in frange(*xa) for b in frange(z0, z1)]
-        for a, b in grid:
-            if rng.random() > p:
-                continue
-            a += rng.uniform(-0.2, 0.2)
-            b += rng.uniform(-0.2, 0.2)
-            sa, sb = rng.uniform(*size), rng.uniform(*size)
-            if rng.random() < 0.18:
-                sa *= 1.6
-            sn = rng.uniform(0.8, 1.15)
-            o = rng.uniform(*out)
-            mat = "tan" if rng.random() < tan_p else "navy"
-            mir = mirror
-            if face in ("+z", "-z"):
-                x, y = a, b
-                ex = ext(y)
-                zf = ex[3] if face == "+z" else ex[2]
-                if half:
-                    if abs(x) < 0.5:
-                        x, mir = 0.0, False
-                    else:
-                        mir = True
-                zc = zf + (o - sn / 2) * (1 if face == "+z" else -1)
-                bx = (x - sa / 2, x + sa / 2, y - sb / 2, y + sb / 2, zc - sn / 2, zc + sn / 2)
-            elif face in ("+x", "-x"):
-                y, z = a, b
-                ex = ext(y)
-                xf = ex[1] if face == "+x" else ex[0]
-                if z + sb / 2 > ex[3] + 0.3 or z - sb / 2 < ex[2] - 0.3:
-                    continue
-                xc = xf + (o - sn / 2) * (1 if face == "+x" else -1)
-                bx = (xc - sn / 2, xc + sn / 2, y - sa / 2, y + sa / 2, z - sb / 2, z + sb / 2)
-                if half:
-                    mir = True
-            else:
-                x, z = a, b
-                yf = y1 if face == "+y" else y0
-                ex = ext(yf)
-                if half:
-                    if abs(x) < 0.5:
-                        x, mir = 0.0, False
-                    else:
-                        mir = True
-                yc = yf + (o - sn / 2) * (1 if face == "+y" else -1)
-                bx = (x - sa / 2, x + sa / 2, yc - sn / 2, yc + sn / 2, z - sb / 2, z + sb / 2)
-            box(*bx, mat=mat, bone=bone, frame=frame, skip=(OPP[face],), mirror=mir)
-
-
 # ==========================================================================
 # THE DINOSAUR  (x, s, z)   s = 0 at snout tip, grows toward the tail
 # ==========================================================================
@@ -273,171 +197,298 @@ def V(x, s, z):
     return Vector((x, s, z))
 
 
-def tan_cluster(xf, cells, bone, mat="tan", out=(0.3, 0.6)):
-    """Irregular stacked tan armour made of blocks on an outward (+x) face."""
-    for (s, z) in cells:
-        sa, sb, sn = rng.uniform(1.0, 1.25), rng.uniform(1.0, 1.2), rng.uniform(0.8, 1.0)
+# ---------------- lofted (rounded) forms -------------------------------------
+class Loft:
+    """Elliptical tube through ring centres; rings = [(centre, rx, rw, weights)]."""
+
+    def __init__(self, rings, sides):
+        self.rings, self.sides = rings, sides
+        self.frames = []
+        n = len(rings)
+        for k, (c, rx, rw, wts) in enumerate(rings):
+            a = rings[max(k - 1, 0)][0]
+            b = rings[min(k + 1, n - 1)][0]
+            t = (b - a).normalized()
+            u = Vector((1, 0, 0))
+            u = (u - t * u.dot(t)).normalized()
+            w = u.cross(t)
+            if w.z < -0.5 or (abs(w.z) < 0.5 and w.y < 0):
+                w = -w
+            self.frames.append((t, u, w))
+
+    def angle(self, j):
+        return math.pi / 2 + math.pi / self.sides + j * math.tau / self.sides
+
+    def point(self, kf, a, out=0.0):
+        """surface point, outward normal and tangent at fractional ring index kf, angle a."""
+        k = min(int(kf), len(self.rings) - 2)
+        f = kf - k
+        pts, nrm, tng = [], [], []
+        for kk in (k, k + 1):
+            c, rx, rw, _ = self.rings[kk]
+            t, u, w = self.frames[kk]
+            pts.append(c + u * (rx * math.cos(a)) + w * (rw * math.sin(a)))
+            nrm.append((u * (math.cos(a) / max(rx, 1e-3)) + w * (math.sin(a) / max(rw, 1e-3))).normalized())
+            tng.append(t)
+        p = pts[0].lerp(pts[1], f)
+        n = nrm[0].lerp(nrm[1], f).normalized()
+        t = tng[0].lerp(tng[1], f).normalized()
+        return p + n * out, n, t
+
+    def weights_at(self, kf):
+        return self.rings[min(int(round(kf)), len(self.rings) - 1)][3]
+
+
+def loft(L, mat, group="body", mirror=False, cap0=False, cap1=False, frame=IDENT, matfn=None):
+    rings, S = L.rings, L.sides
+    verts, weights, faces = [], [], []
+    for k, (c, rx, rw, wts) in enumerate(rings):
+        t, u, w = L.frames[k]
+        for j in range(S):
+            a = L.angle(j)
+            verts.append(c + u * (rx * math.cos(a)) + w * (rw * math.sin(a)))
+            weights.append(wts)
+    for k in range(len(rings) - 1):
+        for j in range(S):
+            j1 = (j + 1) % S
+            ids = (k * S + j, k * S + j1, (k + 1) * S + j1, (k + 1) * S + j)
+            m = matfn(k, j) if matfn else mat
+            wd = (verts[ids[1]] - verts[ids[0]]).length
+            ht = (verts[ids[3]] - verts[ids[0]]).length
+            faces.append((ids, cell_uvs(m, wd, ht)))
+    # make winding outward
+    ids = faces[0][0]
+    fn = (verts[ids[1]] - verts[ids[0]]).cross(verts[ids[3]] - verts[ids[0]])
+    _, n0, _ = L.point(0.0, (L.angle(0) + L.angle(1)) / 2)
+    if fn.dot(n0) < 0:
+        faces = [(tuple(reversed(i)), list(reversed(u))) for i, u in faces]
+    for which, do in ((0, cap0), (len(rings) - 1, cap1)):
+        if not do:
+            continue
+        c, rx, rw, wts = rings[which]
+        ci = len(verts)
+        verts.append(c.copy())
+        weights.append(wts)
+        t = L.frames[which][0]
+        sgn = -1 if which == 0 else 1
+        m = matfn(which, -1) if matfn else mat
+        q = cell_uvs(m, 1, 1)
+        for j in range(S):
+            j1 = (j + 1) % S
+            a, b = which * S + j, which * S + j1
+            tri = (a, b, ci)
+            fn = (verts[b] - verts[a]).cross(verts[ci] - verts[a])
+            if fn.dot(t * sgn) < 0:
+                tri = (b, a, ci)
+            faces.append((tri, [q[0], q[1], ((q[2][0] + q[3][0]) / 2, q[2][1])]))
+    verts = [frame(v) for v in verts]
+    PRIMS.append(dict(verts=verts, faces=faces, group=group, bone=None, weights=weights,
+                      mirror=mirror, smooth=True))
+
+
+def oriented_box(p, n, t, sa, sb, sn, mat, bone, mirror, frame=IDENT, group="body", uv=None, roll=12, tilt=8):
+    """Block whose local z follows surface normal n, sunk into the surface at p."""
+    z = n.normalized()
+    y = (t - z * t.dot(z)).normalized()
+    R = Matrix((y.cross(z), y, z)).transposed()
+    R = R @ Matrix.Rotation(math.radians(rng.uniform(-roll, roll)), 3, "Z") \
+          @ Matrix.Rotation(math.radians(rng.uniform(-tilt, tilt)), 3, "X")
+    f = lambda v: frame(p + R @ v)
+    box(-sa / 2, sa / 2, -sb / 2, sb / 2, -sn, 0.0, mat, bone, frame=f, skip=("-z",), mirror=mirror,
+        group=group, uv=uv)
+
+
+def dominant(w):
+    return max(w.items(), key=lambda kv: kv[1])[0]
+
+
+def loft_blocks(L, n, k_range, a_range, tan_p=0.15, size=(0.9, 1.45), out=(0.12, 0.45), half=False,
+                mirror=False, frame=IDENT, thick=(0.55, 0.8)):
+    n = int(round(n * DENSITY))
+    for _ in range(n):
+        kf = rng.uniform(*k_range)
+        a = rng.uniform(*a_range)
+        mir = mirror
+        if half:
+            if abs(math.cos(a)) < 0.12:
+                a, mir = math.pi / 2, False
+            else:
+                mir = True
         o = rng.uniform(*out)
-        xc = xf + o - sn / 2
-        box(xc - sn / 2, xc + sn / 2, s - sa / 2, s + sa / 2, z - sb / 2, z + sb / 2, mat, bone,
-            skip=("-x",), mirror=True)
+        p, nn, t = L.point(kf, a, out=o)
+        sa, sb = rng.uniform(*size), rng.uniform(*size)
+        if rng.random() < 0.15:
+            sb *= 1.5
+        mat = "tan" if rng.random() < tan_p else "navy"
+        oriented_box(p, nn, t, sa, sb, rng.uniform(*thick) + o, mat, dominant(L.weights_at(kf)), mir, frame=frame)
 
 
-# ---------------- HEAD (bone Head) ----------------
+def w1(b):
+    return {b: 1.0}
+
+
+def w2(a, b, f=0.5):
+    return {a: 1 - f, b: f}
+
+
+# ---------------- BODY: neck -> chest -> hips -> tail tip (one smooth loft) -----
+BODY = Loft([
+    (V(0, 5.6, 9.9), 2.0, 1.75, w1("Neck")),
+    (V(0, 7.6, 9.8), 2.55, 2.3, w1("Neck")),
+    (V(0, 9.6, 9.3), 3.3, 3.05, w2("Neck", "Chest", 0.6)),
+    (V(0, 11.6, 8.8), 3.85, 3.45, w1("Chest")),
+    (V(0, 13.6, 8.5), 3.9, 3.35, w1("Chest")),
+    (V(0, 15.4, 8.3), 3.8, 3.2, w2("Chest", "Hips")),
+    (V(0, 17.6, 8.2), 3.75, 3.1, w1("Hips")),
+    (V(0, 19.8, 7.9), 3.3, 2.75, w2("Hips", "Tail1", 0.3)),
+    (V(0, 22.0, 7.2), 2.55, 2.25, w1("Tail1")),
+    (V(0, 24.0, 6.4), 2.0, 1.9, w2("Tail1", "Tail2")),
+    (V(0, 26.0, 5.6), 1.6, 1.6, w1("Tail2")),
+    (V(0, 27.6, 4.85), 1.35, 1.35, w2("Tail2", "Tail3")),
+    (V(0, 29.3, 4.2), 1.1, 1.1, w1("Tail3")),
+    (V(0, 30.8, 3.6), 0.85, 0.9, w2("Tail3", "Tail4")),
+    (V(0, 32.6, 2.9), 0.55, 0.6, w1("Tail4")),
+    (V(0, 34.4, 2.2), 0.12, 0.14, w1("Tail4")),
+], 12)
+loft(BODY, "navy", cap1=True)
+NB = len(BODY.rings) - 1
+up_side = (-0.35 * math.pi, 0.5 * math.pi)
+loft_blocks(BODY, 34, (0.0, 3.0), up_side, tan_p=0.4, half=True)          # neck
+loft_blocks(BODY, 44, (2.0, 7.2), up_side, tan_p=0.18, half=True)         # chest + hips
+loft_blocks(BODY, 10, (2.2, 7.0), (-0.5 * math.pi, -0.3 * math.pi), tan_p=0.0, half=True,
+            out=(0.05, 0.2))                                              # belly
+loft_blocks(BODY, 36, (7.0, 13.5), up_side, tan_p=0.22, half=True, size=(0.7, 1.15))   # tail
+# tan armour patches (irregular clusters like the reference flank "F" plate)
+for kr, ar, cnt in (((3.2, 4.4), (-0.05, 0.45), 6), ((1.4, 2.4), (0.55, 1.2), 5)):
+    loft_blocks(BODY, cnt, kr, ar, tan_p=1.0, half=True, size=(1.0, 1.3), out=(0.25, 0.5))
+
+
+def body_top(s):
+    """highest surface z of the body loft at distance s (for crystal bases)."""
+    for k in range(NB):
+        s0, s1 = BODY.rings[k][0].y, BODY.rings[k + 1][0].y
+        if s <= s1:
+            f = (s - s0) / (s1 - s0)
+            return BODY.point(k + f, math.pi / 2)[0].z
+    return BODY.rings[-1][0].z
+
+
+def body_side(s, a):
+    for k in range(NB):
+        if s <= BODY.rings[k + 1][0].y:
+            f = (s - BODY.rings[k][0].y) / (BODY.rings[k + 1][0].y - BODY.rings[k][0].y)
+            return BODY.point(k + f, a)
+    return BODY.point(NB - 0.01, a)
+
+
+# glow cracks flush with the flank surface
+for s, a in ((10.8, -0.1), (12.9, 0.35), (13.6, -0.45), (16.2, 0.4), (19.0, -0.2)):
+    p, nn, t = body_side(s, a)
+    oriented_box(p + nn * 0.06, nn, t, 0.3, 1.5, 0.3, None, "Chest" if s < 15 else "Hips", True,
+                 group="glow", uv="glow", roll=25, tilt=0)
+
+# ---------------- HEAD (bone Head) -------------------------------------------
 H = "Head"
-box(-1.95, 1.95, 3.0, 6.6, 9.7, 11.7, "navy", H)                       # skull
-box(-1.5, 1.5, 0.9, 3.3, 9.45, 10.8, "navy", H, skip=("+y",))         # snout
-box(-1.2, 1.2, 0.7, 3.2, 10.6, 11.35, "tan", H)                        # snout top plate
-box(-0.85, 0.85, 0.55, 1.0, 9.7, 10.75, "tan", H, skip=("+y",))        # nose front
-box(-1.3, 1.3, 3.2, 5.6, 11.6, 12.15, "tan", H, skip=("-z",))          # forehead plate
-box(-1.75, 1.75, 0.9, 5.8, 9.1, 9.6, "tan", H)                         # upper lip rail
+HEAD = Loft([
+    (V(0, 0.6, 10.15), 1.0, 0.75, w1(H)),
+    (V(0, 1.6, 10.3), 1.6, 1.0, w1(H)),
+    (V(0, 3.2, 10.6), 2.0, 1.3, w1(H)),
+    (V(0, 4.9, 10.7), 2.4, 1.45, w1(H)),
+    (V(0, 6.6, 10.3), 2.5, 1.65, w1(H)),
+    (V(0, 7.8, 9.9), 2.1, 1.6, w1(H)),
+], 10)
+loft(HEAD, "navy", cap0=True,
+     matfn=lambda k, j: "tan" if (k <= 1 and j in (0, 1, 8, 9)) or k == 0 and j == -1 else "navy")
+loft_blocks(HEAD, 14, (2.3, 4.6), (-0.1 * math.pi, 0.5 * math.pi), tan_p=0.45, half=True, size=(0.8, 1.2))
+loft_blocks(HEAD, 6, (0.2, 2.0), (0.1 * math.pi, 0.5 * math.pi), tan_p=0.9, half=True, size=(0.7, 1.0),
+            out=(0.05, 0.25))
+box(-1.1, 1.1, 3.3, 5.5, 11.55, 12.15, "tan", H, skip=("-z",))          # forehead plate
+box(-1.7, 1.7, 0.9, 5.8, 9.1, 9.5, "tan", H)                            # upper lip rail
 for sx in (1,):
-    box(0.95, 2.25, 2.85, 4.2, 11.0, 11.95, "tan", H, skip=("-z",), mirror=True)  # brow ridge
-    box(1.9, 2.5, 4.3, 6.6, 8.9, 11.2, "navy", H, skip=("-x",), mirror=True)    # cheek / hinge
-    box(1.2, 2.15, 2.7, 3.5, 10.25, 11.0, bone=H, group="glow", uv="glow", mirror=True)  # eye
-scatter(-1.95, 1.95, 3.0, 6.6, 9.7, 11.7, ["+z"], H, p=0.55, tan_p=0.55, half=True, ylim=(5.4, 6.6))
-scatter(-1.55, 1.55, 0.8, 3.3, 9.45, 11.05, ["+x"], H, p=0.35, tan_p=0.9, half=True, out=(0.15, 0.3), size=(0.7, 1.0))
-scatter(-1.95, 2.5, 4.3, 6.6, 9.0, 11.4, ["+x"], H, p=0.5, tan_p=0.3, half=True)
+    f = rot_frame((1.6, 3.5, 11.4), "Y", math.radians(-18))
+    box(0.95, 2.25, 2.85, 4.2, 11.0, 11.85, "tan", H, frame=f, skip=("-z",), mirror=True)  # brow ridge
+    box(1.45, 2.3, 2.55, 3.35, 10.35, 11.0, bone=H, group="glow", uv="glow", mirror=True)   # eye
 # mouth glow + throat
 box(-1.45, 1.45, 1.3, 6.2, 8.2, 9.3, bone=H, group="glow", uv="mouth")
 # upper teeth (hang down)
 for x in (-1.1, -0.37, 0.37, 1.1):
     pyramid(V(x, 1.05, 9.15), (0, 0, -1), 0.75 if abs(x) > 1 else 0.5, 0.2, H)
 for s, L in ((1.9, 0.6), (2.9, 0.5), (3.9, 0.55), (4.9, 0.45)):
-    pyramid(V(1.55, s, 9.15), (0.15, 0, -1), L, 0.2, H, mirror=True)
+    pyramid(V(1.5, s, 9.15), (0.15, 0, -1), L, 0.2, H, mirror=True)
 
 # ---------------- JAW (bone Jaw), modelled open like the reference -------
 J = "Jaw"
 JAW_PIVOT = (0.0, 5.7, 9.0)
 jf = rot_frame(JAW_PIVOT, "X", math.radians(22))
-box(-1.7, 1.7, 1.2, 6.0, 7.6, 8.55, "tan", J, frame=jf)                  # lower jaw
-box(-1.3, 1.3, 1.6, 5.4, 7.2, 7.65, "navy", J, frame=jf, skip=("+z",))   # jaw underside
-box(-1.05, 1.05, 0.9, 2.1, 7.35, 8.4, "tan", J, frame=jf)                # chin
-scatter(-1.7, 1.7, 1.2, 6.0, 7.6, 8.55, ["+x"], J, frame=jf, p=0.35, tan_p=0.8, half=True,
-        out=(0.15, 0.35), size=(0.6, 0.9))
+JAW = Loft([
+    (V(0, 0.9, 8.0), 1.05, 0.5, w1(J)),
+    (V(0, 2.2, 8.05), 1.5, 0.55, w1(J)),
+    (V(0, 4.1, 8.1), 1.75, 0.6, w1(J)),
+    (V(0, 6.2, 8.25), 1.8, 0.7, w1(J)),
+], 8)
+loft(JAW, "tan", cap0=True, frame=jf, matfn=lambda k, j: "navy" if j in (3, 4) else "tan")
+loft_blocks(JAW, 5, (0.3, 2.6), (-0.2 * math.pi, 0.2 * math.pi), tan_p=1.0, half=True, size=(0.6, 0.9),
+            out=(0.05, 0.2), frame=jf, thick=(0.4, 0.55))
 for x in (-1.0, -0.33, 0.33, 1.0):
-    pyramid(jf(V(x, 1.25, 8.5)), (0, 0, 1), 0.65 if abs(x) > 0.5 else 0.5, 0.2, J)
+    pyramid(jf(V(x, 1.25, 8.45)), (0, 0, 1), 0.65 if abs(x) > 0.5 else 0.5, 0.2, J)
 for s in (2.2, 3.2, 4.2, 5.1):
-    pyramid(jf(V(1.45, s, 8.5)), (0.1, 0, 1), 0.45, 0.18, J, mirror=True)
+    pyramid(jf(V(1.4, s, 8.5)), (0.1, 0, 1), 0.45, 0.18, J, mirror=True)
 for s, L in ((1.9, 0.8), (3.2, 0.95), (4.6, 0.8)):                      # jaw-side horn spikes
-    pyramid(jf(V(1.75, s, 8.3)), (0.75, 0.35, 0.6), L, 0.28, J, mat="tan", mirror=True)
-pyramid(jf(V(0.0, 1.0, 7.4)), (0, -0.6, -0.8), 0.6, 0.3, J, mat="tan")  # chin spike
-
-# ---------------- NECK (bone Neck) ----------------
-N = "Neck"
-box(-2.35, 2.35, 5.6, 9.9, 7.9, 11.3, "navy", N, skip=("+y",))
-box(-1.8, 1.8, 5.6, 9.9, 11.2, 12.0, "navy", N, skip=("-z", "+y"))
-box(-1.8, 1.8, 5.9, 9.2, 6.7, 7.4, "navy", N, skip=("+z",))            # throat
-box(-1.45, 1.45, 6.2, 9.3, 11.8, 12.5, "tan", N, skip=("-z",))         # neck top plate
-scatter(-2.35, 2.35, 5.6, 9.9, 7.3, 11.9, ["+z"], N, p=0.55, tan_p=0.45, half=True)
-scatter(-2.35, 2.35, 5.6, 9.9, 7.3, 11.9, ["+x"], N, p=0.6, tan_p=0.3, half=True)
-
-# ---------------- CHEST (bone Chest) ----------------
-C = "Chest"
-box(-3.8, 3.8, 9.0, 14.6, 6.3, 11.4, "navy", C)
-box(-3.1, 3.1, 9.0, 14.6, 11.3, 12.3, "navy", C, skip=("-z",))
-box(-3.0, 3.0, 9.2, 14.6, 5.3, 6.4, "navy", C, skip=("+z",))
-box(-2.9, 2.9, 9.4, 13.6, 12.1, 12.9, "navy", C, skip=("-z",))         # shoulder hump
-box(-3.0, 3.0, 8.3, 9.1, 5.8, 10.8, "navy", C, skip=("+y",))           # chest front
-box(-1.8, 1.8, 10.0, 12.6, 12.8, 13.3, "tan", C, skip=("-z",))         # hump plate
-tan_cluster(3.8, [(12.9, 10.6), (14.0, 10.6), (12.9, 9.5), (12.9, 8.4), (14.0, 8.4), (13.1, 7.3)], C)
-scatter(-3.8, 3.8, 9.0, 14.6, 5.4, 12.2, ["+z"], C, p=0.5, tan_p=0.3, half=True)
-scatter(-3.8, 3.8, 9.0, 14.6, 5.4, 12.2, ["+x"], C, p=0.45, tan_p=0.15, half=True)
-scatter(-3.0, 3.0, 8.3, 9.1, 5.8, 10.8, ["-y"], C, p=0.5, tan_p=0.2, half=True)
-scatter(-3.8, 3.8, 9.0, 14.6, 5.4, 12.2, ["-z"], C, p=0.1, tan_p=0.0, half=True, out=(0.2, 0.4))
-for (s, z) in ((11.0, 7.0), (12.9, 9.6), (13.9, 6.6)):                  # glow cracks
-    box(3.72, 3.9, s - 0.8, s + 0.8, z - 0.18, z + 0.18, bone=C, group="glow", uv="glow",
-        skip=("-x",), mirror=True)
-
-# stepped chest / dewlap mass between the front legs (front view)
-box(-2.4, 2.4, 8.2, 11.0, 3.9, 5.6, "navy", C, skip=("+z",))
-box(-1.5, 1.5, 8.4, 10.4, 3.0, 4.0, "navy", C, skip=("+z",))
-box(-1.1, 1.1, 7.9, 8.5, 4.2, 5.8, "tan", C, skip=("+y",))
-
-# ---------------- HIPS (bone Hips) ----------------
-P = "Hips"
-box(-3.7, 3.7, 14.3, 20.4, 5.9, 10.3, "navy", P, skip=("-y",))
-box(-3.0, 3.0, 14.3, 20.4, 10.2, 11.2, "navy", P, skip=("-z", "-y"))
-box(-2.9, 2.9, 14.3, 20.0, 5.0, 6.0, "navy", P, skip=("+z", "-y"))
-box(-2.6, 2.6, 14.5, 19.4, 11.0, 11.7, "navy", P, skip=("-z",))
-scatter(-3.7, 3.7, 14.3, 20.4, 5.0, 11.1, ["+z"], P, p=0.5, tan_p=0.2, half=True)
-scatter(-3.7, 3.7, 14.3, 20.4, 5.0, 11.1, ["+x"], P, p=0.45, tan_p=0.12, half=True)
-scatter(-3.7, 3.7, 14.3, 20.4, 5.0, 11.1, ["-z"], P, p=0.1, tan_p=0.0, half=True, out=(0.2, 0.4))
-for (s, z) in ((16.0, 9.8), (19.3, 7.0)):
-    box(3.62, 3.8, s - 0.7, s + 0.7, z - 0.18, z + 0.18, bone=P, group="glow", uv="glow",
-        skip=("-x",), mirror=True)
-
-# ---------------- TAIL (bones Tail1..Tail4) ----------------
-TAIL = [  # s, centre z, width, height
-    (20.0, 7.9, 5.4, 5.4),
-    (24.0, 6.4, 4.0, 4.0),
-    (27.6, 4.8, 2.9, 3.0),
-    (30.8, 3.6, 1.9, 2.0),
-    (34.0, 2.3, 1.0, 1.1),
-]
+    pyramid(jf(V(1.65, s, 8.3)), (0.75, 0.35, 0.6), L, 0.28, J, mat="tan", mirror=True)
+pyramid(jf(V(0.0, 0.9, 7.6)), (0, -0.6, -0.8), 0.6, 0.3, J, mat="tan")  # chin spike
 
 
-def tail_at(s):
-    """(centre z, half width, half height) of the tail at distance s."""
-    for (s0, z0, w0, h0), (s1, z1, w1, h1) in zip(TAIL, TAIL[1:]):
-        if s <= s1:
-            f = (s - s0) / (s1 - s0)
-            return z0 + (z1 - z0) * f, (w0 + (w1 - w0) * f) / 2, (h0 + (h1 - h0) * f) / 2
-    return TAIL[-1][1], TAIL[-1][2] / 2, TAIL[-1][3] / 2
-for i in range(4):
-    s0, z0, w0, h0 = TAIL[i]
-    s1, z1, w1, h1 = TAIL[i + 1]
-    bone = "Tail%d" % (i + 1)
-    ov = 0.35 if i < 3 else 0.0
-    f = seg_frame(V(0, s0, z0), V(0, s1, z1))
-    L = (V(0, s1, z1) - V(0, s0, z0)).length
-    box(-w0 / 2, w0 / 2, -0.2, L + ov, -h0 / 2, h0 / 2, "navy", bone, frame=f,
-        taper=(w1 / w0, h1 / h0), skip=("-y",) if i else ())
-    scatter(-w0 / 2, w0 / 2, 0, L, -h0 / 2, h0 / 2, ["+z"], bone, frame=f, taper=(w1 / w0, h1 / h0),
-            p=0.5, tan_p=0.18, half=True, size=(0.7, 1.1) if i > 1 else (0.85, 1.3))
-    scatter(-w0 / 2, w0 / 2, 0, L, -h0 / 2, h0 / 2, ["+x"], bone, frame=f, taper=(w1 / w0, h1 / h0),
-            p=0.45, tan_p=0.3, half=True, size=(0.6, 1.0) if i > 1 else (0.8, 1.2))
+# ---------------- LEGS: tapered rounded limbs, claw toes --------------------
+def claw(base, d, L, wdt, hgt, bone):
+    f = dir_frame(base, d)
+    box(-wdt / 2, wdt / 2, 0, L, -hgt / 2, hgt / 2, "tan", bone, frame=f, taper=(0.45, 0.45),
+        skip=("-y",), mirror=True)
 
 
-# ---------------- LEGS ----------------
-def front_leg():
-    U, F, Hd = "UpperArm.L", "Forearm.L", "Hand.L"
-    box(2.6, 6.0, 8.0, 12.9, 4.2, 9.6, "navy", U, mirror=True)
-    tan_cluster(6.0, [(9.0, 8.6), (10.1, 8.7), (11.2, 8.4), (9.3, 7.5), (10.4, 7.4), (9.8, 6.3), (9.6, 5.2)], U)
-    scatter(2.6, 6.0, 8.0, 12.9, 4.2, 9.6, ["+x", "-y", "+y"], U, p=0.6, tan_p=0.3, mirror=True)
-    scatter(2.6, 6.0, 8.0, 12.9, 4.2, 9.6, ["+z"], U, p=0.5, tan_p=0.3, mirror=True, ylim=(8.0, 9.0))
-    box(2.8, 5.7, 7.8, 11.3, 1.2, 4.9, "navy", F, mirror=True)
-    box(3.1, 5.4, 7.35, 7.85, 1.6, 4.4, "tan", F, skip=("+y",), mirror=True)       # shin guard
-    scatter(2.8, 5.7, 7.8, 11.3, 1.2, 4.9, ["+x", "+y", "-x"], F, p=0.45, tan_p=0.25, mirror=True)
-    box(2.4, 6.1, 7.0, 11.2, 0.0, 1.45, "navy", Hd, mirror=True)
-    for x in (2.85, 4.25, 5.65):
-        box(x - 0.6, x + 0.6, 5.8, 7.1, 0.0, 1.3, "tan", Hd, skip=("+y",), mirror=True)
-        box(x - 0.48, x + 0.48, 5.35, 5.85, 0.0, 0.9, "tan", Hd, skip=("+y",), mirror=True)  # toe tip
-    box(6.05, 6.7, 8.6, 9.9, 0.0, 1.0, "tan", Hd, skip=("-x",), mirror=True)          # side toe
+def leg(x, rings, foot, toes, bones, tan_cells):
+    U, F, Hd = bones
+    LEG = Loft([(V(x + dx, s, z), rx, rs, w) for (dx, s, z, rx, rs, w) in rings], 8)
+    loft(LEG, "navy", mirror=True,
+         matfn=lambda k, j: "tan" if (j == 3 and k in (2, 3)) or (j in (4, 5) and k == 1) else "navy")
+    FOOT = Loft([(V(x, s, z), rx, rz, w1(Hd)) for (s, z, rx, rz) in foot], 8)
+    loft(FOOT, "navy", mirror=True, cap1=True)
+    for dx, L in toes:
+        claw(V(x + dx, foot[-1][0] + 0.4, 0.6), (dx * 0.15, -1, -0.28), L, 1.0, 0.95, Hd)
+    loft_blocks(LEG, 14, (0.3, 2.0), (-0.9 * math.pi, 0.9 * math.pi), tan_p=0.2, mirror=True)
+    loft_blocks(LEG, 9, (2.0, 4.6), (-0.9 * math.pi, 0.9 * math.pi), tan_p=0.25, mirror=True,
+                size=(0.75, 1.15))
+    loft_blocks(LEG, tan_cells, (0.4, 2.2), (-0.35 * math.pi, 0.25 * math.pi), tan_p=1.0, mirror=True,
+                size=(1.0, 1.3), out=(0.2, 0.45))
+    return LEG
 
 
-def rear_leg():
-    T, S, Ft = "Thigh.L", "Shin.L", "Foot.L"
-    box(2.5, 6.0, 15.2, 20.8, 4.3, 10.3, "navy", T, mirror=True)
-    tan_cluster(6.0, [(16.8, 9.2), (17.9, 9.3), (19.0, 9.1), (17.2, 8.1), (17.4, 7.0), (18.5, 7.0),
-                      (17.3, 5.9), (16.6, 4.9)], T)
-    scatter(2.5, 6.0, 15.2, 20.8, 4.3, 10.3, ["+x", "-y", "+y"], T, p=0.55, tan_p=0.25, mirror=True)
-    box(2.8, 5.7, 16.0, 19.8, 1.2, 4.8, "navy", S, mirror=True)
-    box(3.2, 5.3, 15.55, 16.05, 1.8, 4.1, "tan", S, skip=("+y",), mirror=True)
-    scatter(2.8, 5.7, 16.0, 19.8, 1.2, 4.8, ["+x", "+y", "-x"], S, p=0.4, tan_p=0.25, mirror=True)
-    box(2.4, 6.0, 15.0, 19.9, 0.0, 1.45, "navy", Ft, mirror=True)
-    for x in (2.9, 4.2, 5.5):
-        box(x - 0.58, x + 0.58, 13.8, 15.1, 0.0, 1.2, "tan", Ft, skip=("+y",), mirror=True)
-        box(x - 0.46, x + 0.46, 13.35, 13.85, 0.0, 0.85, "tan", Ft, skip=("+y",), mirror=True)
+FRONT = leg(4.3, [
+    (-0.4, 10.4, 11.0, 2.3, 2.8, w1("UpperArm.L")),
+    (0.1, 10.3, 8.2, 2.45, 2.85, w1("UpperArm.L")),
+    (0.1, 10.15, 5.8, 2.1, 2.35, w2("UpperArm.L", "Forearm.L", 0.2)),
+    (0.0, 10.05, 4.0, 1.75, 2.0, w2("UpperArm.L", "Forearm.L", 0.6)),
+    (0.0, 9.75, 2.3, 1.55, 1.75, w1("Forearm.L")),
+    (0.0, 9.6, 1.1, 1.6, 1.85, w2("Forearm.L", "Hand.L", 0.6)),
+], [(11.3, 0.75, 1.7, 0.75), (9.5, 0.82, 1.95, 0.82), (7.7, 0.7, 1.85, 0.65)],
+    [(-1.25, 1.4), (0.0, 1.55), (1.25, 1.4)], ("UpperArm.L", "Forearm.L", "Hand.L"), 6)
+REAR = leg(4.25, [
+    (-0.4, 18.0, 10.9, 2.35, 3.1, w1("Thigh.L")),
+    (0.1, 18.0, 8.0, 2.5, 3.1, w1("Thigh.L")),
+    (0.1, 17.6, 5.6, 2.1, 2.45, w2("Thigh.L", "Shin.L", 0.2)),
+    (0.0, 17.45, 4.0, 1.75, 2.0, w2("Thigh.L", "Shin.L", 0.6)),
+    (0.0, 17.8, 2.3, 1.55, 1.75, w1("Shin.L")),
+    (0.0, 17.9, 1.1, 1.6, 1.85, w2("Shin.L", "Foot.L", 0.6)),
+], [(19.6, 0.75, 1.7, 0.75), (17.7, 0.82, 1.95, 0.82), (15.9, 0.7, 1.85, 0.65)],
+    [(-1.2, 1.3), (0.0, 1.45), (1.2, 1.3)], ("Thigh.L", "Shin.L", "Foot.L"), 7)
+# side toes
+claw(V(5.9, 9.5, 0.55), (1, -0.2, -0.2), 0.9, 0.8, 0.8, "Hand.L")
+claw(V(5.9, 17.8, 0.55), (1, -0.2, -0.2), 0.8, 0.8, 0.8, "Foot.L")
+# joint glow
+for (lp, kf, a, bone) in ((FRONT, 2.6, 0.2, "UpperArm.L"), (REAR, 2.6, 0.1, "Thigh.L"),
+                          (FRONT, 0.9, -2.6, "UpperArm.L"), (REAR, 0.9, 2.8, "Thigh.L")):
+    p, nn, t = lp.point(kf, a)
+    oriented_box(p + nn * 0.06, nn, t, 1.2, 0.3, 0.3, None, bone, True, group="glow", uv="glow", roll=20, tilt=0)
 
-
-front_leg()
-rear_leg()
-for (x0, x1, s0, s1, z0, z1, bone) in (
-        (3.7, 3.95, 8.9, 10.3, 5.4, 6.2, "Chest"), (5.95, 6.15, 11.2, 12.4, 5.9, 6.5, "UpperArm.L"),
-        (5.6, 5.8, 9.3, 10.5, 4.2, 4.7, "Forearm.L"), (3.6, 3.85, 19.8, 20.8, 5.5, 6.3, "Hips"),
-        (5.9, 6.1, 19.4, 20.5, 4.4, 5.0, "Thigh.L"), (3.7, 3.95, 11.8, 12.8, 5.6, 6.2, "Chest")):
-    box(x0, x1, s0, s1, z0, z1, bone=bone, group="glow", uv="glow", skip=("-x",), mirror=True)
 
 # ---------------- CRYSTALS ----------------
 back = Vector((0, 1, 0))
@@ -445,13 +496,13 @@ up = Vector((0, 0, 1))
 SPINE = [  # s, base z, length, radius, bone
     (3.4, 11.9, 1.7, 0.42, "Head"),
     (4.9, 12.0, 2.5, 0.55, "Head"),
-    (6.9, 12.3, 2.6, 0.55, "Neck"),
-    (9.3, 12.6, 3.1, 0.62, "Neck"),
-    (11.6, 13.1, 3.5, 0.68, "Chest"),
-    (13.5, 12.6, 3.3, 0.66, "Chest"),
-    (15.4, 11.4, 3.9, 0.72, "Hips"),
-    (17.2, 11.4, 3.5, 0.68, "Hips"),
-    (19.0, 11.0, 3.2, 0.64, "Hips"),
+    (6.9, None, 2.6, 0.55, "Neck"),
+    (9.3, None, 3.1, 0.62, "Neck"),
+    (11.6, None, 3.5, 0.68, "Chest"),
+    (13.5, None, 3.3, 0.66, "Chest"),
+    (15.4, None, 3.9, 0.72, "Hips"),
+    (17.2, None, 3.5, 0.68, "Hips"),
+    (19.0, None, 3.2, 0.64, "Hips"),
     (21.0, None, 2.9, 0.6, "Tail1"),
     (22.8, None, 2.5, 0.54, "Tail1"),
     (24.8, None, 2.1, 0.48, "Tail2"),
@@ -463,8 +514,7 @@ SPINE = [  # s, base z, length, radius, bone
 ]
 for s, z, L, r, bone in SPINE:
     if z is None:
-        tz, tw, th = tail_at(s)
-        z = tz + th - 0.05
+        z = body_top(s) - 0.05
     L *= 1.25
     r *= 1.2
     crystal(V(0, s, z), up + back * 0.55, L, r, bone)
@@ -473,7 +523,7 @@ for s, z, L, r, bone in SPINE:
                 bone, mirror=True)
 # tan stone spikes between crystals on the neck/shoulders (reference hero view)
 for s, z, L in ((8.1, 12.2, 2.0), (10.6, 12.8, 2.4), (5.9, 11.9, 1.4)):
-    f = dir_frame(V(0, s, z - 0.3), up + back * 0.3)
+    f = dir_frame(V(0, s, body_top(s) - 0.3), up + back * 0.3)
     box(-0.5, 0.5, 0, L, -0.45, 0.45, "tan", "Neck" if s < 10 else "Chest", frame=f, taper=(0.25, 0.25),
         skip=("-y",))
 # side crystals
@@ -499,21 +549,25 @@ SIDE = [  # base (x,s,z), direction, length, radius, bone
 ]
 for base, d, L, r, bone in SIDE:
     if base[0] is None:
-        tz, tw, th = tail_at(base[1])
-        base = (tw - 0.1, base[1], tz + th * 0.3)
+        q = body_side(base[1], 0.35)[0]
+        base = (q.x - 0.1, base[1], q.z)
     crystal(V(*base), d, L, r, bone, mirror=True)
 
 
 # ==========================================================================
 # assemble meshes
 # ==========================================================================
+def flip_name(b):
+    return b[:-2] + ".R" if b and b.endswith(".L") else b
+
+
 def mirrored(pr):
-    bone = pr["bone"]
-    if bone.endswith(".L"):
-        bone = bone[:-2] + ".R"
     verts = [Vector((-v.x, v.y, v.z)) for v in pr["verts"]]
     faces = [(tuple(reversed(ids)), list(reversed(uvs))) for ids, uvs in pr["faces"]]
-    return dict(verts=verts, faces=faces, group=pr["group"], bone=bone, mirror=False)
+    out = dict(pr, verts=verts, faces=faces, bone=flip_name(pr["bone"]), mirror=False)
+    if pr.get("weights"):
+        out["weights"] = [{flip_name(k): v for k, v in w.items()} for w in pr["weights"]]
+    return out
 
 
 ALL = []
@@ -540,15 +594,16 @@ scene.unit_settings.system = "METRIC"
 
 def build_mesh(name, group):
     prims = [p for p in ALL if p["group"] == group]
-    verts, faces, uvs, vbone = [], [], [], []
+    verts, faces, uvs, vw, smooth = [], [], [], [], []
     for pr in prims:
         o = len(verts)
-        for v in pr["verts"]:
+        for i, v in enumerate(pr["verts"]):
             verts.append((v.x, v.y - S_OFF, v.z * Z_SCALE))
-            vbone.append(pr["bone"])
+            vw.append(pr["weights"][i] if pr.get("weights") else {pr["bone"]: 1.0})
         for ids, fuv in pr["faces"]:
             faces.append(tuple(o + i for i in ids))
             uvs.append(fuv)
+            smooth.append(pr.get("smooth", False))
     me = bpy.data.meshes.new(name)
     me.from_pydata(verts, [], faces)
     me.update()
@@ -556,11 +611,16 @@ def build_mesh(name, group):
     for poly, fuv in zip(me.polygons, uvs):
         for li, uv in zip(poly.loop_indices, fuv):
             uvl.data[li].uv = uv
+    for poly, sm in zip(me.polygons, smooth):
+        poly.use_smooth = sm
     ob = bpy.data.objects.new(name, me)
     scene.collection.objects.link(ob)
-    for b in sorted(set(vbone)):
-        vg = ob.vertex_groups.new(name=b)
-        vg.add([i for i, bb in enumerate(vbone) if bb == b], 1.0, "REPLACE")
+    groups = {}
+    for i, w in enumerate(vw):
+        for b, val in w.items():
+            if b not in groups:
+                groups[b] = ob.vertex_groups.new(name=b)
+            groups[b].add([i], val, "REPLACE")
     return ob
 
 

@@ -1,13 +1,14 @@
-# CrystalDino: blocky crystal-backed dinosaur (Roblox-ready)
+# CrystalDino: crystal-backed dinosaur (Roblox-ready)
 
 A low-poly, rigged and animated model of the blue crystal dinosaur from the reference sheet.
+The body, neck, tail, head, jaw and legs are smooth lofted forms. Studded navy and tan armour blocks are laid over them, tilted to follow the surface.
 
 | | |
 |---|---|
-| Triangles | **4,672** (Body 3,276 + Glow/crystals 1,396), under the 5k budget |
+| Triangles | **4,830** (Body 3,474 + Glow/crystals 1,356), under the 5k budget |
 | Size | 1 block = 1 stud: about 34 studs long, 15 wide, 15.6 tall (including crystals) |
 | Rig | 22 deform bones: Root, Hips, Chest, Neck, Head, Jaw, Tail1-4, and for each side UpperArm, Forearm, Hand, Thigh, Shin, Foot |
-| Skinning | Rigid, 1 bone per vertex (voxel-style parts, no stretching) |
+| Skinning | Up to 2 bones per vertex. Blends at the neck, hips, tail and knee rings so joints bend smoothly; armour blocks and crystals stay rigid. |
 | Bind pose | Neutral stance: legs straight under the body, tail and head level. This is the quadruped equivalent of a T-pose. |
 | Animations | `Idle`: 90 frames at 30 fps (3 s loop). `Walk`: 40 frames at 30 fps (1.33 s loop), in place, diagonal gait. |
 | Texture | One 1024x1024 atlas: color, normal, roughness and emission maps |
