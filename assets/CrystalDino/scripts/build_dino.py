@@ -203,8 +203,8 @@ def V(x, s, z):
 class Loft:
     """Elliptical tube through ring centres; rings = [(centre, rx, rw, weights)]."""
 
-    def __init__(self, rings, sides):
-        self.rings, self.sides = rings, sides
+    def __init__(self, rings, sides, sq=2.0):
+        self.rings, self.sides, self.sq = rings, sides, sq
         self.frames = []
         n = len(rings)
         for k, (c, rx, rw, wts) in enumerate(rings):
@@ -221,6 +221,12 @@ class Loft:
     def angle(self, j):
         return math.pi / 2 + math.pi / self.sides + j * math.tau / self.sides
 
+    def cs(self, a):
+        """superellipse cos/sin (sq=2 ellipse, sq>2 rounded square)."""
+        c, s_ = math.cos(a), math.sin(a)
+        e = 2.0 / self.sq
+        return math.copysign(abs(c) ** e, c), math.copysign(abs(s_) ** e, s_)
+
     def point(self, kf, a, out=0.0):
         """surface point, outward normal and tangent at fractional ring index kf, angle a."""
         k = min(int(kf), len(self.rings) - 2)
@@ -229,7 +235,8 @@ class Loft:
         for kk in (k, k + 1):
             c, rx, rw, _ = self.rings[kk]
             t, u, w = self.frames[kk]
-            pts.append(c + u * (rx * math.cos(a)) + w * (rw * math.sin(a)))
+            ca, sa = self.cs(a)
+            pts.append(c + u * (rx * ca) + w * (rw * sa))
             nrm.append((u * (math.cos(a) / max(rx, 1e-3)) + w * (math.sin(a) / max(rw, 1e-3))).normalized())
             tng.append(t)
         p = pts[0].lerp(pts[1], f)
@@ -248,7 +255,8 @@ def loft(L, mat, group="body", mirror=False, cap0=False, cap1=False, frame=IDENT
         t, u, w = L.frames[k]
         for j in range(S):
             a = L.angle(j)
-            verts.append(c + u * (rx * math.cos(a)) + w * (rw * math.sin(a)))
+            ca, sa = L.cs(a)
+            verts.append(c + u * (rx * ca) + w * (rw * sa))
             weights.append(wts)
     for k in range(len(rings) - 1):
         for j in range(S):
@@ -274,7 +282,14 @@ def loft(L, mat, group="body", mirror=False, cap0=False, cap1=False, frame=IDENT
         t = L.frames[which][0]
         sgn = -1 if which == 0 else 1
         m = matfn(which, -1) if matfn else mat
-        q = cell_uvs(m, 1, 1)
+        q = cell_uvs(m, 2 * rx, 2 * rw)
+        _, uu, ww = L.frames[which]
+
+        def cap_uv(v):
+            fx = 0.5 + (v - c).dot(uu) / (2 * rx)
+            fy = 0.5 + (v - c).dot(ww) / (2 * rw)
+            return (q[0][0] + (q[1][0] - q[0][0]) * fx + (q[3][0] - q[0][0]) * fy,
+                    q[0][1] + (q[1][1] - q[0][1]) * fx + (q[3][1] - q[0][1]) * fy)
         for j in range(S):
             j1 = (j + 1) % S
             a, b = which * S + j, which * S + j1
@@ -282,7 +297,7 @@ def loft(L, mat, group="body", mirror=False, cap0=False, cap1=False, frame=IDENT
             fn = (verts[b] - verts[a]).cross(verts[ci] - verts[a])
             if fn.dot(t * sgn) < 0:
                 tri = (b, a, ci)
-            faces.append((tri, [q[0], q[1], ((q[2][0] + q[3][0]) / 2, q[2][1])]))
+            faces.append((tri, [cap_uv(verts[i]) for i in tri]))
     verts = [frame(v) for v in verts]
     PRIMS.append(dict(verts=verts, faces=faces, group=group, bone=None, weights=weights,
                       mirror=mirror, smooth=True))
@@ -395,21 +410,22 @@ for s, a in ((10.8, -0.1), (12.9, 0.35), (13.6, -0.45), (16.2, 0.4), (19.0, -0.2
 # ---------------- HEAD (bone Head) -------------------------------------------
 H = "Head"
 HEAD = Loft([
-    (V(0, 0.6, 10.15), 1.2, 0.85, w1(H)),
-    (V(0, 1.6, 10.3), 1.35, 0.98, w1(H)),
-    (V(0, 3.2, 10.6), 1.85, 1.3, w1(H)),
-    (V(0, 4.9, 10.7), 2.4, 1.45, w1(H)),
-    (V(0, 6.6, 10.3), 2.5, 1.65, w1(H)),
-    (V(0, 7.8, 9.9), 2.1, 1.6, w1(H)),
-], 10)
+    # measured from the reference side view: ~5 studs long, ~4 tall, blunt squared snout
+    (V(0, 0.75, 10.3), 1.12, 1.15, w1(H)),
+    (V(0, 1.8, 10.55), 1.25, 1.42, w1(H)),
+    (V(0, 3.2, 10.9), 1.9, 1.78, w1(H)),
+    (V(0, 4.6, 11.05), 2.2, 1.92, w1(H)),
+    (V(0, 5.8, 10.9), 2.25, 1.85, w1(H)),
+    (V(0, 6.9, 10.6), 2.0, 1.6, w1(H)),
+], 12, sq=3.6)
 head_prim = loft(HEAD, "navy", cap0=True, cap1=True,
-                 matfn=lambda k, j: "tan" if (k <= 1 and j in (0, 1, 8, 9)) or k == 0 and j == -1 else "navy")
+                 matfn=lambda k, j: "tan" if (k <= 1 and j in (0, 1, 10, 11)) or k == 0 and j == -1 else "navy")
 
 
 # ---- eye: almond socket carved into the head, gem eyeball with a slit pupil ----
 def eye_frame():
     """Socket centre on the head surface and its (e1 along, e2 up, n out) frame, +x side."""
-    kf = 2 + (4.0 - 3.2) / 1.7          # just behind the snout, where the head is widest
+    kf = 2 + (4.0 - 3.2) / 1.4          # just behind the snout, where the head is widest
     p, n0, t = HEAD.point(kf, 0.3)
     n = (n0 + Vector((0, -1.35, 0.1))).normalized()   # socket faces forward-out (visible front and side)
     e1 = (t - n * t.dot(n)).normalized()
@@ -510,16 +526,16 @@ if fn.dot(EYE_N) < 0:
     faces = [((b, a, c), [u[1], u[0], u[2]]) for (a, b, c), u in faces]
 add_prim(pv + [ptip], faces, "glow", H, True)
 
-EYE_AVOID = [(EYE_C, 1.25), (EYE_C + EYE_N * 1.1, 1.1), (EYE_C + Vector((0, -1.6, 0)), 1.0)]  # socket + sight lines
+EYE_AVOID = [(EYE_C, 1.5), (EYE_C + EYE_N * 1.1, 1.3), (EYE_C + Vector((0, -1.6, 0)), 1.4), (EYE_C + Vector((-0.4, -2.6, 0)), 1.2)]  # socket + sight lines
 loft_blocks(HEAD, 14, (2.3, 4.6), (-0.1 * math.pi, 0.5 * math.pi), tan_p=0.45, half=True, size=(0.8, 1.2),
             avoid=EYE_AVOID)
 loft_blocks(HEAD, 6, (0.2, 2.0), (0.1 * math.pi, 0.5 * math.pi), tan_p=0.9, half=True, size=(0.7, 1.0),
             out=(0.05, 0.25), avoid=EYE_AVOID)
-box(-1.1, 1.1, 3.3, 5.5, 11.55, 12.15, "tan", H, skip=("-z",))          # forehead plate
+box(-1.2, 1.2, 3.2, 5.6, 12.45, 13.05, "tan", H, skip=("-z",))          # forehead plate
 box(-1.7, 1.7, 0.9, 5.8, 9.1, 9.5, "tan", H)                            # upper lip rail
 for sx in (1,):
-    f = rot_frame((1.6, 3.0, 11.5), "Y", math.radians(-12))
-    box(0.75, 1.95, 2.5, 3.95, 11.25, 11.95, "tan", H, frame=f, skip=("-z",), mirror=True)  # brow overhang
+    f = rot_frame((1.6, 3.8, 12.9), "Y", math.radians(-12))
+    box(0.8, 2.25, 3.0, 4.9, 12.55, 13.2, "tan", H, frame=f, skip=("-z",), mirror=True)  # brow overhang
 # mouth glow + throat
 box(-1.45, 1.45, 1.3, 6.2, 8.2, 9.3, bone=H, group="glow", uv="mouth")
 # upper teeth (hang down)
@@ -533,21 +549,22 @@ J = "Jaw"
 JAW_PIVOT = (0.0, 5.7, 9.0)
 jf = rot_frame(JAW_PIVOT, "X", math.radians(22))
 JAW = Loft([
-    (V(0, 0.9, 8.0), 1.05, 0.5, w1(J)),
-    (V(0, 2.2, 8.05), 1.5, 0.55, w1(J)),
-    (V(0, 4.1, 8.1), 1.75, 0.6, w1(J)),
-    (V(0, 6.2, 8.25), 1.8, 0.7, w1(J)),
-], 8)
+    # deeper, wider lower jaw (reference: ~2 studs deep)
+    (V(0, 0.9, 7.85), 1.3, 0.75, w1(J)),
+    (V(0, 2.2, 7.75), 1.7, 0.88, w1(J)),
+    (V(0, 4.1, 7.7), 1.95, 0.98, w1(J)),
+    (V(0, 6.2, 7.8), 2.0, 1.05, w1(J)),
+], 8, sq=3.6)
 loft(JAW, "tan", cap0=True, frame=jf, matfn=lambda k, j: "navy" if j in (3, 4) else "tan")
 loft_blocks(JAW, 5, (0.3, 2.6), (-0.2 * math.pi, 0.2 * math.pi), tan_p=1.0, half=True, size=(0.6, 0.9),
             out=(0.05, 0.2), frame=jf, thick=(0.4, 0.55))
 for x in (-1.0, -0.33, 0.33, 1.0):
-    pyramid(jf(V(x, 1.25, 8.45)), (0, 0, 1), 0.65 if abs(x) > 0.5 else 0.5, 0.2, J)
+    pyramid(jf(V(x * 1.15, 1.2, 8.5)), (0, 0, 1), 0.75 if abs(x) > 0.5 else 0.55, 0.22, J)
 for s in (2.2, 3.2, 4.2, 5.1):
-    pyramid(jf(V(1.4, s, 8.5)), (0.1, 0, 1), 0.45, 0.18, J, mirror=True)
+    pyramid(jf(V(1.6, s, 8.55)), (0.1, 0, 1), 0.5, 0.2, J, mirror=True)
 for s, L in ((1.9, 0.8), (3.2, 0.95), (4.6, 0.8)):                      # jaw-side horn spikes
-    pyramid(jf(V(1.65, s, 8.3)), (0.75, 0.35, 0.6), L, 0.28, J, mat="tan", mirror=True)
-pyramid(jf(V(0.0, 0.9, 7.6)), (0, -0.6, -0.8), 0.6, 0.3, J, mat="tan")  # chin spike
+    pyramid(jf(V(1.9, s, 8.0)), (0.75, 0.35, 0.6), L, 0.3, J, mat="tan", mirror=True)
+pyramid(jf(V(0.0, 0.8, 7.2)), (0, -0.6, -0.8), 0.7, 0.34, J, mat="tan")  # chin spike
 
 
 # ---------------- LEGS: tapered rounded limbs, claw toes --------------------
@@ -606,8 +623,8 @@ for (lp, kf, a, bone) in ((FRONT, 2.6, 0.2, "UpperArm.L"), (REAR, 2.6, 0.1, "Thi
 back = Vector((0, 1, 0))
 up = Vector((0, 0, 1))
 SPINE = [  # s, base z, length, radius, bone
-    (3.4, 11.9, 1.7, 0.42, "Head"),
-    (4.9, 12.0, 2.5, 0.55, "Head"),
+    (3.6, 12.6, 1.7, 0.42, "Head"),
+    (5.0, 12.8, 2.5, 0.55, "Head"),
     (6.9, None, 2.6, 0.55, "Neck"),
     (9.3, None, 3.1, 0.62, "Neck"),
     (11.6, None, 3.5, 0.68, "Chest"),
@@ -640,7 +657,7 @@ for s, z, L in ((8.1, 12.2, 2.0), (10.6, 12.8, 2.4), (5.9, 11.9, 1.4)):
         skip=("-y",))
 # side crystals
 SIDE = [  # base (x,s,z), direction, length, radius, bone
-    ((1.3, 5.3, 11.8), (0.55, 0.35, 1), 2.0, 0.48, "Head"),      # head side crest
+    ((1.4, 5.3, 12.4), (0.55, 0.35, 1), 2.0, 0.48, "Head"),      # head side crest
     ((2.45, 5.8, 10.6), (1, 0.6, 0.4), 1.2, 0.32, "Head"),       # cheek
     ((5.2, 10.4, 9.3), (0.55, 0.2, 1), 3.3, 0.72, "UpperArm.L"),  # shoulder
     ((5.9, 11.8, 8.2), (1, 0.4, 0.6), 1.9, 0.48, "UpperArm.L"),
