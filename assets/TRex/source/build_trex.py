@@ -21,7 +21,7 @@ TEX_DIR = os.path.join(OUT, 'textures')
 STUD_TO_M = 0.28
 
 TILES = ['BONE', 'BONE_LIGHT', 'CHARCOAL', 'MAROON', 'MIX', 'DARK', 'MOUTH', 'TONGUE',
-         'TEETH', 'EYE', 'LAVA', 'BONE_DARK']
+         'TEETH', 'EYE', 'LAVA', 'BONE_DARK', 'PUPIL']
 TILES_PER_ROW = 4
 STUDS_PER_TILE = 8
 ATLAS_STUDS = STUDS_PER_TILE * TILES_PER_ROW
@@ -216,10 +216,61 @@ def W(**kw):
     return dict(kw)
 
 
+def ellipsoid(center, axis, r_axis, r_side, r_up, tile, bone, rings=7, sides=12):
+    """Closed ellipsoid built as a loft along `axis` (eyeballs, socket cutters)."""
+    d = Vector(axis).normalized()
+    ts = [-0.96 + 1.92 * i / (rings - 1) for i in range(rings)]
+    path = [Vector(center) + d * (t * r_axis) for t in ts]
+    sizes = [(2 * r_side * math.sqrt(1 - t * t), 2 * r_up * math.sqrt(1 - t * t)) for t in ts]
+    loft(path, sizes, tile, [{bone: 1}] * rings, sides=sides, p=2.0)
+
+
+def _part_object(part, name):
+    verts, faces, uvs, _, _ = part
+    me = bpy.data.meshes.new(name)
+    bm = bmesh.new()
+    uvl = bm.loops.layers.uv.new('UVMap')
+    bv = [bm.verts.new(v) for v in verts]
+    for f, fuv in zip(faces, uvs):
+        face = bm.faces.new([bv[i] for i in f])
+        for loop, c in zip(face.loops, fuv):
+            loop[uvl].uv = c
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    bm.to_mesh(me)
+    bm.free()
+    obj = bpy.data.objects.new(name, me)
+    bpy.context.collection.objects.link(obj)
+    return obj
+
+
+def carve(part, cutters, bone):
+    """Boolean-subtract cutter parts (e.g. eye sockets) from a closed part. The cavity walls
+    keep the cutters' UVs, so the inside of a socket gets the cutter's tile."""
+    target = _part_object(part, 'CARVE_target')
+    for i, c in enumerate(cutters):
+        cobj = _part_object(c, f'CARVE_cutter{i}')
+        mod = target.modifiers.new(f'bool{i}', 'BOOLEAN')
+        mod.operation, mod.solver, mod.object = 'DIFFERENCE', 'EXACT', cobj
+        bpy.context.view_layer.objects.active = target
+        bpy.ops.object.modifier_apply(modifier=mod.name)
+        bpy.data.objects.remove(cobj)
+    me = target.data
+    uvl = me.uv_layers['UVMap'].data
+    verts = [v.co.copy() for v in me.vertices]
+    faces = [tuple(p.vertices) for p in me.polygons]
+    uvs = [[tuple(uvl[li].uv) for li in p.loop_indices] for p in me.polygons]
+    bpy.data.objects.remove(target)
+    PARTS.append((verts, faces, uvs, [{bone: 1}] * len(verts), True))
+
+
 # --------------------------------------------------------------------------- the model
 
 JAW_PIVOT = (0, -15.6, 10.4)
 JAW_OPEN = (36, 0, 0)          # mouth held open like the reference (bind pose)
+
+
+EYE_SOCKET = (3.3, -17.7, 12.9)   # where the socket opens on the skull side (left eye)
+EYE_FWD = 0.55                   # how far the eyes turn toward the front
 
 
 def build_head():
@@ -227,14 +278,26 @@ def build_head():
     # skull: one smooth loft from the snout tip back to the neck
     loft([(0, -24.0, 11.9), (0, -22.2, 12.0), (0, -19.0, 12.3), (0, -16.4, 13.0), (0, -14.0, 12.5)],
          [(4.4, 1.8), (6.0, 2.3), (6.6, 2.7), (7.2, 4.2), (6.6, 5.2)], 'BONE', [H] * 5,
-         sides=10, p=3.0, cap_tile='BONE_LIGHT')
+         sides=12, p=3.0, cap_tile='BONE_LIGHT')
+    skull = PARTS.pop()
+    # eye sockets: carve a real cavity into each side of the skull (dark inner walls)
+    cutters = []
+    for sgn in (1, -1):
+        ellipsoid((EYE_SOCKET[0] * sgn, EYE_SOCKET[1], EYE_SOCKET[2]), (sgn, -EYE_FWD, 0.08),
+                  1.0, 1.05, 0.85, 'CHARCOAL', 'Head', rings=7, sides=12)
+        cutters.append(PARTS.pop())
+    carve(skull, cutters, 'Head')
+    # eyeballs sitting in the sockets: glowing red iris ball with a black slit pupil
+    for sgn in (1, -1):
+        axis = Vector((sgn, -EYE_FWD, 0.08)).normalized()
+        c = Vector((EYE_SOCKET[0] * sgn, EYE_SOCKET[1], EYE_SOCKET[2])) - axis * 0.62
+        ellipsoid(c, axis, 0.62, 0.62, 0.5, 'EYE', 'Head', rings=7, sides=12)
+        ellipsoid(c + axis * 0.55, axis, 0.1, 0.18, 0.42, 'PUPIL', 'Head', rings=3, sides=8)
     loft([(0, -21.5, 13.1), (0, -18.4, 13.6)], [(3.2, 0.7), (3.8, 0.9)], 'CHARCOAL', [H] * 2, sides=6)  # snout ridge
     for x in (1.2, -1.2):                                                                 # nostrils
         horn((x, -23.4, 12.6), (x, -23.6, 13.3), 1.0, 0.9, 0.6, 0.5, 'BONE_LIGHT', 'Head')
-    # brow ridges over the eyes, eye sockets and glowing eyes
+    # brow ridges overhanging the eye sockets
     mhorn((3.0, -17.2, 13.9), (3.3, -18.9, 14.6), 1.8, 1.4, 1.0, 0.8, 'BONE_LIGHT', 'Head', sides=6, p=3.0)
-    mhorn((3.2, -17.4, 12.2), (3.55, -17.6, 12.9), 1.3, 1.9, 1.1, 1.6, 'CHARCOAL', 'Head', sides=6, p=3.0)
-    mhorn((3.6, -17.8, 12.3), (3.95, -17.9, 12.75), 0.7, 0.9, 0.55, 0.7, 'EYE', 'Head', sides=6, p=2.5)
     # dark crown with horns (front-head view)
     loft([(0, -17.0, 15.0), (0, -14.4, 14.9)], [(5.0, 1.0), (5.4, 1.3)], 'CHARCOAL', [H] * 2, sides=8)
     mhorn((2.3, -15.6, 15.2), (2.6, -14.9, 17.1), 1.5, 1.6, 0.5, 0.6, 'CHARCOAL', 'Head')
@@ -503,7 +566,7 @@ def make_material():
     etex = nt.nodes.new('ShaderNodeTexImage')
     etex.image = eimg
     nt.links.new(etex.outputs['Color'], bsdf.inputs['Emission Color'])
-    bsdf.inputs['Emission Strength'].default_value = 4.0
+    bsdf.inputs['Emission Strength'].default_value = 2.0
     bsdf.inputs['Roughness'].default_value = 0.65
     return mat
 

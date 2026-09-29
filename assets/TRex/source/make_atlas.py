@@ -30,6 +30,7 @@ TILES = {
     'EYE':        ((255, 60, 40), 0, 0.0, False, False),
     'LAVA':       ((235, 40, 24), 0, 0.0, False, False),
     'BONE_DARK':  ((200, 146, 102), 8, 1.0, False, False),
+    'PUPIL':      ((14, 6, 8), 0, 0.0, False, False),
 }
 ORDER = list(TILES)
 MIX_COLOURS = [(128, 40, 42), (92, 50, 58), (70, 34, 40), (140, 48, 46), (100, 34, 36), (76, 52, 60)]
