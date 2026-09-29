@@ -4,17 +4,17 @@ Stud-textured low-poly dragon, rigged, with idle and walk animations.
 
 | | |
 |---|---|
-| Triangles | 4,430 (hidden faces removed; checked in rest pose and across both animations) |
+| Triangles | 3,994 (hidden faces removed; checked in rest pose and across both animations) |
 | Meshes | 8 skinned meshes, one per material: Dark, Gold, Tan, Bone, Glow, Eye, Mouth, Membrane |
 | Rig | 48 bones, max 2 influences per vertex |
-| Animations | `Dragon_Idle` (120 frames @ 30 fps, 4 s loop), `Dragon_Walk` (48 frames @ 30 fps, 1.6 s in-place loop) |
+| Animations | `Dragon_FlyIdle`: hovering flight (40 frames @ 30 fps, 1.33 s loop). `Dragon_Fly`: flying forward in place (28 frames @ 30 fps, 0.93 s loop). Both lift the body 4 studs off the rig origin. |
 | Textures | 256px stud tiles + one shared stud normal map, 512px wing membrane, eye and glow sheets (all embedded in the FBX) |
 
 ## Files
 
 - `AncientDragon.fbx`: rigged model in rest pose. Import this one as the model.
-- `AncientDragon_Idle.fbx`, `AncientDragon_Walk.fbx`: same rig with one baked animation each.
-- `AncientDragon.blend`: source scene (actions in NLA tracks `Dragon_Idle` / `Dragon_Walk`).
+- `AncientDragon_FlyIdle.fbx`, `AncientDragon_Fly.fbx`: same rig with one baked flight animation each.
+- `AncientDragon.blend`: source scene (actions in NLA tracks `Dragon_FlyIdle` / `Dragon_Fly`).
 - `textures/`: every texture as separate PNGs, for SurfaceAppearance.
 
 ## Importing into Roblox Studio
@@ -24,7 +24,7 @@ Stud-textured low-poly dragon, rigged, with idle and walk animations.
    - `Dragon_Glow` and `Dragon_Eye`: set `Material = Neon`.
    - `Dragon_Membrane`: to keep the painted rune pattern, add a `SurfaceAppearance` with `ColorMap = textures/Dragon_WingMembrane.png`. If your Studio version shows emissive properties on SurfaceAppearance, use the same image as the emissive map. For a plain glow instead, set it to `Neon` with `Color = (20, 190, 215)`.
 3. **Stud relief (optional):** add a `SurfaceAppearance` to a stud MeshPart, with `ColorMap` set to its `Dragon_*_Stud.png` and `NormalMap` set to `Dragon_Stud_Normal.png`.
-4. **Animations:** open the Animation Editor on the imported rig → ⋯ → Import → From FBX Animation → pick `AncientDragon_Idle.fbx`, then publish. Repeat for `AncientDragon_Walk.fbx`. Both loop seamlessly, so tick Looping before publishing.
+4. **Animations:** open the Animation Editor on the imported rig → ⋯ → Import → From FBX Animation → pick `AncientDragon_FlyIdle.fbx`, then publish. Repeat for `AncientDragon_Fly.fbx`. Both loop seamlessly, so tick Looping before publishing. Play `Dragon_FlyIdle` while hovering and `Dragon_Fly` while your script moves the dragon; both are in place, so your game script handles the actual movement and altitude.
 
 ## Rebuilding
 

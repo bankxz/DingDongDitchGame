@@ -82,7 +82,8 @@ def spike(mat, base, tip, w, h=None, bone="Root", up=(0, 0, 1), cap=False):
     add_piece(mat, vs, faces, bone)
 
 
-def blade(mat, pts, w, h, bone, up=(0, 0, 1), taper_to=0.0, tip_mat=None, tip_frac=0.35, curve_up=None):
+def blade(mat, pts, w, h, bone, up=(0, 0, 1), taper_to=0.0, tip_mat=None, tip_frac=0.35, curve_up=None,
+          start_cap=True, simplify_deg=1.5, simplify_w=0.02):
     """continuous sleek blade: diamond cross-section lofted along pts, tapering to a sharp point.
     bone: str or per-point list. tip_mat colours the last tip_frac of the length (e.g. cream horn tips)."""
     pts = [V(p) for p in pts]
@@ -96,6 +97,32 @@ def blade(mat, pts, w, h, bone, up=(0, 0, 1), taper_to=0.0, tip_mat=None, tip_fr
         ww, hh = w + (taper_to - w) * f, h + (taper_to * h / max(w, 1e-6) - h) * f
         rings.append([p - u * hh / 2, p + sd * ww / 2, p + u * hh / 2, p - sd * ww / 2])
     split = max(1, min(len(rings) - 1, int(round(len(rings) * (1 - tip_frac))))) if tip_mat else len(rings)
+    # drop rings that add no shape: interior points that are collinear with their neighbours, on the same bone,
+    # whose width is what linear interpolation along the length would give anyway
+    ctr = [(r[0] + r[2]) / 2 for r in rings] + [pts[-1]]
+    wid = [(r[1] - r[3]).length for r in rings] + [0.0]
+    keep = list(range(len(ctr)))
+    changed = True
+    while changed:
+        changed = False
+        for j in range(1, len(keep) - 2):
+            a, i, c = keep[j - 1], keep[j], keep[j + 1]
+            if i == split or bones[i] != bones[a] or bones[i] != bones[c]:
+                continue
+            d1, d2 = ctr[i] - ctr[a], ctr[c] - ctr[i]
+            if d1.length < 1e-6 or d2.length < 1e-6 or d1.angle(d2) > math.radians(simplify_deg):
+                continue
+            t = d1.length / (d1.length + d2.length)
+            if abs(wid[a] + (wid[c] - wid[a]) * t - wid[i]) > simplify_w * max(wid[a], 1e-3):
+                continue
+            keep.pop(j)
+            changed = True
+            break
+    kept = keep[:-1]
+    if split < len(rings):
+        split = kept.index(split)
+    rings = [rings[i] for i in kept]
+    bones = [bones[i] for i in kept] + [bones[-1]]
 
     def emit(mat_, r0, r1, with_tip, start_cap):
         verts, faces, bw = [], [], []
@@ -122,10 +149,10 @@ def blade(mat, pts, w, h, bone, up=(0, 0, 1), taper_to=0.0, tip_mat=None, tip_fr
         add_piece(mat_, verts, faces, bw)
 
     if split >= len(rings):
-        emit(mat, 0, len(rings), True, True)
+        emit(mat, 0, len(rings), True, start_cap)
     else:
-        emit(mat, 0, split + 1, False, True)
-        emit(tip_mat, split, len(rings), True, True)
+        emit(mat, 0, split + 1, False, start_cap)
+        emit(tip_mat, split, len(rings), True, False)
 
 
 def eyeball(c, r, fwd, up, bone, seg=8, rings=5, sx=1.0, sy=1.0, sz=1.0):
@@ -159,10 +186,72 @@ def eyeball(c, r, fwd, up, bone, seg=8, rings=5, sx=1.0, sy=1.0, sz=1.0):
     add_piece("Eye", verts, faces, bone, uvmode="given", uvs=[[uv[i] for i in f] for f in faces])
 
 
-def strip(mat, pts, w, h, bone, up=(0, 0, 1), gap=0.05, taper_to=None, tip_mat=None, tip=False, drop=None):
-    """row of separate bricks along a polyline; optional pointed last segment"""
+def band_arc(mat, pts, axis_pt, w, h, bone):
+    """open rectangular-section band bent through pts (w along the body axis, h radial from axis_pt);
+    the inner face lies on the body and is omitted"""
+    n = len(pts)
+    ax = V((0, 1, 0))
+    verts = []
+    for i, p in enumerate(pts):
+        r = p - V(axis_pt)
+        r = (r - ax * r.dot(ax)).normalized()
+        verts += [p - ax * w / 2 - r * h / 2, p + ax * w / 2 - r * h / 2, p + ax * w / 2 + r * h / 2,
+                  p - ax * w / 2 + r * h / 2]
+    faces = []
+    for i in range(n - 1):
+        j = i + 1
+        for k in (1, 2, 3):          # front side, outer top, back side (k=0 is the inner face)
+            a, b = i * 4 + k, i * 4 + (k + 1) % 4
+            faces.append((a, b, j * 4 + (k + 1) % 4, j * 4 + k))
+    faces.append((3, 2, 1, 0))
+    last = (n - 1) * 4
+    faces.append((last, last + 1, last + 2, last + 3))
+    add_piece(mat, verts, faces, bone)
+
+
+def ring_loop(mat, pts, center, w, h, nrm, bone):
+    """closed rectangular-section loop through pts (e.g. an eye socket rim); w radial, h along nrm"""
+    n = len(pts)
+    nrm = V(nrm).normalized()
+    verts = []
+    for p in pts:
+        r = (p - V(center))
+        r = (r - nrm * r.dot(nrm)).normalized()
+        verts += [p - r * w / 2 - nrm * h / 2, p + r * w / 2 - nrm * h / 2, p + r * w / 2 + nrm * h / 2,
+                  p - r * w / 2 + nrm * h / 2]
+    faces = []
+    for i in range(n):
+        j = (i + 1) % n
+        for k in range(4):
+            a, b = i * 4 + k, i * 4 + (k + 1) % 4
+            faces.append((a, b, j * 4 + (k + 1) % 4, j * 4 + k))
+    add_piece(mat, verts, faces, bone)
+
+
+def strip(mat, pts, w, h, bone, up=(0, 0, 1), gap=0.05, taper_to=None, tip_mat=None, tip=False, drop=None,
+          continuous=False):
+    """row of separate bricks along a polyline; optional pointed last segment.
+    continuous=True lofts one plate through all points instead (no hidden faces between bricks)"""
     pts = [V(p) for p in pts]
     n = len(pts) - 1
+    if continuous:
+        verts = []
+        for i, p in enumerate(pts):
+            f = i / n
+            ww = w if taper_to is None else w + (taper_to - w) * f
+            hh = h if taper_to is None else h + (taper_to * h / w - h) * f
+            sd, d, u = frame(pts[min(i + 1, n)] - pts[max(i - 1, 0)], up)
+            verts += [p - sd * ww / 2 - u * hh / 2, p + sd * ww / 2 - u * hh / 2, p + sd * ww / 2 + u * hh / 2,
+                      p - sd * ww / 2 + u * hh / 2]
+        faces = []
+        sides = (1, 2, 3) if drop == "down" else (0, 1, 2, 3)
+        for i in range(n):
+            for k in sides:
+                a_, b_ = i * 4 + k, i * 4 + (k + 1) % 4
+                faces.append((a_, b_, b_ + 4, a_ + 4))
+        faces += [(3, 2, 1, 0), (n * 4, n * 4 + 1, n * 4 + 2, n * 4 + 3)]
+        add_piece(mat, verts, faces, bone if isinstance(bone, str) else bone[0])
+        return
     for i in range(n):
         f0, f1 = i / n, (i + 1) / n
         wa = w if taper_to is None else w + (taper_to - w) * f0
@@ -211,12 +300,10 @@ def ring_of_bricks(center, normal, radius, bone, up=(0, 0, 1), n=8, bw=0.5, bh=0
     a = V(up).cross(nrm).normalized()
     b = nrm.cross(a).normalized()
     c = V(center)
-    for k in range(n):
-        t0 = k * 2 * math.pi / n + math.pi / n
-        t1 = t0 + 2 * math.pi / n
-        p0 = c + (a * math.cos(t0) + b * math.sin(t0)) * radius
-        p1 = c + (a * math.cos(t1) + b * math.sin(t1)) * radius
-        brick("Gold", p0 - (p1 - p0) * 0.1, p1 + (p1 - p0) * 0.1, bw, bh, bone, up=nrm, gap=0.04, drop="down")
+    # one continuous polygonal ring (same outline as n overlapping bricks, far fewer faces)
+    corners = [c + (a * math.cos(k * 2 * math.pi / n + math.pi / n) + b * math.sin(k * 2 * math.pi / n + math.pi / n))
+               * radius for k in range(n)]
+    ring_loop("Gold", corners, c, bw / math.cos(math.pi / n), bh, nrm, bone)
     obox("Dark", c - nrm * 0.02, a * radius * 0.78, b * radius * 0.78, nrm * 0.14, bone)
     if rune == "diamond":
         a2, b2 = (a + b).normalized(), (b - a).normalized()
@@ -307,7 +394,8 @@ def build_spine_ridge():
     body_y = min(p[1] for p, b in SPINE_PTS if b in ("Chest", "Spine", "Hips"))
     pts = [(V(p), b) for p, b in SPINE_PTS if not (b.startswith("Neck") and p[1] > body_y - 0.4)]
     pts = sorted(pts, key=lambda pb: pb[0][1])
-    blade("Gold", [p for p, _ in pts], 0.5, 0.42, [b for _, b in pts], up=(0, 0, 1), taper_to=0.12)
+    blade("Gold", [p for p, _ in pts], 0.5, 0.42, [b for _, b in pts], up=(0, 0, 1), taper_to=0.12,
+          simplify_deg=9.0, simplify_w=0.1)
 
 
 # ============================================================== torso
@@ -351,10 +439,8 @@ def build_torso():
         arc = [(-hw * 0.6, top + 0.05), (0, top + 0.18), (hw * 0.6, top + 0.05)]
         if i % 2 == 0:
             arc = [(-hw * 0.92, zc + hh * 0.35)] + arc + [(hw * 0.92, zc + hh * 0.35)]
-        for k in range(len(arc) - 1):
-            (x0, z0), (x1, z1) = arc[k], arc[k + 1]
-            brick("Gold", (x0, y, z0), (x1, y, z1), 0.62, 0.42, bn, up=(x0 + x1, 0, (z0 + z1 - 2 * zc) * 2), gap=0.05,
-                  drop="down")
+        # one continuous bent armour band over the back (open underside sits on the body)
+        band_arc("Gold", [V((x, y, z)) for x, z in arc], V((0, y, zc)), 0.62, 0.42, bn)
         h = 1.35 - 0.06 * i
         spike("Gold" if i % 2 == 0 else "Bone", (0, y + 0.05, top + 0.05), (0, y + 0.8, top + 0.3 + h), 0.26, 0.66,
               bone=bn, up=(0, -1, 0), cap=True)
@@ -381,7 +467,7 @@ def build_neck_head():
         SPINE_PTS.append((root + V((0, 0.08, 0.08)), bn))
     for s in (1, -1):
         strip("Gold", [X(s, (1.05, -2.6, 5.2)), X(s, (1.55, -2.35, 4.85)), X(s, (1.95, -2.0, 4.2)),
-                       X(s, (2.1, -1.8, 3.4))], 0.62, 0.36, "Chest", up=X(s, (0.3, -1, 0.3)))
+                       X(s, (2.1, -1.8, 3.4))], 0.62, 0.36, "Chest", up=X(s, (0.3, -1, 0.3)), continuous=True)
 
     H = "Head"
     HEAD_RINGS = [((0, -2.85, 7.6), 0.82, 0.76), ((0, -3.55, 7.6), 0.92, 0.84), ((0, -4.6, 7.4), 0.8, 0.72),
@@ -425,8 +511,7 @@ def build_neck_head():
         eyeball(ec, 0.3, en, eu, H, seg=8, rings=4, sx=1.8, sy=0.55, sz=0.7)
         rim = [ec + en * 0.08 + (et * math.cos(a) * 0.66 + eu * math.sin(a) * 0.27)
                for a in [math.radians(d) for d in (0, 60, 120, 180, 240, 300, 360)]]
-        for k in range(6):
-            brick("Dark", rim[k], rim[k + 1], 0.2, 0.26, H, up=en, gap=0.0, bevel=0.35)
+        ring_loop("Dark", rim[:-1], ec + en * 0.08, 0.2, 0.26, en, H)
         obox("Dark", X(s, (0.8, -4.3, 7.1)), (0.2, 0, 0), (0, 0.5, 0), (0, 0, 0.4), H)
         brick("Gold", X(s, (0.86, -3.95, 6.95)), X(s, (0.55, -6.2, 6.7)), 0.28, 0.32, H, up=X(s, (1, 0, 0.2)))
         obox("Gold", X(s, (0.95, -3.7, 7.1)), X(s, (0.22, 0.08, 0)), (0, 0.45, 0), (0, 0, 0.6), H)
@@ -466,7 +551,7 @@ def build_neck_head():
     brick("Mouth", V(c0) + V((0, -0.15, 0)) + jup_ * (h0_ - 0.06), V(c2) + V((0, 0.35, 0)) + jup_ * (h2_ - 0.04),
           w0_ * 0.95, 0.08, Jb, up=jup_, gap=0.0, w1=w2_ * 0.8, bevel=0.0)
     strip("Tan", [(0, -4.1, 5.98), (0, -5.1, 5.38), (0, -6.15, 4.78)], 1.0, 0.26, Jb, up=(0, 0.55, -0.85),
-          taper_to=0.5)
+          taper_to=0.5, continuous=True)
     for s in (1, -1):
         jup = V((0, -0.55, 0.85)).normalized()
         jr = JAW_RINGS
@@ -492,9 +577,9 @@ def claw(p, fwd, size, bone):
     z = V((0, 0, 1))
     brick("Dark", p - fwd * size * 0.7 + z * size * 0.3, p + fwd * size * 0.25 + z * size * 0.2, size * 0.95,
           size * 0.95, bone, gap=0.0, w1=size * 0.9, h1=size * 0.8, bevel=0.3, drop="start")
-    blade("Bone", [p + fwd * size * 0.05 + z * size * 0.25, p + fwd * size * 0.95 + z * size * 0.3,
-                   p + fwd * size * 1.65 - z * size * 0.15, p + fwd * size * 1.9 - z * size * 0.85],
-          size * 0.9, size * 1.0, bone, up=(0, 0, 1), taper_to=size * 0.35)
+    blade("Bone", [p + fwd * size * 0.05 + z * size * 0.25, p + fwd * size * 1.2 + z * size * 0.22,
+                   p + fwd * size * 1.9 - z * size * 0.85],
+          size * 0.9, size * 1.0, bone, up=(0, 0, 1), taper_to=size * 0.35, start_cap=False)
 
 
 def build_legs():
@@ -510,7 +595,7 @@ def build_legs():
         # elbow blade spike pointing back
         blade("Gold", [L["Forearm"] + V((0, 0.4, 0.2)), L["Forearm"] + V((0, 1.2, 0.35)),
                        L["Forearm"] + V((0, 1.9, 0.75))], 0.5, 0.45, fa, up=(0, 0, 1))
-        ring_of_bricks(L["UpperArm"] + X(s, (1.02, -0.15, -0.25)), X(s, (1, -0.2, 0.1)), 0.95, ua, n=6, bw=0.5, bh=0.42)
+        ring_of_bricks(L["UpperArm"] + X(s, (1.3, -0.15, -0.25)), X(s, (1, -0.2, 0.1)), 0.95, ua, n=6, bw=0.5, bh=0.42)
         # angular forearm armour: bevelled front plates following the forearm angle + outer plate
         fdir = (L["Hand"] - L["Forearm"]).normalized()
         fnrm = V((0, -fdir.z, fdir.y)).normalized()
@@ -521,10 +606,10 @@ def build_legs():
                   1.15, 0.28, fa, up=fnrm, gap=0.04, w1=1.0, drop="down", bevel=0.3)
         strip("Gold", [L["Forearm"] + X(s, (0.8, -0.2, -0.1)), L["Forearm"].lerp(L["Hand"], 0.45) + X(s, (0.84, 0, 0.1)),
                        L["Forearm"].lerp(L["Hand"], 0.85) + X(s, (0.68, 0, 0.2))], 0.66, 0.28, fa, up=(1, 0, 0),
-              gap=0.05, drop="down")
+              gap=0.05, drop="down", continuous=True)
         strip("Gold", [L["UpperArm"] + X(s, (-0.15, -1.02, -0.9)), L["UpperArm"] + X(s, (0.55, -0.98, -0.95)),
                        L["UpperArm"] + X(s, (1.02, -0.45, -1.1))], 0.5, 0.36, ua,
-              up=X(s, (0.5, -0.7, 0)), gap=0.05, drop="down")
+              up=X(s, (0.5, -0.7, 0)), gap=0.05, drop="down", continuous=True)
         brick("Gold", L["Hand"] + V((0, 0.4, 0.5)), L["Hand"] + V((0, -0.4, 0.42)), 1.45, 0.34, fa, gap=0.0,
               w1=1.3, up=(0, 0.2, 1), bevel=0.35)
         # hand: lofted pad (rounded heel -> wide palm -> flat toe end) so the underside is bevelled, not a slab
@@ -546,10 +631,10 @@ def build_legs():
         spike("Gold", L["Shin"] + X(s, (0.15, -0.45, 0.2)), L["Shin"] + X(s, (0.25, -1.25, 0.35)), 0.38, 0.38, bone=sh)
         strip("Gold", [L["Thigh"] + X(s, (-0.25, -1.05, -0.9)), L["Thigh"] + X(s, (0.55, -1.05, -1.0)),
                        L["Thigh"] + X(s, (1.1, -0.55, -1.35))], 0.5, 0.36, th, up=X(s, (0.5, -0.7, 0)), gap=0.05,
-              drop="down")
+              drop="down", continuous=True)
         strip("Gold", [L["Shin"] + X(s, (-0.55, -0.76, -0.45)), L["Shin"] + X(s, (0.22, -0.84, -0.5)),
                        L["Shin"] + X(s, (0.78, -0.32, -0.55))], 0.44, 0.34, sh, up=X(s, (0.4, -0.8, 0)), gap=0.05,
-              drop="down")
+              drop="down", continuous=True)
         brick("Gold", L["Foot"] + V((0, 0.35, 0.45)), L["Foot"] + V((0, -0.35, 0.38)), 1.25, 0.32, sh, gap=0.0,
               w1=1.1, up=(0, 0.2, 1), bevel=0.35)
         tube("Dark", [(L["Foot"] + V((0, 0.5, -0.2)), 0.62, 0.48), (L["Foot"] + V((0, -0.3, -0.3)), 0.98, 0.52),
@@ -629,9 +714,9 @@ def build_wings():
             spike("Gold", p, p + V((0, 0.7, 1.0)) + X(s, (0.15, 0, 0)), 0.26, 0.5, bone=bones_f1[i], up=nrm)
         for tipk, bn, k in (("F2Tip", f2, 3), ("F3Tip", f3, 3), ("F4Tip", f4, 2)):
             tip = W[tipk]
-            pts = [hand.lerp(tip, t / k) for t in range(k + 1)]
             dv = (tip - hand).normalized()
-            blade("Gold", pts + [tip + dv * 1.3], 0.8, 0.5, bn, up=nrm, taper_to=0.25)
+            # one straight tapered segment (same shape as the former collinear 3-4 segment version)
+            blade("Gold", [hand, tip, tip + dv * 1.3], 0.8, 0.5, bn, up=nrm, taper_to=0.0)
 
 
         # membrane with stair-stepped scalloped trailing edges
@@ -785,6 +870,7 @@ def build_meshes(arm):
         uvl = bm.loops.layers.uv.new("UVMap")
         dl = bm.verts.layers.deform.verify()
         groups = {}
+        src = bm.faces.layers.int.new("src")
         for pc in pieces:
             bv = [bm.verts.new(v) for v in pc["verts"]]
             for v, bw in zip(bv, pc["bones"]):
@@ -795,6 +881,7 @@ def build_meshes(arm):
                     face = bm.faces.new([bv[i] for i in f])
                 except ValueError:
                     continue
+                face[src] = pc.get("src", -1)
                 uvs = pc["uvs"][fi] if pc["uvmode"] == "given" else face_uvs(pc["verts"], f, pc["uvmode"])
                 for loop, uv in zip(face.loops, uvs):
                     loop[uvl].uv = uv
@@ -971,22 +1058,35 @@ def fcurves_of(action):
 
 
 def animate(arm, name, frames, pose_fn, step=2):
-    """pose_fn(phase 0..1) -> {bone: (rx, ry, rz) deg, 'loc_<bone>': (x, y, z)}; first == last key, loops seamlessly"""
+    """pose_fn(phase 0..1) -> {bone: [(axis, deg), ...], 'loc_Root': (x, y, z)}.
+    Rotations are given in armature axes (X = dragon's left, Y = toward the tail, Z = up) about each bone's own
+    head, applied on top of its parent's pose; they are converted to bone-local quaternions here.
+    First key == last key, so every loop is seamless."""
+    from mathutils import Matrix
     act = bpy.data.actions.new(name)
     act.use_fake_user = True
     arm.animation_data_create()
     arm.animation_data.action = act
+    prev = {}
     for pb in arm.pose.bones:
-        pb.rotation_mode = "XYZ"
+        pb.rotation_mode = "QUATERNION"
     for f in range(0, frames + 1, step):
         pose = pose_fn((f % frames) / frames)
         for pb in arm.pose.bones:
-            pb.rotation_euler = [math.radians(a) for a in pose.get(pb.name, (0, 0, 0))]
-            pb.location = pose.get("loc_" + pb.name, (0, 0, 0))
-            pb.keyframe_insert("rotation_euler", frame=f + 1)
+            rest = pb.bone.matrix_local.to_3x3()
+            R = Matrix.Identity(3)
+            for ax, deg in pose.get(pb.name, ()):
+                R = Matrix.Rotation(math.radians(deg), 3, ax) @ R
+            q = (rest.inverted() @ R @ rest).to_quaternion()
+            if pb.name in prev and q.dot(prev[pb.name]) < 0:
+                q.negate()
+            prev[pb.name] = q
+            pb.rotation_quaternion = q
+            pb.location = rest.inverted() @ V(pose.get("loc_" + pb.name, (0, 0, 0)))
+            pb.keyframe_insert("rotation_quaternion", frame=f + 1)
             pb.keyframe_insert("location", frame=f + 1)
     for pb in arm.pose.bones:
-        pb.rotation_euler = (0, 0, 0)
+        pb.rotation_quaternion = (1, 0, 0, 0)
         pb.location = (0, 0, 0)
     for fc in fcurves_of(act):
         for kp in fc.keyframe_points:
@@ -1001,53 +1101,75 @@ def sn(ph, k=1.0, off=0.0):
 
 
 N_TAIL = len(TAIL) - 1
+FLY_LIFT = 4.0  # studs the body rises off the ground while flying (legs tucked clear of the floor)
 
 
-def idle_pose(ph):
-    """4 s breathing loop: chest heave, neck/head sway, slow growl, wing settle, tail wave"""
-    br = sn(ph)
-    p = {"Hips": (0.8 * br, 0, 0), "Spine": (-0.8 * br, 0, 0), "Chest": (1.5 * br, 0, 0),
-         "Neck1": (-2 * br, 0, 2 * sn(ph, 1, 0.1)), "Neck2": (-2 * br, 0, 2.5 * sn(ph, 1, 0.15)),
-         "Neck3": (-1.5 * br, 0, 3 * sn(ph, 1, 0.2)), "Head": (3 * sn(ph, 1, 0.3), 0, 4 * sn(ph, 1, 0.25)),
-         "Jaw": (-6 * max(0.0, sn(ph, 1, 0.1)), 0, 0), "loc_Root": (0, 0, 0.06 * br)}
+def wing_flap(p, ph, base_down, amp, sweep, elbow_lag=0.12):
+    """wing beat for both wings. ph 0..1: downstroke over the first ~45%, slower upstroke with the elbow and
+    fingers folding. Left wing (+X) goes down with +Y rotation, right wing with -Y."""
+    beat = math.cos(2 * math.pi * ph)                          # +1 = wings up, -1 = wings down
+    fold = max(0.0, math.sin(2 * math.pi * (ph - 0.5)))        # folding during the upstroke
     for sfx, s_ in (("_L", 1), ("_R", -1)):
-        p["Wing1" + sfx] = (0, 5 * s_ * sn(ph, 1, 0.05), 0)
-        p["Wing2" + sfx] = (0, 3 * s_ * sn(ph, 1, 0.12), 0)
-        for k, f in enumerate(("Finger2", "Finger3", "Finger4")):
-            p[f + sfx] = ((2 + k * 0.5) * sn(ph, 1, 0.2 + 0.05 * k), 0, 0)
-        p["UpperArm" + sfx] = (-1 * br, 0, 0)
-        p["Forearm" + sfx] = (1 * br, 0, 0)
-        p["Thigh" + sfx] = (-1 * br, 0, 0)
-        p["Shin" + sfx] = (1 * br, 0, 0)
+        # spread the folded rest wing out flat (fingers pointing out/back), then beat it about the body axis
+        p["Wing1" + sfx] = [("X", 70), ("Y", s_ * 50), ("Z", s_ * (20 - sweep)),
+                            ("Y", s_ * (base_down - beat * amp))]  # beat>0 raises, beat<0 lowers
+        lag = math.cos(2 * math.pi * (ph - elbow_lag))
+        p["Wing2" + sfx] = [("Y", s_ * (lag * amp * 0.25 - 10 * fold)), ("X", -6 * fold)]
+        p["WingHand" + sfx] = [("Y", s_ * (lag * amp * 0.15 - 8 * fold))]
+        for k, fn in enumerate(("Finger2", "Finger3", "Finger4")):
+            p[fn + sfx] = [("X", -(6 + 4 * k) * fold)]
+        p["Finger1b" + sfx] = [("Y", s_ * (-8 * lag))]
+    return beat
+
+
+def fly_idle_pose(ph):
+    """hover in place: big slow wing beats, body tilted nose-up bobbing with each downstroke, neck curved to look
+    ahead, front legs tucked, hind legs dangling, tail hanging and swaying"""
+    p = {}
+    beat = wing_flap(p, ph, base_down=-8, amp=30, sweep=0)
+    p["loc_Root"] = (0, 0, FLY_LIFT + 0.45 * math.cos(2 * math.pi * (ph - 0.3)))
+    p["Hips"] = [("X", -14 + 2 * beat)]
+    p["Chest"] = [("X", 2 * beat)]
+    p["Neck1"] = [("X", 12)]
+    p["Neck2"] = [("X", 6 - 2 * beat)]
+    p["Neck3"] = [("X", -2 - 2 * beat)]
+    p["Head"] = [("X", -8 + 3 * beat), ("Z", 4 * sn(ph, 1, 0.2))]
+    p["Jaw"] = [("X", -5)]
+    for sfx, s_ in (("_L", 1), ("_R", -1)):
+        p["UpperArm" + sfx] = [("X", 38 + 4 * beat)]
+        p["Forearm" + sfx] = [("X", -85)]
+        p["Hand" + sfx] = [("X", -25)]
+        p["Thigh" + sfx] = [("X", 28 + 5 * beat)]
+        p["Shin" + sfx] = [("X", 18)]
+        p["Foot" + sfx] = [("X", 30)]
     for i in range(1, N_TAIL + 1):
-        p["Tail%d" % i] = (1.2 * sn(ph, 1, 0.08 * i), 0, 3.5 * sn(ph, 1, -0.09 * i))
+        p["Tail%d" % i] = [("X", (6 if i < 3 else -4) + 2 * beat), ("Z", 5 * sn(ph, 1, -0.09 * i))]
     return p
 
 
-def walk_pose(ph):
-    """1.6 s in-place diagonal quadruped walk (FL+RR, FR+RL) with body bob and tail sway"""
+def fly_forward_pose(ph):
+    """flying forward (in place): body level and streamlined, neck stretched forward, strong fast wing beats,
+    legs folded back, tail streaming straight out behind with an S-wave"""
     p = {}
-    for sfx, s_, off_f, off_r in (("_L", 1, 0.0, 0.5), ("_R", -1, 0.5, 0.0)):
-        a, lift = sn(ph, 1, off_f), max(0.0, sn(ph, 1, off_f + 0.25))
-        p["UpperArm" + sfx] = (-22 * a, 0, 0)
-        p["Forearm" + sfx] = (28 * lift, 0, 0)
-        p["Hand" + sfx] = (22 * a - 17 * lift, 0, 0)
-        a, lift = sn(ph, 1, off_r), max(0.0, sn(ph, 1, off_r + 0.25))
-        p["Thigh" + sfx] = (-20 * a, 0, 0)
-        p["Shin" + sfx] = (-30 * lift, 0, 0)
-        p["Foot" + sfx] = (20 * a + 21 * lift, 0, 0)
-        p["Wing1" + sfx] = (0, 4 * s_ * sn(ph, 2, 0.1), 0)
-        p["Wing2" + sfx] = (0, 3 * s_ * sn(ph, 2, 0.2), 0)
-    bob = sn(ph, 2, 0.1)
-    p["loc_Root"] = (0, 0, 0.12 * bob)
-    p["Hips"] = (0, 3 * sn(ph, 1, 0.0), 4 * sn(ph, 1, 0.25))
-    p["Spine"] = (0, 0, -2 * sn(ph, 1, 0.25))
-    p["Chest"] = (1.5 * bob, -3 * sn(ph, 1, 0.0), -3 * sn(ph, 1, 0.25))
-    for k, bn in enumerate(("Neck1", "Neck2", "Neck3")):
-        p[bn] = (-(2 - 0.3 * k) * bob, 0, 2 * sn(ph, 1, 0.3 + 0.05 * k))
-    p["Head"] = (2.5 * bob, 0, -3 * sn(ph, 1, 0.3))
+    beat = wing_flap(p, ph, base_down=-6, amp=32, sweep=12)
+    p["loc_Root"] = (0, 0, FLY_LIFT + 0.35 * math.cos(2 * math.pi * (ph - 0.3)))
+    p["Hips"] = [("X", -4 + 2 * beat), ("Y", 3 * sn(ph, 1, 0.25))]
+    p["Chest"] = [("X", 1.5 * beat)]
+    p["Neck1"] = [("X", 30)]
+    p["Neck2"] = [("X", 16 - 2 * beat)]
+    p["Neck3"] = [("X", 4 - 2 * beat)]
+    p["Head"] = [("X", -28 + 3 * beat), ("Z", 2 * sn(ph, 1, 0.2))]
+    p["Jaw"] = [("X", -3)]
+    for sfx, s_ in (("_L", 1), ("_R", -1)):
+        p["UpperArm" + sfx] = [("X", 55 + 3 * beat)]
+        p["Forearm" + sfx] = [("X", -100)]
+        p["Hand" + sfx] = [("X", -20)]
+        p["Thigh" + sfx] = [("X", 65 + 4 * beat)]
+        p["Shin" + sfx] = [("X", 30)]
+        p["Foot" + sfx] = [("X", 45)]
     for i in range(1, N_TAIL + 1):
-        p["Tail%d" % i] = (1.2 * sn(ph, 2, 0.08 * i), 0, 5 * sn(ph, 1, 0.3 - 0.08 * i))
+        up = 18 if i == 1 else (8 if i == 2 else (-6 if i >= 8 else 0))
+        p["Tail%d" % i] = [("X", up + 1.5 * beat), ("Z", 6 * sn(ph, 1, -0.1 * i))]
     return p
 
 
@@ -1073,9 +1195,9 @@ def main(rig=True):
     arm = build_armature() if rig else None
     objs = build_meshes(arm)
     if rig:
-        idle = animate(arm, "Dragon_Idle", 120, idle_pose, step=4)
-        walk = animate(arm, "Dragon_Walk", 48, walk_pose, step=2)
-        poses = [(None, 1)] + [(idle, f) for f in (31, 61, 91)] + [(walk, f) for f in (7, 13, 19, 31, 37, 43)]
+        idle = animate(arm, "Dragon_FlyIdle", 40, fly_idle_pose, step=2)
+        walk = animate(arm, "Dragon_Fly", 28, fly_forward_pose, step=2)
+        poses = [(None, 1)] + [(idle, f) for f in (1, 11, 21, 31)] + [(walk, f) for f in (1, 8, 15, 22)]
         cull_hidden_faces(arm, objs, poses)
         for act in (idle, walk):
             tr = arm.animation_data.nla_tracks.new()
@@ -1088,6 +1210,9 @@ def main(rig=True):
         ob.data.calc_loop_triangles()
         per[ob.name] = len(ob.data.loop_triangles)
     print("TRIS_TOTAL", sum(per.values()), per)
+    for ob in objs:  # build-time bookkeeping attribute, not needed in the asset
+        if "src" in ob.data.attributes:
+            ob.data.attributes.remove(ob.data.attributes["src"])
     os.makedirs(OUT, exist_ok=True)
     bpy.ops.wm.save_as_mainfile(filepath=os.path.join(OUT, "AncientDragon.blend"))
 

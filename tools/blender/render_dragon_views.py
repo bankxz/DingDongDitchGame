@@ -160,8 +160,9 @@ for name, (loc, tgt, lens, res) in VIEWS.items():
             pb.matrix_basis = Matrix.Identity(4)
         bpy.context.view_layer.update()
     sc.render.resolution_x, sc.render.resolution_y = res
-    cam.location = Vector(loc)
-    d = Vector(tgt) - cam.location
+    lift = Vector((0, 0, 4.0)) if "Fly" in action else Vector((0, 0, 0))  # flight loops lift the body 3 studs
+    cam.location = Vector(loc) + lift
+    d = Vector(tgt) + lift - cam.location
     cam.rotation_euler = d.to_track_quat("-Z", "Y").to_euler()
     cam_d.lens = lens
     if name in ("bottom", "feet_under"):

@@ -1,8 +1,8 @@
 """Export AncientDragon.blend to Roblox-ready FBX files.
 
   AncientDragon.fbx       - skinned meshes + armature in rest pose (import with the 3D Importer)
-  AncientDragon_Idle.fbx  - rig + idle action (Animation Editor > Import > From FBX Animation)
-  AncientDragon_Walk.fbx  - rig + walk action
+  AncientDragon_FlyIdle.fbx - rig + hovering flight loop (Animation Editor > Import > From FBX Animation)
+  AncientDragon_Fly.fbx     - rig + flying-forward loop
 """
 import os
 
@@ -32,6 +32,7 @@ def export(path, action=None):
         for pb in arm.pose.bones:
             pb.location = (0, 0, 0)
             pb.rotation_euler = (0, 0, 0)
+            pb.rotation_quaternion = (1, 0, 0, 0)
     bpy.ops.export_scene.fbx(
         filepath=path,
         use_selection=False,
@@ -60,5 +61,5 @@ def export(path, action=None):
 
 
 export(os.path.join(OUT, "AncientDragon.fbx"))
-export(os.path.join(OUT, "AncientDragon_Idle.fbx"), "Dragon_Idle")
-export(os.path.join(OUT, "AncientDragon_Walk.fbx"), "Dragon_Walk")
+export(os.path.join(OUT, "AncientDragon_FlyIdle.fbx"), "Dragon_FlyIdle")
+export(os.path.join(OUT, "AncientDragon_Fly.fbx"), "Dragon_Fly")
