@@ -6,7 +6,7 @@ Layout (pixels, origin top-left):
   crystal      x 640..1024, y 576..832 (6 facet columns, gradient base->tip)
   glow         x 640..768,  y 832..1024
   bone/teeth   x 768..896,  y 832..1024
-  mouth glow   x 896..1024, y 832..1024
+  mouth        x 896..1024, y 832..1024  (dark interior, no glow)
 
 Every block cell carries a Roblox-style raised stud. The stud contact shadow
 is taken from the MIT-licensed "Roblox-HD-Studs" set by dudeax
