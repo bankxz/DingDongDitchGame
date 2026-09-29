@@ -613,9 +613,9 @@ def eye_uv(a_, b_):
     return px(x0 + (x1 - x0) * fu, y1 - (y1 - y0) * fv)
 
 
-ring_o = [(a_ * 1.0, b_ * 1.0, -0.34) for a_, b_ in ALMOND]    # rim tucked into the socket walls
-ring_i = [(a_ * 0.6, b_ * 0.6, -0.14) for a_, b_ in ALMOND]
-ctr = (0.0, 0.0, -0.08)
+ring_o = [(a_ * 0.74, b_ * 0.74, -0.8) for a_, b_ in ALMOND]    # rim sits inside the socket walls
+ring_i = [(a_ * 0.45, b_ * 0.45, -0.7) for a_, b_ in ALMOND]
+ctr = (0.0, 0.0, -0.66)                                            # dome stays well below the socket rim
 pts = ring_o + ring_i + [ctr]
 verts = [EYE_C + EYE_N * d + EYE_E1 * a_ + EYE_E2 * b_ for a_, b_, d in pts]
 uvs = [eye_uv(a_, b_) for a_, b_, _ in pts]

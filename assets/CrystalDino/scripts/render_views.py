@@ -97,6 +97,7 @@ VIEWDEF = {  # name: (location, target, lens, aspect)
     "fronthead": (Vector((0, -30, 10.5)), Vector((0, -10, 9.6)), 62, (0.65, 1)),
     "mouthclose": (Vector((6.5, -21.0, 9.5)), Vector((0.0, -11.5, 8.6)), 55, (1.0, 1)),
     "browside": (Vector((14.0, -11.0, 12.5)), Vector((0.0, -10.5, 11.5)), 60, (1.0, 1)),
+    "eyegraze": (Vector((3.2, -20.0, 11.2)), Vector((2.0, -10.2, 10.95)), 70, (1.0, 1)),
     "eyeclose": (Vector((8.5, -16.0, 12.2)), Vector((2.0, -10.2, 10.95)), 70, (1.0, 1)),
     "sidehead": (Vector((-17, -16, 11)), Vector((0, -10, 9.8)), 55, (0.7, 1)),
 }
