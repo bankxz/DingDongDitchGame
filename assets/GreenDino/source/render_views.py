@@ -53,6 +53,7 @@ VIEWS = {  # name: (location, target, lens, ortho_scale or None, aspect)
   'jawunder': (Vector((3.5, -8.5, -0.2)), Vector((0, -4.8, 1.2)), 45, None, (4, 3)),
   'eyezoom': (Vector((5.0, -7.2, 4.3)), Vector((0.9, -4.6, 3.1)), 50, None, (4, 3)),
   'clawzoom': (Vector((5.2, -4.8, 1.3)), Vector((2.6, -1.9, 0.35)), 40, None, (4, 3)),
+  'legtop': (Vector((4.8, 2.2, 5.6)), Vector((2.2, -2.0, 1.7)), 40, None, (4, 3)),
   'headside': (Vector((6.5, -5.0, 3.6)), Vector((0, -4.8, 3.0)), 50, None, (3, 4)),
   'headfront': (Vector((1.2, -12.0, 3.6)), Vector((0, -5, 3.2)), 60, None, (3, 4)),
 }

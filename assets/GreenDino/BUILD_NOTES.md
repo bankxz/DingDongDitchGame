@@ -15,7 +15,7 @@ A green crocodile-dinosaur rebuilt from the reference sheet as smooth, rounded l
 | `source/` | Scripts that rebuild everything: `make_atlas.py` → `build_dino.py` → `export_roblox.py` (`render_views.py` renders the validation images) |
 
 ## Stats
-- **3,418 triangles** (budget: 5,000), down from 4,558 after optimisation, 1 mesh, 1 material, 1 texture.
+- **3,522 triangles** (budget: 5,000), down from 4,558 after optimisation, 1 mesh, 1 material, 1 texture.
 - 22 bones: Root, Hips, Spine, Chest, Neck, Head, Jaw, Tail1-3, UpperArm/LowerArm/Hand and Thigh/Shin/Foot for each side (L = +X).
 - At most 2 bone influences per vertex; every vertex is weighted.
 - The body, head and tail are one continuous smooth loft (welded vertices, smooth shading), with weights blending along the spine. The lower jaw and each limb segment are rounded tapered tubes bound rigidly to one bone.
@@ -39,15 +39,16 @@ Each foot has 3 chunky curved talons, centred on the foot. Each one is a symmetr
 
 ## Optimisation
 - **Triangles:** 4,558 → 3,418 (−25%) with no visible change:
-  - Claws: 6-sided, no hidden base cap.
+  - Claws: 6-sided.
   - Eyeballs: only the visible front half, flat back hidden in the socket.
   - Eye rims: 12×4 instead of 16×6.
   - Teeth: single-point pyramids with no tip cap or hidden base.
   - Body: fewer rings on the straight trunk and tail; every ring around the head and eye sockets is kept.
-  - Legs: 8-sided, no cap on the top ends buried in the body.
-- **Vertices:** 3,550 → 2,866.
+  - Legs: 8-sided.
+- **Vertices:** 3,550 → 2,882.
 - **Animation files:** carry just the rig, mesh and keys. The texture is only embedded in `GreenDino.fbx`, and redundant keys are simplified away. Each animation file went from about 1.6 MB to 0.28 MB. The exported poses match the source to within 2 cm on the 13 m model.
 - **Checks:** all 30 tooth roots are still inside the jaw mesh. Every vertex is weighted, with at most 2 influences.
+- **No holes:** `source/check_holes.py` finds every open edge and ray-tests that it's hidden inside another part, at rest and on Walk frames 0/8/15/23 and Idle frames 0/45. The result is 0 exposed. The remaining open edges are the undersides of the spikes and the tooth roots, all buried. Roblox doesn't draw back faces, so any exposed opening would show as a see-through hole. Every limb end and claw base is therefore capped.
 
 ## Teeth
 Each tooth's root is placed from the actual jaw surface height under all four of its base corners, then sunk 0.55 cells into the gum, so no gap shows. A check that ray-tests all 30 tooth roots against the jaw meshes passes (0 roots outside). Upper teeth use the same bone blend as the gum they sit in, so they stay seated while animating.

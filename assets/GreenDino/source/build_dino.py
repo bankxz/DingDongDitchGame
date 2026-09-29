@@ -385,6 +385,7 @@ def claw(x0, x1, y_back, z0, length, height, bone, sides=6, steps=4):
     rings_.append([ACC.addv(W(*(c + side * (rx * math.cos(2 * math.pi * m / sides)) + up * (ry * math.sin(2 * math.pi * m / sides)))), bone)
                    for m in range(sides)])
   tip = ACC.addv(W(*P2), bone)
+  base = ACC.addv(W(*(P0 + (P0 - bez(0.05)).normalized() * 0.2)), bone)
   cen = lambda ids: sum((ACC.v[i] for i in ids), Vector()) / len(ids)
   def f(ids, axis_pt):
     pts = [ACC.v[i] for i in ids]
@@ -397,7 +398,8 @@ def claw(x0, x1, y_back, z0, length, height, bone, sides=6, steps=4):
       f([rings_[i][m], rings_[i][m2], rings_[i + 1][m2], rings_[i + 1][m]], ax)
   for m in range(sides):
     m2 = (m + 1) % sides
-    f([rings_[-1][m], rings_[-1][m2], tip], W(*bez((steps - 0.5) / steps)))   # base end is buried in the toe: no cap
+    f([rings_[-1][m], rings_[-1][m2], tip], W(*bez((steps - 0.5) / steps)))
+    f([rings_[0][m], rings_[0][m2], base], W(*bez(0.1)))                   # capped: the base can peek out under the foot
 
 LEG = {
   'front': ([('UpperArm_', [((6.0, fj, 8.4), 3.8, 3.9), ((8.6, fj, 6.4), 3.6, 3.5), ((10.2, fj, 4.6), 3.0, 3.0)]),
@@ -414,7 +416,7 @@ for s, side in ((1, 'L'), (-1, 'R')):
     mark = len(ACC.v)
     for bn, path in segs:
       path = [((s * c[0], c[1], c[2]), rx, rz) for c, rx, rz in path]
-      tube(path, 8, 2.6, 'legcamo', bn + side, jit=0.04, cap0=bn not in ('UpperArm_', 'Thigh_'))
+      tube(path, 8, 2.6, 'legcamo', bn + side, jit=0.04)   # every limb end capped: the leg tops show above the body
     bone = segs[-1][0] + side
     for c in range(3):   # claws: 3 per foot, cream, at the front of each foot
       xm = s * (x0c + (c - 1) * 2.25)                 # centred on the foot so no claw pokes out of its side
