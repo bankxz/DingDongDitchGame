@@ -4,7 +4,7 @@
    "IceDragon_Body",
    "IceDragon_Ice"
   ],
-  "tris": 4364,
+  "tris": 4896,
   "bones": 41,
   "max_influences": 3,
   "actions": {
@@ -23,8 +23,8 @@
   ],
   "size": [
    15.64,
-   19.44,
-   12.12
+   19.58,
+   12.04
   ]
  },
  "IceDragon_Idle.fbx": {
@@ -32,7 +32,7 @@
    "IceDragon_Body",
    "IceDragon_Ice"
   ],
-  "tris": 4364,
+  "tris": 4896,
   "bones": 41,
   "max_influences": 3,
   "actions": {
@@ -47,8 +47,8 @@
   ],
   "size": [
    15.64,
-   19.44,
-   12.12
+   19.58,
+   12.04
   ]
  },
  "IceDragon_Walk.fbx": {
@@ -56,7 +56,7 @@
    "IceDragon_Body",
    "IceDragon_Ice"
   ],
-  "tris": 4364,
+  "tris": 4896,
   "bones": 41,
   "max_influences": 3,
   "actions": {
@@ -71,8 +71,8 @@
   ],
   "size": [
    15.64,
-   19.44,
-   12.12
+   19.58,
+   12.04
   ]
  },
  "IceDragon.glb": {
@@ -81,7 +81,7 @@
    "IceDragon_Ice",
    "Icosphere"
   ],
-  "tris": 4444,
+  "tris": 4976,
   "bones": 41,
   "max_influences": 3,
   "actions": {
@@ -100,8 +100,8 @@
   ],
   "size": [
    15.64,
-   19.44,
-   12.89
+   19.58,
+   12.91
   ]
  }
 }

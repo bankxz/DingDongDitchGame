@@ -15,7 +15,7 @@ It uses the Roblox stud look (the studs are texture, not geometry).
 | `validation/` | Renders compared with the reference, and animation contact sheets. |
 
 ## Stats
-- **4,364 triangles** (the limit is 5,000). `IceDragon_Body` has 2,876 and `IceDragon_Ice` has 1,488.
+- **4,896 triangles** (the limit is 5,000). `IceDragon_Body` has 3,344 and `IceDragon_Ice` has 1,552.
 - **41 bones**, with at most 3 weights per vertex:
   - Root, Torso, Pelvis
   - 3 necks × 3 bones, plus Head and Jaw for each head
@@ -49,6 +49,19 @@ python3 source/render_views.py . validation         # renders the validation vie
 
 ## Credits
 The stud relief comes from [dudeax/Roblox-HD-Studs](https://github.com/dudeax/Roblox-HD-Studs) (MIT, © 2024 dudeax).
+
+## Heads and claws (matched to the HEAD / EYE and CLAW / FOOT close-ups)
+- **Heads** are built from blocks:
+  - a flat navy skull and a blunt box snout, with a lighter bridge plate and a nose block with nostrils
+  - a heavy angry V-brow over a glowing slit eye at the front corner
+  - a white gum line with big white fangs, including a long pair at the front corners
+  - stacked white cheek blocks at the mouth corner
+  - a white blocky lower jaw with a chin block and upward fangs, open about 38°, with a red mouth and tongue
+  - gold horn spikes at the back of the skull, plus a gold forehead horn on the centre head
+  - an ice mane and a chin icicle
+- **Side heads** are turned outward (about 39°), so the front view shows their profiles like the reference.
+- **Claws**: each paw has four chunky white claws with chamfered edges. Each claw runs forward off a navy toe block and then bends straight down to a flat, blunt tip on the ground. A gold chevron with a small cyan crystal sits on the foot above each toe.
+- `validation/compare_head.png`, `compare_claw.png`, `compare_heads_front.png` and `compare_heads_side.png` show the reference next to the model.
 
 ## Known differences from the concept sheet
 The concept art is a high-detail voxel render made of thousands of separate blocks and several hundred crystals. At under 5k triangles, this model keeps these things from it:

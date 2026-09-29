@@ -101,7 +101,7 @@ def shard(acc, base, d, length, width, wt, twist=0.0, sides=4, simple=False):
     """Faceted ice crystal: base ring -> wider shoulder -> tip. Crystal-atlas UVs.
     simple=True gives a 4-tri pyramid for filler shards (tri budget)."""
     d = V(d).normalized(); base = V(base)
-    s, u = frame(d)
+    s, u = frame(d); u = -u          # ring runs counter-clockwise around d => outward faces
     x, y, w, h = SLOTS['crystal']
     U = lambda uu, vv: ((x + 3 + uu * (w - 6)) / ASIZE, 1 - (y + 3 + (1 - vv) * (h - 6)) / ASIZE)
     if simple:
@@ -179,15 +179,36 @@ def square_joint(acc, glow, c, n, up, size, wt):
     box(acc, c, (size, size, size * 0.55), 'gold', wt, M, taper=0.8)
     gem_plate(glow, V(c) + n * size * 0.28, n, up, size * 0.26, size * 0.26, size * 0.12, wt)
 
-def claw(acc, base, d, length, width, wt, curl=0.35):
-    d = V(d).normalized(); s, u = frame(d)
-    down = V((0, 0, -1))
-    pts = [V(base), V(base) + d * length * 0.5 + down * length * curl * 0.3,
-           V(base) + d * length + down * length * curl]
-    loft(acc, [dict(c=pts[0], T=d, rx=width * 0.5, ry=width * 0.55, w=wt),
-               dict(c=pts[1], T=d, rx=width * 0.45, ry=width * 0.5, w=wt),
-               dict(c=pts[2], T=d + down * curl, rx=width * 0.25, ry=width * 0.2, w=wt)],
-         4, lambda *a: 'tooth', cap1='tooth', rot=math.pi / 4)
+def claw(acc, top, fwd, reach, drop, w, h, wt):
+    """Chunky white claw (CLAW / FOOT DETAIL): chamfered-square section running forward
+    off the toe, then bending straight down to a flat blunt tip on the ground."""
+    fwd = V(fwd).normalized(); side = fwd.cross(V((0, 0, 1))).normalized(); up = V((0, 0, 1))
+    def ring(c, a, b, n):
+        k = 0.62                                     # chamfer: corners cut to 62 %
+        pts = [(a, b * k), (a * k, b), (-a * k, b), (-a, b * k), (-a, -b * k), (-a * k, -b), (a * k, -b), (a, -b * k)]
+        nn = n.cross(side).normalized()
+        return [acc.add_v(c + side * x + nn * y, wt) for x, y in pts]
+    p0 = V(top); p1 = p0 + fwd * reach * 0.8 - up * drop * 0.15; p2 = p0 + fwd * reach - up * drop
+    r0 = ring(p0, w / 2, h / 2, fwd)
+    r1 = ring(p1, w / 2 * 0.97, h / 2, (fwd - up).normalized())
+    r2 = ring(p2, w / 2 * 0.88, h / 2 * 0.85, (-up + fwd * 0.1).normalized())
+    for ra, rb in ((r0, r1), (r1, r2)):
+        for i in range(8):
+            acc.face([ra[i], ra[(i + 1) % 8], rb[(i + 1) % 8], rb[i]], 'tooth')
+    acc.face(r2, 'tooth')                                               # flat blunt tip
+
+def chevron(acc, c, fwd, w, h, t, wt):
+    """Gold inverted-V trim on the front of a toe (apex up, facing forward)."""
+    fwd = V(fwd).normalized(); side = fwd.cross(V((0, 0, 1))).normalized(); up = side.cross(fwd).normalized()
+    th = 0.42 * h
+    outline = [(-w / 2, 0), (0, h), (w / 2, 0), (w / 2 - th, 0), (0, h - th * 1.2), (-w / 2 + th, 0)]
+    b = [acc.add_v(V(c) + side * x + up * y, wt) for x, y in outline]
+    f = [acc.add_v(V(c) + side * x + up * y + fwd * t, wt) for x, y in outline]
+    for tri in ((0, 1, 5), (1, 4, 5), (1, 2, 4), (2, 3, 4)):
+        acc.face([f[i] for i in tri], 'gold'); acc.face([b[i] for i in tri][::-1], 'gold')
+    for i in range(6):
+        j = (i + 1) % 6
+        acc.face([b[i], b[j], f[j], f[i]], 'gold')
 
 def tooth(acc, base, d, length, width, wt, side):
     d = V(d).normalized(); side = V(side).normalized(); f = d.cross(side).normalized()
@@ -218,15 +239,21 @@ NECKS = {
     'L': [V((2.0, -1.2, 5.1)), V((2.5, -1.8, 6.5)), V((3.0, -2.2, 7.3)), V((3.7, -2.3, 7.7))],
     'R': [V((-2.0, -1.2, 5.1)), V((-2.5, -1.8, 6.5)), V((-3.0, -2.2, 7.3)), V((-3.7, -2.3, 7.7))],
 }
-HEADDIR = {'C': V((0, -1, 0.0)).normalized(), 'L': V((0.5, -1, 0.0)).normalized(), 'R': V((-0.5, -1, 0.0)).normalized()}
-HSW, HSL = 1.55, 1.25        # head width/height and length scale
-HEADLEN = 2.5 * HSL
+HEADDIR = {'C': V((0, -1, 0.0)).normalized(), 'L': V((0.8, -1, 0.0)).normalized(), 'R': V((-0.8, -1, 0.0)).normalized()}
+HS = 1.05                    # overall head scale (head ~2.2 studs wide, reference ratio to neck ~1.2)
+HEADLEN = 2.8 * HS
+JAW_OPEN = math.radians(38)
+def head_frame(k):
+    d = HEADDIR[k]; s_, u = frame(d)
+    return d, s_, u
 for k, pts in NECKS.items():
     for i in range(3):
         bone(f'Neck{k}{i+1}', pts[i], pts[i + 1], 'Torso' if i == 0 else f'Neck{k}{i}')
-    bone(f'Head{k}', pts[3], pts[3] + HEADDIR[k] * HEADLEN, f'Neck{k}3')
-    hinge = pts[3] + HEADDIR[k] * 0.35 * HSL + V((0, 0, -0.35 * HSW))
-    bone(f'Jaw{k}', hinge, hinge + (HEADDIR[k] + V((0, 0, -0.55))).normalized() * 1.75 * HSL, f'Head{k}')
+    d, s_, u = head_frame(k)
+    bone(f'Head{k}', pts[3], pts[3] + d * HEADLEN, f'Neck{k}3')
+    hinge = pts[3] + (d * 0.3 + u * -0.42) * HS
+    jd = d * math.cos(JAW_OPEN) - u * math.sin(JAW_OPEN)
+    bone(f'Jaw{k}', hinge, hinge + jd * 2.3 * HS, f'Head{k}')
 
 def mirror(p, sgn): return V((p[0] * sgn, p[1], p[2]))
 
@@ -316,72 +343,82 @@ def neck_color(front):
         return 'white' if n.dot(front) > 0.6 else 'navy'
     return f
 
+def shard_tooth(base, dirv, length, width, wt):
+    """Big white fang: 4-sided pyramid in the tooth swatch."""
+    d = V(dirv).normalized(); s_, u_ = frame(d); u_ = -u_
+    row = [BODY.add_v(V(base) + (s_ * math.cos(a) + u_ * math.sin(a)) * width * 0.5, wt)
+           for a in (0.78, 0.78 + math.pi / 2, 0.78 + math.pi, 0.78 + 1.5 * math.pi)]
+    tip = BODY.add_v(V(base) + d * length, wt)
+    for i in range(4):
+        BODY.face([row[i], row[(i + 1) % 4], tip], 'tooth')
+
+def gold_spike(base, dirv, length, width, wt):
+    g0 = len(BODY.f)
+    shard(BODY, base, dirv, length, width, wt, twist=0.78, simple=True)
+    BODY.f[g0:] = [(i, 'gold', None) for i, sl, uv in BODY.f[g0:]]
+
 def build_head(k):
-    base = NECKS[k][3]; d = HEADDIR[k]
-    s, u = frame(d)                            # s: head's right-to-left axis, u: up
+    """Blocky head per the HEAD / EYE DETAIL close-up: flat navy skull, blunt box snout,
+    angry V brow over a glowing slit eye, white gum line with big fangs, white cheek
+    blocks, white blocky lower jaw with red mouth, gold horns, ice mane."""
+    base = NECKS[k][3]
+    d, s, u = head_frame(k)
+    R = Matrix((s, d, u)).transposed()                   # local (x side, y forward, z up)
     hw = W(f'Head{k}'); jw = W(f'Jaw{k}')
-    P = lambda x, y, z: base + s * x * HSW + d * y * HSL + u * z * HSW   # y along snout
-    def hc(n, c, i):
-        if n.dot(u) < -0.55: return 'red'
-        if n.dot(u) < 0.05 and i >= 1: return 'white'
-        return 'navy'
-    # skull + upper snout (upper jaw)
-    loft(BODY, [dict(c=P(0, -0.35, 0.25), T=d, up=u, rx=0.64, ry=0.7, w=hw),
-                dict(c=P(0, 0.35, 0.32), T=d, up=u, rx=0.74, ry=0.72, w=hw),
-                dict(c=P(0, 1.1, 0.25), T=d, up=u, rx=0.64, ry=0.55, w=hw),
-                dict(c=P(0, 1.9, 0.2), T=d, up=u, rx=0.54, ry=0.44, w=hw),
-                dict(c=P(0, 2.45, 0.16), T=d, up=u, rx=0.46, ry=0.36, w=hw)],
-         8, hc, cap0='navy', cap1='navy')
-    # brow ridge (angry) + glowing eyes
+    P = lambda x, y, z: base + R @ (V((x, y, z)) * HS)
+    def hbox(c, size, slot, rot=None, taper=1.0, slots=None):
+        box(BODY, P(*c), [v * HS for v in size], slot, hw, R @ (rot or Matrix.Identity(3)), taper, slots)
+    BOT, TOP, BACK, SIDE_P, FRONT, SIDE_N = range(6)
+    # skull + snout (roof of mouth is red)
+    hbox((0, 0.45, 0.26), (2.1, 1.6, 1.05), 'navy', taper=0.88, slots={BOT: 'red'})
+    hbox((0, 2.0, 0.08), (1.66, 1.9, 0.74), 'navy', taper=0.9, slots={BOT: 'red'},
+         rot=Matrix.Rotation(0.1, 3, 'X'))                                   # snout, nose tipped down
+    hbox((0, 2.9, 0.1), (1.3, 0.3, 0.52), 'navy', taper=0.85)                 # blunt nose block
+    hbox((0, 1.5, 0.52), (1.1, 1.3, 0.3), 'royal', taper=0.8)                 # lighter bridge plate
+    # white gum line along the upper jaw edge
+    hbox((0, 1.85, -0.34), (1.74, 2.3, 0.2), 'white', slots={BOT: 'red'})
     for sg in (1, -1):
-        M = Matrix((s, d, u)).transposed() @ Matrix.Rotation(-0.35 * sg, 3, 'Y')
-        box(BODY, P(0.42 * sg, 0.62, 0.86), (0.55, 0.55, 0.26), 'navy', hw, M)
-        gem_plate(GLOW, P(0.7 * sg, 0.72, 0.58), s * sg + d * -0.25, u + s * 0.3 * sg, 0.18, 0.1, 0.05, hw, slot='eye')
-        # white cheek plate under the eye (head detail)
-        box(BODY, P(0.6 * sg, 1.2, 0.02), (0.18, 0.7, 0.35), 'white', hw)
-        # gold ornament on the side/back of the skull
-        box(BODY, P(0.55 * sg, 0.05, 0.62), (0.22, 0.22, 0.22), 'gold', hw, M, taper=0.6)
-        # nostril
-        box(BODY, P(0.22 * sg, 2.35, 0.32), (0.12, 0.12, 0.06), 'dark', hw)
-    if k == 'C':
-        shard(BODY, P(0, 0.9, 0.62), u * 0.6 + d * 0.2, 0.55, 0.22, hw, twist=0.78)  # gold horn
-        BODY.f[-8:] = [(i, 'gold', None) for i, sl, uv in BODY.f[-8:]]
-    # lower jaw, open ~28 deg
+        # angry V brow: outer end high, inner end low
+        hbox((0.52 * sg, 0.98, 0.84), (0.98, 0.62, 0.38), 'navy', rot=Matrix.Rotation(-0.48 * sg, 3, 'Y'))
+        hbox((0.9 * sg, 0.45, 0.72), (0.4, 0.8, 0.5), 'royal')                 # upper cheek plate
+        # glowing slit eye tucked under the brow
+        gem_plate(GLOW, P(0.6 * sg, 1.3, 0.6), d * 0.75 + s * sg * 0.65, u + s * 0.4 * sg, 0.36 * HS, 0.15 * HS, 0.08 * HS, hw, slot='eye')
+        # white cheek blocks at the mouth corner (two stacked, as in the close-up)
+        hbox((0.93 * sg, 0.35, -0.2), (0.42, 0.95, 0.9), 'white')
+        hbox((0.86 * sg, 0.85, -0.55), (0.36, 0.6, 0.5), 'white')
+        # nostrils
+        hbox((0.33 * sg, 2.72, 0.42), (0.22, 0.22, 0.1), 'dark', rot=Matrix.Rotation(0.1, 3, 'X'))
+        # gold horn spikes at the back of the skull
+        gold_spike(P(0.72 * sg, -0.05, 0.9), R @ V((0.45 * sg, -0.75, 0.6)), 0.6 * HS, 0.3 * HS, hw)
+        gold_spike(P(0.9 * sg, 0.35, 0.85), R @ V((0.8 * sg, -0.4, 0.6)), 0.4 * HS, 0.24 * HS, hw)
+        # upper fangs hanging from the gum line (big pair at the front corners)
+        for y, L, x in ((1.0, 0.42, 0.74), (1.5, 0.64, 0.74), (2.0, 0.46, 0.72), (2.55, 0.8, 0.66), (2.88, 0.4, 0.28)):
+            shard_tooth(P(x * sg, y, -0.42), -u + d * 0.08, L * HS, 0.3 * HS, hw)
+    if k == 'C':  # gold horn in the middle of the forehead
+        gold_spike(P(0, 1.25, 0.95), R @ V((0, 0.35, 1)), 0.55 * HS, 0.26 * HS, hw)
+    # mouth interior / tongue joining the jaws
+    hbox((0, 0.85, -0.62), (1.4, 1.3, 0.55), 'red')
+    # lower jaw: white block, red top, hinged open ~38 deg
     hinge = BONES[f'Jaw{k}'][0]
-    jd = (BONES[f'Jaw{k}'][1] - hinge).normalized()
-    js, ju = frame(jd, u)
-    J = lambda x, y, z: hinge + js * x * HSW + jd * y * HSL + ju * z * HSW
-    def jc(n, c, i):
-        return 'red' if n.dot(ju) > 0.8 else 'white'
-    loft(BODY, [dict(c=J(0, -0.1, 0.0), T=jd, up=ju, rx=0.56, ry=0.3, w=jw),
-                dict(c=J(0, 0.7, 0.0), T=jd, up=ju, rx=0.52, ry=0.28, w=jw),
-                dict(c=J(0, 1.4, 0.02), T=jd, up=ju, rx=0.42, ry=0.22, w=jw),
-                dict(c=J(0, 1.8, 0.03), T=jd, up=ju, rx=0.34, ry=0.18, w=jw)],
-         8, jc, cap0='red', cap1='white')
-    # navy strip on the jaw underside
-    box(BODY, J(0, 0.9, -0.2), (0.55, 1.6, 0.12), 'navy', jw, Matrix((js, jd, ju)).transposed())
-    # throat (dark) joining jaws at the back
-    t1 = [BODY.add_v(P(sg * 0.45, 0.2, -0.15), hw) for sg in (1, -1)]
-    t2 = [BODY.add_v(J(sg * 0.42, 0.1, 0.12), jw) for sg in (1, -1)]
-    BODY.face([t1[0], t1[1], t2[1], t2[0]], 'dark')
-    # teeth: upper fangs point down, lower point up
+    jd = (BONES[f'Jaw{k}'][1] - hinge).normalized(); ju = s.cross(jd).normalized()
+    RJ = Matrix((s, jd, ju)).transposed()
+    J = lambda x, y, z: hinge + RJ @ (V((x, y, z)) * HS)
+    box(BODY, J(0, 1.2, -0.12), [1.56 * HS, 2.55 * HS, 0.48 * HS], 'white', jw, RJ, 1.0, {TOP: 'red'})
+    box(BODY, J(0, 1.35, -0.4), [1.1 * HS, 1.9 * HS, 0.22 * HS], 'white', jw, RJ, 0.9)          # chin block
     for sg in (1, -1):
-        for j, y in enumerate((0.75, 1.15, 1.55, 1.95, 2.3)):
-            L = 0.62 if j in (1, 4) else 0.42
-            tooth(BODY, P(sg * (0.5 - 0.05 * j), y, -0.12), -u + d * 0.05, L, 0.2, hw, d)
-        for j, y in enumerate((0.5, 0.9, 1.3, 1.65)):
-            L = 0.5 if j == 3 else 0.36
-            tooth(BODY, J(sg * (0.42 - 0.04 * j), y, 0.22), ju, L, 0.18, jw, jd)
+        box(BODY, J(0.72 * sg, 1.2, 0.14), [0.16 * HS, 2.5 * HS, 0.12 * HS], 'white', jw, RJ)     # lower gum rim
+        for y, L, x in ((0.6, 0.38, 0.66), (1.15, 0.48, 0.66), (1.75, 0.55, 0.62), (2.3, 0.42, 0.3)):
+            shard_tooth(J(x * sg, y, 0.18), ju + jd * 0.05, L * HS, 0.28 * HS, jw)
     # chin icicle
-    shard(GLOW, J(0, 1.2, -0.25), -ju + jd * 0.2, 1.0, 0.32, jw, twist=0.78)
-    # crest crystals fanning up/back
+    shard(GLOW, J(0, 1.7, -0.5), -ju + jd * 0.25, 1.0 * HS, 0.34 * HS, jw, twist=0.78)
+    # ice mane: crystals erupting from the back of the skull, up and back
     for j in range(9):
         a = (j / 8 - 0.5) * 2
-        dd = (u * 1.0 - d * 0.55 + s * a * 0.85).normalized()
-        L = (2.2 - 0.8 * abs(a)) * (1.2 if k == 'C' else 1.0)
-        shard(GLOW, P(a * 0.5, -0.2 + abs(a) * 0.25, 0.5 - abs(a) * 0.1), dd, L, 0.55, hw, twist=j * 0.6, simple=(j % 2 == 1))
-    for sg in (1, -1):  # cheek spikes flaring out
-        shard(GLOW, P(0.75 * sg, 0.1, 0.1), (s * sg - d * 0.45 + u * 0.3), 1.3, 0.42, hw, twist=0.4, simple=True)
+        dd = (u * 1.0 - d * 0.6 + s * a * 0.8).normalized()
+        L = (2.3 - 0.8 * abs(a)) * (1.15 if k == 'C' else 1.0)
+        shard(GLOW, P(a * 0.62, 0.1 - abs(a) * 0.15, 0.8 - abs(a) * 0.1), dd, L, 0.58, hw, twist=j * 0.6, simple=(j % 2 == 1))
+    for sg in (1, -1):  # side spikes flaring back from the cheeks
+        shard(GLOW, P(1.0 * sg, 0.1, 0.35), (s * sg - d * 0.6 + u * 0.35), 1.3, 0.42, hw, twist=0.4, simple=True)
 
 for k, pts in NECKS.items():
     sgk = neck_side_sign = {'C': 0, 'L': 1, 'R': -1}[k]
@@ -419,14 +456,17 @@ def leg(chain, bones, radii, sg, front):
     # paw
     fw = W(bones[2]); f = chain[3]
     pw = 2.3 if front else 2.0
-    box(BODY, f + V((0, 0.1, 0.0)), (pw, 1.9 if front else 1.7, 1.0), 'navy', fw, taper=0.8)
+    pl = 1.9 if front else 1.7
+    box(BODY, f + V((0, 0.15, 0.05)), (pw, pl, 1.1), 'navy', fw, taper=0.72)         # stud-covered foot dome
     n = 4
     for j in range(n):
-        x = (j / (n - 1) - 0.5) * pw * 0.78
-        # toe block, gold chevron cap and big white blocky claw (claw/foot detail)
-        box(BODY, f + V((x, -0.85, -0.12)), (0.5, 0.6, 0.72), 'navy', fw, taper=0.85)
-        box(BODY, f + V((x, -0.85, 0.3)), (0.46, 0.5, 0.16), 'gold', fw, taper=0.7)
-        claw(BODY, f + V((x, -1.05, 0.0)), (x * 0.12, -1, -0.2), 0.85 if front else 0.75, 0.52, fw, curl=0.6)
+        x = (j / (n - 1) - 0.5) * pw * 0.76
+        # navy toe block, gold chevron on top, chunky white claw out the front
+        box(BODY, V((f.x + x, f.y - 0.72, 0.42)), (0.5, 0.62, 0.84), 'navy', fw, taper=0.9)
+        chevron(BODY, V((f.x + x, f.y - 0.72, 0.86)), (0, -1, 0.9), 0.5, 0.36, 0.1, fw)
+        cf = V((0, -1, 0.9)).normalized(); cup = cf.cross(V((0, 0, 1))).normalized().cross(cf)
+        shard(GLOW, V((f.x + x, f.y - 0.72, 0.86)) + cup * 0.36 + cf * 0.05, cup + cf * 0.4, 0.3, 0.2, fw, twist=0.78, simple=True)
+        claw(BODY, V((f.x + x, f.y - 0.98, 0.55)), (x * 0.08, -1, 0), 0.62, 0.66, 0.46, 0.5, fw)
     gold_band(BODY, chain[2], chain[3] - chain[2] + V((0, 0, 0.5)), radii[2][0] * 1.12, radii[2][1] * 1.12, 0.22, W(bones[1], bones[2], 0.5))
 
 for side, sg in (('L', 1), ('R', -1)):

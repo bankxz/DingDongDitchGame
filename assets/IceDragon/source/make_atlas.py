@@ -112,7 +112,7 @@ draw_slot('red', red)
 
 def tooth(d, w, h, im):
     for j in range(h):
-        d.line([(0, j), (w, j)], fill=lerp((0xff, 0xff, 0xff), (0xc6, 0xd0, 0xde), j / (h - 1)))
+        d.line([(0, j), (w, j)], fill=lerp((0xff, 0xff, 0xff), (0xe6, 0xec, 0xf4), j / (h - 1)))
 draw_slot('tooth', tooth)
 
 def eye(d, w, h, im):

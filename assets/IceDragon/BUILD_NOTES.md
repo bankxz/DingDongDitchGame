@@ -12,3 +12,8 @@
 - **Animation checks:** a contact sheet for each clip, plus a numeric foot-lock test:
   - idle: the feet move by 0.00
   - walk: the feet plant at the rest height, and the loop is seamless
+- **Round 2 (after feedback on the heads and claws):**
+  - The heads were rebuilt from blocks to match the HEAD / EYE close-up.
+  - The claws were rebuilt as chamfered bent blocks with toe blocks, gold chevrons and gems.
+  - The side heads now turn further outward.
+  - Crystal and tooth faces were wound inside out. Roblox hides backfaces, so these would have looked hollow in Studio. `source/check_normals.py` now checks for this, and it reports 0 inside-out islands.
