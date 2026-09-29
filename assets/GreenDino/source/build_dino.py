@@ -13,7 +13,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.abspath(os.path.join(HERE, '..'))
 U = 0.25
 JOFF = 24.0          # grid j of world y=0
-ATL = 32.0           # blocks per atlas side
+NP = 4               # patches per atlas side (4x4 cells each)
+ATL = NP * 4.0       # stud cells per atlas side
 LAYOUT = json.load(open(os.path.join(HERE, 'atlas_regions.json')))
 rng = random.Random(11)
 
@@ -37,9 +38,9 @@ def face_uv(pts, n, cat, fit=None):
   if fit == 'auto':
     fit = (min(4, max(1, round(ws))), min(4, max(1, round(ht))))
   st = [(s / ws * fit[0], t / ht * fit[1]) for s, t in st]; ws, ht = fit
-  p = rng.choice(LAYOUT[cat]); px, py = p % 8, p // 8
+  p = rng.choice(LAYOUT[cat]); px, py = p % NP, p // NP
   ox = rng.randint(0, int(4 - ws)); oy = rng.randint(0, int(4 - ht))
-  bx, by = px * 4 + ox, (7 - py) * 4 + oy
+  bx, by = px * 4 + ox, (NP - 1 - py) * 4 + oy
   return [((bx + s) / ATL, (by + t) / ATL) for s, t in st]
 
 def newell(pts):
@@ -61,8 +62,8 @@ class MeshAcc:
       # loft quad: lay whole stud blocks along the quad's own edges so rows follow the body (belly plates)
       w = min(4, max(1, round(((pts[1] - pts[0]).length + (pts[2] - pts[3]).length) / 2 / U)))
       h = min(4, max(1, round(((pts[3] - pts[0]).length + (pts[2] - pts[1]).length) / 2 / U)))
-      p = rng.choice(LAYOUT[cat]); px, py = p % 8, p // 8
-      bx, by = px * 4 + rng.randint(0, 4 - w), (7 - py) * 4 + rng.randint(0, 4 - h)
+      p = rng.choice(LAYOUT[cat]); px, py = p % NP, p // NP
+      bx, by = px * 4 + rng.randint(0, 4 - w), (NP - 1 - py) * 4 + rng.randint(0, 4 - h)
       uvs = [(bx, by), (bx + w, by), (bx + w, by + h), (bx, by + h)]
       self.uv.append([(x / ATL, y / ATL) for x, y in uvs])
     else:
@@ -102,11 +103,11 @@ def ring_pts(cx, cy, cz, rx, rz, n, e, axis_u=Vector((1, 0, 0)), axis_v=Vector((
   return pts
 
 # wide seamless strips of the atlas (whole patch rows of one category) for end caps
-CAP_ROWS = {'camo': 0, 'cream': 3}
+CAP_ROWS = {'camo': (0, 16), 'cream': (1, 8)}   # (patch row, strip width in cells)
 def planar_cap_uv(pts, out, cat):
   """one flat projection across a whole end cap (snout tip / jaw tip), 1 texture cell = 1 grid unit,
   so studs keep their square shape instead of being squeezed into every fan triangle"""
-  row = CAP_ROWS.get(cat, 0)
+  row, width = CAP_ROWS.get(cat, CAP_ROWS['camo'])
   fwd = -out.normalized()
   right = fwd.cross(Vector((0, 0, 1)))
   right = Vector((1, 0, 0)) if right.length < 1e-4 else right.normalized()
@@ -114,9 +115,9 @@ def planar_cap_uv(pts, out, cat):
   st = [(p.dot(right) / U, p.dot(up) / U) for p in pts]
   s0 = min(a for a, _ in st); t0 = min(b for _, b in st)
   w = max(a for a, _ in st) - s0; h = max(b for _, b in st) - t0
-  sc = min(1.0, 4.0 / max(h, 1e-6), 32.0 / max(w, 1e-6))
-  ox = rng.randint(0, max(0, int(32 - w * sc)))
-  oy = (7 - row) * 4 + (4 - h * sc) / 2
+  sc = min(1.0, 4.0 / max(h, 1e-6), width / max(w, 1e-6))
+  ox = rng.randint(0, max(0, int(width - w * sc)))
+  oy = (NP - 1 - row) * 4 + (4 - h * sc) / 2
   return [((ox + (a - s0) * sc) / ATL, (oy + (b - t0) * sc) / ATL) for a, b in st]
 
 def loft(rings, cat_fn, wfn, cap0=True, cap1=True, fit='auto'):
@@ -245,7 +246,6 @@ def body_cat(r, k, g):
   if r == -1: return 'camo'                                   # caps: snout tip / tail tip
   if j < 9.0 and v < 0.25: return 'red'                        # roof of the open mouth
   if 9.0 <= j < 11.2 and v < 0.3 and abs(x) < hw * 0.6: return 'darkred'   # throat (inside the mouth only)
-  if j < 1.9 and v > 0.75 and abs(x) < 1.8: return 'dark'      # nostrils
   if v < 0.2: return 'cream'
   if v < 0.42: return 'tan'
   return 'camomoss' if rng.random() < 0.07 else 'camo'
@@ -440,7 +440,7 @@ mat.use_nodes = True
 nt = mat.node_tree; bsdf = nt.nodes['Principled BSDF']
 tex = nt.nodes.new('ShaderNodeTexImage')
 tex.image = bpy.data.images.load(os.path.join(OUT, 'GreenDino_Color.png'))
-tex.interpolation = 'Closest'
+tex.interpolation = 'Linear'
 nt.links.new(tex.outputs['Color'], bsdf.inputs['Base Color'])
 emi = nt.nodes.new('ShaderNodeTexImage')
 emi.image = bpy.data.images.load(os.path.join(OUT, 'GreenDino_Emissive.png'))
