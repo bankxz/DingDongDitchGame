@@ -536,29 +536,19 @@ box(-1.2, 1.2, 3.2, 5.6, 12.45, 13.05, "tan", H, skip=("-z",))          # forehe
 box(-1.55, 1.55, 1.15, 5.8, 9.1, 9.5, "tan", H)                          # upper lip rail
 
 
-def brow_block(c, size, mat, pitch, roll, yaw=0.0):
-    """block centred at c, pitched nose-down (X), rolled inner-edge-down (Y), yawed (Z)."""
-    c = Vector(c)
-    R = (Matrix.Rotation(math.radians(yaw), 3, "Z") @ Matrix.Rotation(math.radians(roll), 3, "Y")
-         @ Matrix.Rotation(math.radians(pitch), 3, "X"))
-    sx, sy, sz = size
-    box(-sx / 2, sx / 2, -sy / 2, sy / 2, -sz / 2, sz / 2, mat, H, frame=lambda v: c + R @ v, mirror=True)
-
-
-# Brow ridge (reference): stepped blocks running from high at the outer back of the skull down to
-# low at the inner front corner above the eye -> angry "V" from the front, heavy overhang from the side.
-# Tan blocks ride on top, navy blocks form the lip directly over the glowing eye.
-BROW = [  # centre (x, s, z), size (x, s, z), mat, pitch, roll, yaw
-    ((1.75, 3.85, 12.72), (1.1, 1.15, 0.6), "navy", 14, 20, -10),   # lip over the eye (inner, lowest)
-    ((2.45, 4.2, 12.8), (0.85, 1.15, 0.6), "navy", 12, 12, -4),     # lip over the eye (outer)
-    ((2.3, 4.55, 13.3), (1.0, 1.3, 0.7), "tan", 16, 16, -6),        # tan block stacked on top
-    ((1.7, 5.1, 13.35), (1.1, 1.3, 0.75), "tan", 18, 16, -8),       # ridge climbing back
-    ((2.05, 5.95, 13.4), (1.1, 1.3, 0.8), "tan", 16, 12, -4),
-]
-for c, size, mat, pitch, roll, yaw in BROW:
-    brow_block(c, size, mat, pitch, roll, yaw)
-# mouth glow + throat
-box(-1.45, 1.45, 1.3, 6.2, 8.2, 9.3, bone=H, group="glow", uv="mouth")
+# Brow ridge (reference): one heavy, smooth ridge per side that starts low at the inner front
+# corner just over the eye and sweeps up and back to the top outer corner of the skull, so the
+# brows read as an angry V from the front and as a thick overhang from the side.
+BROW = Loft([
+    (V(1.2, 3.15, 12.35), 0.32, 0.24, w1(H)),
+    (V(1.75, 3.75, 12.72), 0.62, 0.42, w1(H)),
+    (V(2.2, 4.6, 13.08), 0.72, 0.5, w1(H)),
+    (V(2.35, 5.55, 13.3), 0.6, 0.45, w1(H)),
+    (V(2.25, 6.4, 13.25), 0.12, 0.12, w1(H)),
+], 8, sq=2.6)
+loft(BROW, "tan", mirror=True, cap0=True)
+# mouth interior + throat
+box(-1.45, 1.45, 1.3, 6.2, 8.2, 9.3, bone=H, uv="mouth")   # dark mouth interior (no glow)
 # upper teeth (hang down)
 for x in (-1.1, -0.37, 0.37, 1.1):
     pyramid(V(x * 0.9, 1.3, 9.15), (0, 0, -1), 0.75 if abs(x) > 1 else 0.5, 0.2, H)

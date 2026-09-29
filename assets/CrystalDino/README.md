@@ -6,7 +6,7 @@ The eyes sit in almond-shaped sockets carved into the head (boolean cut into the
 
 | | |
 |---|---|
-| Triangles | **4,900**, under the 5k budget |
+| Triangles | **4,924**, under the 5k budget |
 | Size | 1 block = 1 stud: about 34 studs long, 15 wide, 15.6 tall (including crystals) |
 | Rig | 22 deform bones: Root, Hips, Chest, Neck, Head, Jaw, Tail1-4, and for each side UpperArm, Forearm, Hand, Thigh, Shin, Foot |
 | Skinning | Up to 2 bones per vertex. Blends at the neck, hips, tail and knee rings so joints bend smoothly; armour blocks and crystals stay rigid. |
@@ -28,7 +28,7 @@ The eyes sit in almond-shaped sockets carved into the head (boolean cut into the
 
 ## Stud texture
 
-The studs are texture, not geometry. Each block cell in the atlas has a raised Roblox-style stud. Its contact shadow comes from the MIT-licensed [Roblox-HD-Studs](https://github.com/dudeax/Roblox-HD-Studs) set by dudeax (licence in `textures/STUDS_LICENSE_dudeax_Roblox-HD-Studs.txt`). The relief is rebuilt into the normal map at the small stud size used in the reference. Every face is UV-mapped to whole block cells, so the stud density matches across all parts.
+The studs are texture, not geometry. They use the Roblox "Inlet" look: a smooth, seamless surface with an even grid of recessed square inlets, one per stud (preview: `previews/stud_texture_closeup.png`). The inlet shading comes from the MIT-licensed [Roblox-HD-Studs](https://github.com/dudeax/Roblox-HD-Studs) set by dudeax (licence in `textures/STUDS_LICENSE_dudeax_Roblox-HD-Studs.txt`), and the recess is also baked into the normal map. Every face is UV-mapped to whole stud cells, so the inlet spacing matches across all parts.
 
 ## Importing into Roblox Studio
 
@@ -37,7 +37,7 @@ The studs are texture, not geometry. Each block cell in the atlas has a raised R
    - Set the file dimensions / scale unit to **Studs** so that 1 block = 1 stud. Otherwise, scale the model to taste.
    - The model comes in as two MeshParts sharing one skeleton:
      - `CrystalDino_Body`: stud atlas.
-     - `CrystalDino_Glow`: crystals, eyes, mouth and glow cracks.
+     - `CrystalDino_Glow`: crystals, eyes and glow cracks.
    - For the glowing look, give `CrystalDino_Glow` a `SurfaceAppearance`. Alternatively, set its Material to **Neon** or **Glass**, and/or add a blue `PointLight` to the head and chest.
    - For the best block relief, add a `SurfaceAppearance` to `CrystalDino_Body` with `CrystalDino_Color.png` as ColorMap, `CrystalDino_Normal.png` as NormalMap and `CrystalDino_Roughness.png` as RoughnessMap.
 2. **Animations:** select the imported rig and open the Animation Editor. Choose ... > Import > **From FBX Animation**, then pick `CrystalDino_Idle.fbx`. Publish the animation, then repeat with `CrystalDino_Walk.fbx`. Both clips loop seamlessly (the last frame equals the first), so set `Looped = true`.
@@ -46,7 +46,7 @@ The studs are texture, not geometry. Each block cell in the atlas has a raised R
 
 ```bash
 cd assets/CrystalDino
-python3 scripts/make_textures.py textures textures/source/Studs_2x2_AO_Diffuse_dudeax.png
+python3 scripts/make_textures.py textures textures/source/Inlets_2x2_AO_Diffuse_dudeax.png
 python3 scripts/build_dino.py         # fails loudly if the triangle budget (<5000) is exceeded
 python3 scripts/render_views.py previews/final <dir-with-reference-crops>
 python3 scripts/export_roblox.py

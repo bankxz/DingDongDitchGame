@@ -38,78 +38,44 @@ TAN = np.array([214, 178, 138]) / 255.0
 TAN_ALT = [np.array(c) / 255.0 for c in ([204, 166, 128], [222, 188, 148], [196, 158, 122])]
 GLOW = np.array([30, 110, 255]) / 255.0
 
-# stud contact-shadow patch from the downloaded HD stud AO map (one stud quadrant)
+# inlet AO patch from the downloaded HD "Inlets" AO map (one inlet quadrant)
 ao_patch = None
 if STUD_AO and os.path.exists(STUD_AO):
     a = np.array(Image.open(STUD_AO).convert("L")).astype(float)[:512, :512] / 255.0
     ao_patch = a
 
 
-def stud_field(size, stud):
-    """Height + AO for one cell with a raised rounded-square stud of side `stud` px."""
-    yy, xx = np.mgrid[0:size, 0:size] + 0.5
-    return yy, xx
+INLET = 0.46   # inlet side as a fraction of the stud pitch (matches the Roblox "Inlet" surface look)
 
 
-def draw_cell(x0, y0, base, glow_edges=False, n_studs=1):
+def draw_cell(x0, y0, base):
+    """One stud of smooth surface with a recessed square inlet in the middle (no seams, tiles
+    seamlessly with its neighbours). Shading comes from the dudeax HD Inlets AO map."""
     c = CELL
     yy, xx = np.mgrid[0:c, 0:c] + 0.5
-    # bevelled block: height falls off near the edges
-    d = np.minimum(np.minimum(xx, c - xx), np.minimum(yy, c - yy))
-    h = np.clip(d / 3.0, 0, 1) ** 0.6 * 0.6
-    tint = base * (1 + rng.uniform(-0.06, 0.05))
-    cc = np.ones((c, c, 3)) * tint
-    # subtle large-scale mottling
-    cc *= (1 + 0.04 * np.sin(xx / 9 + rng.uniform(0, 6)) * np.cos(yy / 11 + rng.uniform(0, 6)))[..., None]
-    ao = np.ones((c, c))
-    for _ in range(n_studs):
-        st = rng.uniform(13, 17)
-        if n_studs == 1 and rng.random() < 0.65:
-            cx, cy = c / 2 + rng.uniform(-4, 4), c / 2 + rng.uniform(-4, 4)
-        else:
-            q = [(0.3, 0.3), (0.7, 0.7), (0.3, 0.7), (0.7, 0.3)][(_ * 2 + int(rng.integers(0, 2))) % 4]
-            cx, cy = c * q[0] + rng.uniform(-3, 3), c * q[1] + rng.uniform(-3, 3)
-        sx = np.abs(xx - cx) - st / 2
-        sy = np.abs(yy - cy) - st / 2
-        sd = np.maximum(sx, sy)  # signed distance to square
-        stud_h = np.clip(-sd / 2.2, 0, 1)
-        h = np.maximum(h, 0.6 + stud_h * 0.35)
-        if ao_patch is not None:
-            # map HD AO quadrant so its stud (~112..399 of 512) covers our stud
-            scale = 287.0 / st
-            u = np.clip(((xx - cx) * scale + 256).astype(int), 0, 511)
-            v = np.clip(((yy - cy) * scale + 256).astype(int), 0, 511)
-            ao *= 0.55 + 0.45 * ao_patch[v, u]
-        else:
-            ao *= 1 - 0.25 * np.clip(1 - np.maximum(sd, 0) / 4, 0, 1) * (sd > 0)
-    # dark seam line on the outermost pixels
-    seam = (d < 1.2)
-    cc[seam] *= 0.82
-    cc *= (0.94 + 0.06 * np.clip(d / 6.0, 0, 1))[..., None]
-    cc *= ao[..., None]
+    st = INLET * c
+    sd = np.maximum(np.abs(xx - c / 2), np.abs(yy - c / 2)) - st / 2   # <0 inside the inlet
+    # surface at 0.6, inlet floor at 0.3, 2.5 px bevelled walls
+    h = 0.6 - 0.3 * np.clip(-sd / 2.5 + 0.5, 0, 1)
+    gx_, gy_ = xx + x0, yy + y0   # atlas coords -> continuous (seam-free) mottling
+    cc = np.ones((c, c, 3)) * base
+    cc *= (1 + 0.025 * np.sin(gx_ / 37.0) * np.cos(gy_ / 53.0))[..., None]
+    if ao_patch is not None:
+        scale = 287.0 / st          # HD inlet spans ~287 of its 512 px quadrant
+        u = np.clip(((xx - c / 2) * scale + 256).astype(int), 0, 511)
+        v = np.clip(((yy - c / 2) * scale + 256).astype(int), 0, 511)
+        cc *= (0.7 + 0.3 * ao_patch[v, u])[..., None]
     col[y0:y0 + c, x0:x0 + c] = cc
     height[y0:y0 + c, x0:x0 + c] = h
-    if glow_edges:
-        side = rng.integers(0, 4)
-        m = [(xx < 5.5), (xx > c - 5.5), (yy < 5.5), (yy > c - 5.5)][side]
-        g = GLOW * 1.0
-        col[y0:y0 + c, x0:x0 + c][m] = g
-        emis[y0:y0 + c, x0:x0 + c][m] = g
-        height[y0:y0 + c, x0:x0 + c][m] = 0.0
 
 
-# navy region
+# navy region / tan region: uniform colour, one inlet per stud
 for j in range(16):
     for i in range(10):
-        base = NAVY if rng.random() < 0.55 else NAVY_ALT[rng.integers(0, len(NAVY_ALT))]
-        n = 1 if rng.random() < 0.8 else 2
-        draw_cell(i * CELL, j * CELL, base, glow_edges=rng.random() < 0.025, n_studs=n)
-# tan region
+        draw_cell(i * CELL, j * CELL, NAVY)
 for j in range(9):
     for i in range(6):
-        base = TAN if rng.random() < 0.5 else TAN_ALT[rng.integers(0, len(TAN_ALT))]
-        n = 1 if rng.random() < 0.8 else 2
-        draw_cell(640 + i * CELL, j * CELL, base, n_studs=n)
+        draw_cell(640 + i * CELL, j * CELL, TAN)
 
 # crystal region: 6 facet columns, vertical gradient (bottom = base, top = tip)
 y0, y1 = 576, 832
@@ -149,11 +115,10 @@ bone = (np.array([200, 165, 128]) / 255.0) * (1 - tt) + (np.array([238, 214, 180
 col[832:1024, 768:896] = np.repeat(bone, 128, axis=1)
 height[832:1024, 768:896] = 0.5
 rough[832:1024, 768:896] = 0.6
-# mouth interior glow (deep blue -> cyan)
+# mouth interior (dark back of throat -> red gums)
 tt = np.linspace(0, 1, 128)[None, :, None]
-mg = (np.array([10, 60, 220]) / 255.0) * (1 - tt) + (np.array([50, 190, 255]) / 255.0) * tt
-col[832:1024, 896:1024] = np.repeat(mg, 192, axis=0)
-emis[832:1024, 896:1024] = np.repeat(mg, 192, axis=0)
+mg = (np.array([70, 18, 30]) / 255.0) * (1 - tt) + (np.array([150, 40, 55]) / 255.0) * tt
+col[832:1024, 896:1024] = np.repeat(mg, 192, axis=0)   # mouth interior: dark gums, no glow
 height[832:1024, 896:1024] = 0.5
 
 # normal map from height (OpenGL / +Y up, as Roblox expects)
