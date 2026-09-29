@@ -101,20 +101,43 @@ def crack_dist(b, scale=0.5):
     # hand-placed seams from the reference: chest centre line and the ring around the barrel
     sep = b.n('ShaderNodeSeparateXYZ'); b.set(sep, 0, rest.outputs['Vector'])
     ax = b.math('ABSOLUTE', sep.outputs['X'])
-    # chest "Y": centre line down to z=3.0, then splitting toward both front legs
-    zt = b.math('SUBTRACT', 3.0 + build_geo.LIFT, sep.outputs['Z'])
-    below = b.math('GREATER_THAN', zt, 0.0)
-    diag = b.math('MULTIPLY', b.math('ABSOLUTE', b.math('SUBTRACT', ax, b.math('MULTIPLY', b.math('MAXIMUM', zt, 0.0), 0.9))), 0.74)
-    yline = b.math('ADD', ax, b.math('MULTIPLY', below, b.math('SUBTRACT', diag, ax)))
-    chest = b.math('ADD', yline, b.math('MULTIPLY', b.math('ADD', b.math('GREATER_THAN', sep.outputs['Y'], -2.6),
-                                                             b.math('GREATER_THAN', sep.outputs['Z'], 4.4 + build_geo.LIFT)), 10.0))
+    # chest "shield" outline from the reference front view: glowing lines down both sides of the chest
+    # plate (|x|=0.62, z 2.57..4.35), meeting in a V at the bottom (z2.2 at centre), short stub below.
+    L = build_geo.LIFT
+
+    def outside(v, lo, hi):
+        return b.math('ADD', b.math('LESS_THAN', v, lo), b.math('GREATER_THAN', v, hi))
+
+    def masked(d, *masks):
+        m = masks[0]
+        for extra in masks[1:]:
+            m = b.math('ADD', m, extra)
+        return b.math('ADD', d, b.math('MULTIPLY', m, 10.0))
+    zz = sep.outputs['Z']
+    side = masked(b.math('ABSOLUTE', b.math('SUBTRACT', ax, 0.62)), outside(zz, 2.57 + L, 4.35 + L))
+    vee = masked(b.math('MULTIPLY', b.math('ABSOLUTE', b.math('SUBTRACT', b.math('SUBTRACT', zz, 2.2 + L),
+                                                                   b.math('MULTIPLY', ax, 0.6))), 0.86),
+                 outside(zz, 2.1 + L, 2.62 + L), b.math('GREATER_THAN', ax, 0.66))
+    stub = masked(ax, outside(zz, 1.95 + L, 2.25 + L))
+    chest = b.math('MINIMUM', b.math('MINIMUM', side, vee), stub)
+    chest = masked(chest, outside(sep.outputs['Y'], -3.25, -2.6))          # chest plate only, not the head
     ring = b.math('ABSOLUTE', b.math('SUBTRACT', sep.outputs['Y'], 0.25))
     outside = b.math('ADD', b.math('LESS_THAN', sep.outputs['Z'], 2.0 + build_geo.LIFT),
                      b.math('GREATER_THAN', sep.outputs['Z'], 4.05 + build_geo.LIFT))
     ring = b.math('ADD', ring, b.math('MULTIPLY', outside, 10.0))
-    seams = b.math('MULTIPLY', b.math('MINIMUM', chest, ring), scale)
+    # glowing line between forehead and snout (in front of the eye, down to the jaw)
+    hs = b.math('ABSOLUTE', b.math('ADD', sep.outputs['Y'], 4.08))
+    hs_out = b.math('ADD', b.math('LESS_THAN', sep.outputs['Z'], 3.95 + L), b.math('GREATER_THAN', sep.outputs['Z'], 4.9 + L))
+    hs = b.math('ADD', hs, b.math('MULTIPLY', hs_out, 10.0))
+    # vertical seam down the side of the neck, just behind its front edge
+    ns = b.math('ABSOLUTE', b.math('ADD', sep.outputs['Y'], 2.72))
+    ns_out = b.math('ADD', b.math('ADD', b.math('LESS_THAN', sep.outputs['Z'], 3.1 + L),
+                                  b.math('GREATER_THAN', sep.outputs['Z'], 4.35 + L)),
+                    b.math('LESS_THAN', ax, 0.5))
+    ns = b.math('ADD', ns, b.math('MULTIPLY', ns_out, 10.0))
+    seams = b.math('MULTIPLY', b.math('MINIMUM', b.math('MINIMUM', chest, ring), b.math('MINIMUM', hs, ns)), scale)
     # the reference head is mostly clean plates: suppress random cracks above/ahead of the throat
-    head = b.math('MULTIPLY', b.math('LESS_THAN', sep.outputs['Y'], -3.35), b.math('GREATER_THAN', sep.outputs['Z'], 4.0 + build_geo.LIFT))
+    head = b.math('MULTIPLY', b.math('LESS_THAN', sep.outputs['Y'], -3.1), b.math('GREATER_THAN', sep.outputs['Z'], 3.7 + build_geo.LIFT))
     front = b.math('LESS_THAN', sep.outputs['Y'], -2.75)          # clean chest plate
     vd = b.math('ADD', vor.outputs['Distance'], b.math('MULTIPLY', b.math('MAXIMUM', head, front), 5.0))
     return b.math('MINIMUM', vd, seams), rest

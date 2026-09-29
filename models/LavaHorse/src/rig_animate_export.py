@@ -33,7 +33,7 @@ BONES = [  # name, head, tail, parent   (authored coordinates; remapped below)
 for s, side in ((1, 'L'), (-1, 'R')):
     x = s * LX
     BONES += [
-        ('Ear.' + side, (s * 0.47, -3.0, 5.6), (s * 0.55, -2.9, 6.45), 'Head'),
+        ('Ear.' + side, (s * 0.45, -3.3, 5.62), (s * 0.48, -3.38, 6.42), 'Head'),
         ('FrontUpper.' + side, (x, -1.9, 3.3), (x, -1.9, 1.87), 'Chest'),
         ('FrontLower.' + side, (x, -1.9, 1.87), (x, -1.9, 0.86), 'FrontUpper.' + side),
         ('FrontHoof.' + side, (x, -1.9, 0.86), (x, -1.9, 0.05), 'FrontLower.' + side),

@@ -6,7 +6,7 @@ plates, dark stud hooves, black/white block eyes, dark ears.
 
 | | |
 |---|---|
-| Triangles | **4,452** (< 5k) |
+| Triangles | **4,360** (< 5k) |
 | Meshes / materials | 1 skinned mesh, 1 material, 1 texture (Roblox MeshPart friendly) |
 | Bones | 22 (`Root`, `Torso`, `Chest`, `Hips`, `Neck`, `Head`, `Ear.L/R`, `Tail1/2`, 3 bones per leg) |
 | Skin | rigid/blended weights, max 2 influences per vertex (Roblox limit is 4) |
