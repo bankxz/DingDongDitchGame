@@ -60,3 +60,15 @@ The result is 4,956 tris. Walk and idle deformation were checked on contact shee
 - **Less blocky:** I removed the voxel pass. The body, neck, tail and legs are smooth-shaded rounded lofts with 10–16 sides. The spars, claws and spikes are ribbed tubes. The wing membrane now has a smooth outline, and its painted cells were extended so the edges stay covered.
 - **Eyes:** a boolean (EXACT solver) cuts an elongated eye canal into a closed skull loft. The canal walls are dark. An 8×5 UV-sphere eyeball sits inside with planar UVs onto a painted eye: pale glowing sclera, cyan iris, dark slit pupil and a glint.
 - 4,955 tris.
+
+## v4 feedback → v4.1
+**User feedback:** "the head is too stretched, the eye canal needs to be wider with a natural concavity, the emblem should be armour around the breast, the horns need a curve like the reference, and the texture is too blocky".
+- **Head:** the face is compressed to 74% of its length about the back of the skull.
+- **Eye canal:** a wider, shallower ellipsoid cut (14×10 segments) centred just outside the surface, which gives a smooth bowl. The eyeball sits deeper inside it.
+- **Breastplate:** a shield-shaped grid, ray-cast onto the chest and neck surface so it hugs the breast. It has a gold rim and the pixel-art rune on its face. Rays that miss the chest take the depth of a neighbouring hit.
+- **Horns:** paths are Catmull-Rom smoothed. The great horns arc back and then sweep up, and bow out and then in from the front.
+- **Texture:**
+  - The stud template has soft bevels, rounded studs, seam shading, a slight top-left key light and fine noise.
+  - Studs are smaller (0.36u) and keep their true size.
+  - UV phase comes from world coordinates, so studs line up across faces instead of being stretched per face.
+- 4,982 tris.

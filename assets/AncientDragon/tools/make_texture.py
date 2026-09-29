@@ -12,29 +12,48 @@ hgt = np.zeros((ATLAS, ATLAS), np.float32)
 emi = np.zeros((ATLAS, ATLAS), np.float32)
 flat = np.zeros((ATLAS, ATLAS, 3), np.float32)
 
+_TPL = {}
+
+
+def _smooth(e0, e1, x):
+    k = np.clip((x - e0) / (e1 - e0), 0, 1)
+    return k * k * (3 - 2 * k)
+
+
+def _template(cp):
+    """soft cube face + rounded stud: (shade, height) arrays for a cp x cp cell."""
+    if cp in _TPL:
+        return _TPL[cp]
+    g = (np.arange(cp) + 0.5) / cp
+    v, u = np.meshgrid(g, g, indexing='ij')
+    e = np.minimum(np.minimum(u, 1 - u), np.minimum(v, 1 - v)) * cp          # px to cell edge
+    bev = _smooth(0.0, 3.5, e)
+    # rounded-square stud (signed distance, cell units)
+    q = np.maximum(np.abs(np.dstack((u - 0.5, v - 0.5))) - (0.2 - 0.07), 0)
+    sd = np.sqrt((q ** 2).sum(2)) - 0.07
+    stud = _smooth(0.03, -0.03, sd)
+    h = 0.35 * bev + 0.55 * stud
+    # shading: soft seam occlusion, key light from the top-left on bevel and stud rim
+    light = (0.5 - u) + (0.5 - v)
+    rim = _smooth(0.07, 0.0, np.abs(sd)) * stud
+    shade = 0.8 + 0.2 * bev
+    shade += (1 - bev) * light * 0.35
+    shade += rim * np.sign(-(u - 0.5) - (v - 0.5)) * 0.12
+    shade += stud * 0.08
+    _TPL[cp] = (shade.astype(np.float32), h.astype(np.float32))
+    return _TPL[cp]
+
+
 def stud_cell(x, y, c, var=0.07, emissive=0.0, cp=CELL_PX):
-    """Paint one cube cell with a raised square stud (engraved/embossed look)."""
+    """Paint one cube cell with a raised rounded stud and softly bevelled seams."""
     x, y = int(round(x)), int(round(y))
     if x < 0 or y < 0 or x + cp > ATLAS or y + cp > ATLAS:
         return
-    k = 1.0 + rng.uniform(-var, var)
+    shade, h = _template(cp)
+    k = 1.0 + rng.uniform(-var, var) * 0.6
     base = np.array(c, np.float32) * k
-    blk = np.ones((cp, cp), np.float32)
-    h = np.full((cp, cp), 0.45, np.float32)
-    # cube face bevel: light top/left, dark bottom/right, dark seam
-    blk[:2, :] *= 1.10; blk[:, :2] *= 1.10
-    blk[-3:, :] *= 0.82; blk[:, -3:] *= 0.82
-    blk[-1:, :] *= 0.7; blk[:, -1:] *= 0.7
-    h[0, :] = h[:, 0] = h[-1, :] = h[:, -1] = 0.0
-    h[1, :] = h[:, 1] = h[-2, :] = h[:, -2] = 0.25
-    # square stud
-    s0, s1 = int(cp * 0.3), int(cp * 0.7)
-    blk[s0:s1, s0:s1] *= 1.05
-    blk[s0:s0 + 2, s0:s1] *= 1.16; blk[s0:s1, s0:s0 + 2] *= 1.16
-    blk[s1 - 2:s1, s0:s1] *= 0.76; blk[s0:s1, s1 - 2:s1] *= 0.76
-    h[s0:s1, s0:s1] = 1.0
-    h[s0:s1, s0] = h[s0:s1, s1 - 1] = h[s0, s0:s1] = h[s1 - 1, s0:s1] = 0.75
-    col[y:y + cp, x:x + cp] = np.clip(base[None, None, :] * blk[..., None], 0, 255)
+    noise = 1.0 + rng.normal(0, 0.018, (cp, cp)).astype(np.float32)
+    col[y:y + cp, x:x + cp] = np.clip(base[None, None, :] * (shade * noise)[..., None], 0, 255)
     flat[y:y + cp, x:x + cp] = np.clip(base, 0, 255)
     hgt[y:y + cp, x:x + cp] = h
     emi[y:y + cp, x:x + cp] = emissive
@@ -314,7 +333,7 @@ hs = np.asarray(Image.fromarray((hgt * 255).astype(np.uint8)).filter(ImageFilter
 dx = np.zeros_like(hs); dy = np.zeros_like(hs)
 dx[:, 1:-1] = (hs[:, 2:] - hs[:, :-2]) * 0.5
 dy[1:-1, :] = (hs[2:, :] - hs[:-2, :]) * 0.5
-k = 3.0
+k = 2.2
 n = np.dstack((-dx * k, dy * k, np.ones_like(hs)))
 n /= np.linalg.norm(n, axis=2, keepdims=True)
 nimg = ((n * 0.5 + 0.5) * 255).astype(np.uint8)

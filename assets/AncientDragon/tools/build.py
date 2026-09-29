@@ -14,6 +14,7 @@ ROOT = os.path.abspath(os.path.join(HERE, '..'))
 TEX = os.path.join(ROOT, 'textures')
 L0 = 15.0            # design L that maps to blender y=0
 SCALE = 0.25         # design unit -> metres
+STUD_U = 0.36        # world size (design units) of one stud cube on the body
 rnd = random.Random(3)
 C, G, CR, H, GL, T, D, B = 'charcoal', 'gold', 'cream', 'horn', 'glow', 'teal', 'dark', 'belly'
 
@@ -31,7 +32,7 @@ class MB:
     def __init__(self):
         self.co, self.w, self.faces = [], [], []   # faces: (vidx, uvs, smooth)
         self.fkey, self.fpart, self.part, self.open, self.direct = [], [], 0, set(), set()
-        self.skull_part, self.eyes = None, []
+        self.skull_part, self.eyes, self.body_part, self.plate = None, [], None, None
 
     def new_part(self, open_=False, direct=False):
         self.part += 1
@@ -142,21 +143,35 @@ def solid(key):
 
 
 def tile_uv_vox(pts, key, u, v):
-    """final-atlas tiling: whole VOX_CELL_U cubes inside the colour's swatch."""
+    """final-atlas tiling: studs keep their true size and line up across faces (phase from world coords)."""
     ox, oy = VOX_SWATCH[key][0] * SW, VOX_SWATCH[key][1] * SW
-    cu = [p.dot(u) for p in pts]; cv = [p.dot(v) for p in pts]
-    u0, v0 = min(cu), min(cv)
-    eu, ev = (max(cu) - u0) / VOX_CELL_U, (max(cv) - v0) / VOX_CELL_U
-    iu, iv = min(CELLS, max(1, round(eu))), min(CELLS, max(1, round(ev)))
-    su, sv = iu / max(eu, 1e-6), iv / max(ev, 1e-6)
-    offu = rnd.randint(0, CELLS - iu); offv = rnd.randint(0, CELLS - iv)
-    return [((ox + MARGIN + (offu + (a - u0) / VOX_CELL_U * su) * CELL_PX) / ATLAS,
-             1 - (oy + MARGIN + (offv + iv - (b - v0) / VOX_CELL_U * sv) * CELL_PX) / ATLAS) for a, b in zip(cu, cv)]
+    cu = [p.dot(u) / STUD_U for p in pts]; cv = [p.dot(v) / STUD_U for p in pts]
+    s = min(1.0, (CELLS - 0.05) / max(max(cu) - min(cu), max(cv) - min(cv), 1e-6))
+    cu = [a * s for a in cu]; cv = [a * s for a in cv]
+    su = math.floor(min(cu)) - rnd.randint(0, max(0, CELLS - 1 - int(math.ceil(max(cu) - math.floor(min(cu))))))
+    sv = math.floor(min(cv)) - rnd.randint(0, max(0, CELLS - 1 - int(math.ceil(max(cv) - math.floor(min(cv))))))
+    return [((ox + MARGIN + (a - su) * CELL_PX) / ATLAS, 1 - (oy + MARGIN + (CELLS - (b - sv)) * CELL_PX) / ATLAS)
+            for a, b in zip(cu, cv)]
+
+def catmull(pts, sub=8):
+    """smooth curve through control points (Catmull-Rom), so horns arc instead of kinking."""
+    if len(pts) < 3:
+        return pts
+    P_ = [pts[0]] + list(pts) + [pts[-1]]
+    out = []
+    for i in range(1, len(P_) - 2):
+        p0, p1, p2, p3 = (Vector(q) for q in P_[i - 1:i + 3])
+        for k in range(sub):
+            t = k / sub
+            out.append(tuple(0.5 * (2 * p1 + (p2 - p0) * t + (2 * p0 - 5 * p1 + 4 * p2 - p3) * t * t
+                                    + (3 * p1 - p0 - 3 * p2 + p3) * t ** 3)))
+    out.append(tuple(pts[-1]))
+    return out
 
 
 def horn(pts, r0, r1, key, bone, nseg=4, n=6, rib=0.08, tip=True):
     """smooth tapered horn/spike/claw made of slightly stepped segments (the reference's ribbed horns)."""
-    path = [Vector(p) for p in resample([tuple(p) for p in pts], nseg + 1)]
+    path = [Vector(p) for p in resample(catmull([tuple(p) for p in pts]), nseg + 1)]
     for k in range(nseg):
         ra = r0 + (r1 - r0) * k / nseg
         rb = r0 + (r1 - r0) * (k + 0.85) / nseg
@@ -272,6 +287,7 @@ def build():
         return C
     loft([P(0, l, z) for l, z, *_ in body], [(rx, rz) for _, _, rx, rz, _ in body],
          [w for *_, w in body], body_col, n=16, p=2.3, cap1=True)
+    mb.body_part = mb.part
 
     # ================= tail: segments with gold bands, side runes =================
     tpath = [(16.4, 4.75, 2.05), (18.4, 4.05, 1.9), (20.5, 3.4, 1.75), (22.6, 2.95, 1.62), (24.7, 2.7, 1.5),
@@ -282,7 +298,7 @@ def build():
         (l0, z0, r0), (l1, z1, r1) = tpath[i], tpath[i + 1]
         bn = 'Tail%d' % (i + 1)
         prev = 'Tail%d' % i if i > 0 else 'Hips'
-        for t, rs, kind in ((0.0, 1.13, 'band'), (0.2, 1.13, 'step'), (0.24, 1.0, 'body')):
+        for t, rs, kind in ((0.0, 1.13, 'band'), (0.22, 1.0, 'body')):
             l = l0 + (l1 - l0) * t; z = z0 + (z1 - z0) * t; r = r0 + (r1 - r0) * t
             path.append(P(0, l, z)); radii.append((r * rs, r * rs * 1.05)); kinds.append(kind)
             wts.append(blend(prev, bn, 0.5) if t == 0.0 else {bn: 1.0})
@@ -354,26 +370,29 @@ def build():
         axis = Vector((s * 0.94, -0.34, 0.0)).normalized()
         surf = P(s * 1.13, 3.95, 9.12)
         mb.eyes.append((mb.vert(surf, hb), mb.vert(surf + axis, hb)))
-        eyeball(surf - axis * 0.2, axis, 0.3, hb)
+        eyeball(surf - axis * 0.33, axis, 0.32, hb)
         # great cream crescent horn: back, up, curling in at the tip
-        horn([P(s * 0.85, 5.1, 9.8), P(s * 1.45, 5.9, 10.9), P(s * 1.95, 6.8, 11.9), P(s * 2.1, 7.8, 12.7),
-              P(s * 1.95, 8.7, 13.5), P(s * 1.5, 9.3, 14.3)], 0.62, 0.12, H, hb, nseg=5, n=7)
+        horn([P(s * 0.85, 5.0, 9.8), P(s * 1.4, 6.2, 10.25), P(s * 1.85, 7.5, 10.85), P(s * 2.1, 8.6, 11.75),
+              P(s * 2.0, 9.25, 12.9), P(s * 1.6, 9.35, 14.1)], 0.62, 0.12, H, hb, nseg=7, n=7)
         # gold crown horns behind the brow
-        horn([P(s * 0.55, 4.6, 10.1), P(s * 0.8, 5.6, 11.0), P(s * 0.95, 6.8, 11.6), P(s * 1.0, 7.9, 12.2)],
+        horn([P(s * 0.55, 4.6, 10.1), P(s * 0.85, 5.7, 10.6), P(s * 1.05, 6.9, 11.1), P(s * 1.05, 7.7, 11.9)],
              0.3, 0.07, G, hb, nseg=4)
-        horn([P(s * 1.0, 5.6, 9.9), P(s * 1.45, 6.9, 10.35), P(s * 1.7, 8.2, 10.8), P(s * 1.8, 9.2, 11.4)],
+        horn([P(s * 1.0, 5.6, 9.9), P(s * 1.5, 6.9, 10.1), P(s * 1.8, 8.2, 10.5), P(s * 1.85, 9.0, 11.3)],
              0.28, 0.06, G, hb, nseg=4)
         # lower cream horn swept straight back
-        horn([P(s * 1.15, 5.9, 8.95), P(s * 1.65, 7.2, 9.1), P(s * 2.0, 8.6, 9.55), P(s * 2.15, 9.7, 10.3)],
-             0.34, 0.07, H, hb, nseg=4)
+        horn([P(s * 1.15, 5.9, 8.95), P(s * 1.7, 7.3, 8.95), P(s * 2.05, 8.7, 9.35), P(s * 2.1, 9.6, 10.2)],
+             0.34, 0.07, H, hb, nseg=5)
         # gold cheek frill spikes
         horn([P(s * 1.25, 6.0, 8.3), P(s * 1.85, 7.1, 8.05), P(s * 2.25, 8.1, 8.4)], 0.24, 0.05, G, hb, nseg=3, n=5)
     horn([P(0, 4.9, 10.2), P(0, 5.35, 11.1), P(0, 5.9, 11.9)], 0.28, 0.06, G, hb, nseg=3, n=5)     # forehead crest
 
     # enlarge + lift the head cluster about the neck joint (reference head reads bigger)
     piv = P(0, 6.4, 8.6)
+    HEAD_BACK = P(0, 6.4, 0).y
     for i, wd in enumerate(mb.w):
         if set(wd) <= {'Head', 'Jaw'}:
+            if mb.co[i].y < HEAD_BACK:
+                mb.co[i].y = HEAD_BACK - (HEAD_BACK - mb.co[i].y) * 0.74
             mb.co[i] = piv + (mb.co[i] - piv) * 1.32 + Vector((0, -0.4, 2.2))
 
     # ================= neck / back spikes =================
@@ -383,7 +402,7 @@ def build():
         cone(P(0, l, z - 0.2), P(0, l + 0.9, z + hgt), 0.55, G, bn)
 
     # ================= chest shield =================
-    art_plate(P(0, 6.55, 3.7), (0, -1, 0), (0, 0, 1), 'chest', 0.5, 0.5, 'Chest', shape='shield')
+    breastplate(P(0, 4.0, 5.9), 0.64, 'Chest')
 
     # ================= front legs =================
     def front_leg(s, sf):
@@ -527,6 +546,72 @@ def lift_all():
             mb.co[i].z = lift_z(mb.co[i].z)
 
 
+def breastplate(centre, cell, bone, rows=8):
+    """shield-shaped armour: a grid over the pixel-art shield, later wrapped onto the chest."""
+    art = RUNE_ART['chest']; W_, H_ = len(art[0]), len(art)
+    shape = PLATE_SHAPES['shield']
+    def half_width(y):                          # shield half-width (cells) at art row y
+        if y <= 5:
+            return W_ / 2
+        return (W_ / 2) * max(0.08, (8 - y) / 3)
+    ox_, oy_ = RUNE_ORIGIN['chest']
+    mb.new_part(direct=True)
+    cols = 5
+    front, back = [], []
+    for r in range(rows + 1):
+        y = H_ * r / rows
+        hw = half_width(y)
+        fr, bk = [], []
+        for c_ in range(cols + 1):
+            x = W_ / 2 + hw * (2 * c_ / cols - 1)
+            p = Vector(centre) + Vector(((x - W_ / 2) * cell, -3.0, (H_ / 2 - y) * cell))
+            fr.append((mb.vert(p, bone), (x, y))); bk.append((mb.vert(p, bone), (x, y)))
+        front.append(fr); back.append(bk)
+    mb.plate = (front, back)
+    uv = lambda xy: ((ox_ + xy[0] * CELL_PX) / ATLAS, 1 - (oy_ + xy[1] * CELL_PX) / ATLAS)
+    for r in range(rows):
+        for c_ in range(cols):
+            q = [front[r][c_], front[r][c_ + 1], front[r + 1][c_ + 1], front[r + 1][c_]]
+            mb.faces.append(([v for v, _ in q], [uv(xy) for _, xy in q], True)); mb.fkey.append('rune'); mb.fpart.append(mb.part)
+    ring = [back[0][c_] for c_ in range(cols + 1)] + [back[r][cols] for r in range(1, rows + 1)] + \
+           [back[rows][c_] for c_ in range(cols - 1, -1, -1)] + [back[r][0] for r in range(rows - 1, 0, -1)]
+    fring = [front[0][c_] for c_ in range(cols + 1)] + [front[r][cols] for r in range(1, rows + 1)] + \
+            [front[rows][c_] for c_ in range(cols - 1, -1, -1)] + [front[r][0] for r in range(rows - 1, 0, -1)]
+    mb.plate_rim = list(zip(fring, ring))
+
+
+def wrap_breastplate(depth=0.32):
+    """ray-cast each plate vertex backwards (+Y) onto the chest/neck surface so the armour hugs the breast."""
+    from mathutils.bvhtree import BVHTree
+    fids = [i for i, p in enumerate(mb.fpart) if p == mb.body_part]
+    tree = BVHTree.FromPolygons([tuple(c) for c in mb.co], [mb.faces[i][0] for i in fids], all_triangles=False)
+    front, back = mb.plate
+    hit = {}
+    for fr, bk in zip(front, back):
+        for (fv, _), (bv, _) in zip(fr, bk):
+            o = mb.co[fv].copy(); o.y -= 20
+            loc, nrm, idx, dist = tree.ray_cast(o, Vector((0, 1, 0)), 60)
+            if loc is not None:
+                hit[fv] = loc.y
+    rows = [[hit.get(fv) for (fv, _) in fr] for fr in front]
+    known = [y for row in rows for y in row if y is not None]
+    assert known, 'breastplate missed the chest entirely'
+    for r, row in enumerate(rows):                       # misses take the nearest hit in the same or previous row
+        for c_, y in enumerate(row):
+            if y is None:
+                cand = [q for q in row if q is not None] or [q for q in (rows[r - 1] if r else known) if q is not None]
+                row[c_] = max(cand)
+    print('BREASTPLATE ray misses filled', sum(1 for fr in front for (fv, _) in fr if fv not in hit))
+    for fr, bk, row in zip(front, back, rows):
+        for ((fv, _), (bv, _)), y in zip(zip(fr, bk), row):
+            mb.co[fv].y = y - depth; mb.co[bv].y = y + 0.1
+    rim = mb.plate_rim
+    ctr = sum((mb.co[v] for (v, _), _ in rim), Vector()) / len(rim) + Vector((0, 0.3, 0))
+    for k in range(len(rim)):
+        (f0, _), (b0, _) = rim[k]; (f1, _), (b1, _) = rim[(k + 1) % len(rim)]
+        add_poly(outward([f0, f1, b1, b0], ctr), 'gold', False)
+
+
 def carve_eye_canals():
     """boolean-cut an eye canal (elongated socket) into the skull at each eye marker."""
     fids = [i for i, p in enumerate(mb.fpart) if p == mb.skull_part]
@@ -543,13 +628,13 @@ def carve_eye_canals():
     cutters = []
     for m0, m1 in mb.eyes:
         c0 = mb.co[m0]; ax = mb.co[m1] - c0; hs = ax.length; ax.normalize()
-        bm = bmesh.new(); bmesh.ops.create_uvsphere(bm, u_segments=12, v_segments=8, radius=1.0)
+        bm = bmesh.new(); bmesh.ops.create_uvsphere(bm, u_segments=14, v_segments=10, radius=1.0)
         cm = bpy.data.meshes.new('cut'); bm.to_mesh(cm); bm.free()
         cm.materials.append(bpy.data.materials['k_dark'])
         cu = bpy.data.objects.new('cut', cm); bpy.context.scene.collection.objects.link(cu)
-        cu.location = c0 - ax * 0.12 * hs
+        cu.location = c0 + ax * 0.12 * hs
         cu.rotation_mode = 'QUATERNION'; cu.rotation_quaternion = ax.to_track_quat('Z', 'Y')
-        cu.scale = (0.36 * hs, 0.36 * hs, 0.55 * hs)
+        cu.scale = (0.62 * hs, 0.5 * hs, 0.5 * hs)
         mod = sk.modifiers.new('eye', 'BOOLEAN'); mod.operation = 'DIFFERENCE'; mod.solver = 'EXACT'
         mod.object = cu; mod.material_mode = 'TRANSFER'
         cutters.append(cu)
@@ -653,6 +738,7 @@ def main():
     build()
     widen_legs()
     lift_all()
+    wrap_breastplate()
     carve_eye_canals()
     compact()
     ob = assemble()

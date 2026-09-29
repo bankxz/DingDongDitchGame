@@ -4,7 +4,7 @@ This is a low-poly voxel dragon rebuilt from the "Ancient Dragon" reference shee
 
 | | |
 |---|---|
-| Triangles | 4,955 (budget < 5,000) |
+| Triangles | 4,982 (budget < 5,000) |
 | Bones | 33 (Root, Hips, Spine, Chest, Neck1-2, Head, Jaw, legs x12, Tail1-9, Wing1-2 x2) |
 | Skinning | smooth blends at joints, max 2 influences per vertex (Roblox limit is 4) |
 | Size | about 9.2 m long x 4.4 m tall x 6.9 m wingspan (1 Blender unit = 1 m) |
