@@ -1,0 +1,49 @@
+{
+  "triangles": 2334,
+  "vertices": 1271,
+  "polygons": 1372,
+  "degenerate_faces": 0,
+  "pieces": 53,
+  "bones": 23,
+  "max_influences": 2,
+  "vertices_with_unnormalised_weights": 0,
+  "unused_bones": [],
+  "size_studs_xyz": [
+    9.18,
+    18.23,
+    10.13
+  ],
+  "size_m_xyz": [
+    2.569,
+    5.106,
+    2.836
+  ],
+  "faces_minus_y": true,
+  "min_z": 0.0,
+  "texture": {
+    "texel_density_px_per_stud": 40.98,
+    "studded_islands": 130,
+    "atlas_rows_used": 995,
+    "atlas": 1024,
+    "stud_pitch_studs": 1.4
+  },
+  "animations": {
+    "Idle": [
+      1,
+      91
+    ],
+    "Walk": [
+      1,
+      37
+    ],
+    "Run": [
+      1,
+      21
+    ],
+    "Attack": [
+      1,
+      41
+    ]
+  },
+  "fps": 30
+}

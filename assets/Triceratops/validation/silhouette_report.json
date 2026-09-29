@@ -1,0 +1,27 @@
+{
+  "front": {
+    "silhouette_iou_bbox_normalised": 0.663,
+    "ref_aspect_w_over_h": 0.91,
+    "model_aspect_w_over_h": 1.208
+  },
+  "right": {
+    "silhouette_iou_bbox_normalised": 0.62,
+    "ref_aspect_w_over_h": 1.756,
+    "model_aspect_w_over_h": 1.556
+  },
+  "left": {
+    "silhouette_iou_bbox_normalised": 0.704,
+    "ref_aspect_w_over_h": 1.566,
+    "model_aspect_w_over_h": 1.525
+  },
+  "back": {
+    "silhouette_iou_bbox_normalised": 0.596,
+    "ref_aspect_w_over_h": 0.764,
+    "model_aspect_w_over_h": 1.028
+  },
+  "top": {
+    "silhouette_iou_bbox_normalised": 0.702,
+    "ref_aspect_w_over_h": 0.878,
+    "model_aspect_w_over_h": 0.873
+  }
+}

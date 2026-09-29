@@ -1,0 +1,355 @@
+{
+  "Triceratops.fbx": {
+    "objects": [
+      "Triceratops",
+      "TriceratopsMesh"
+    ],
+    "non_mesh_non_armature": [],
+    "bones": 23,
+    "bone_names": [
+      "Root",
+      "Hips",
+      "Chest",
+      "Neck",
+      "Head",
+      "Jaw",
+      "Frill",
+      "FrontLeg_L_Upper",
+      "FrontLeg_L_Lower",
+      "FrontLeg_L_Foot",
+      "FrontLeg_R_Upper",
+      "FrontLeg_R_Lower",
+      "FrontLeg_R_Foot",
+      "Tail_01",
+      "Tail_02",
+      "Tail_03",
+      "Tail_04",
+      "BackLeg_L_Upper",
+      "BackLeg_L_Lower",
+      "BackLeg_L_Foot",
+      "BackLeg_R_Upper",
+      "BackLeg_R_Lower",
+      "BackLeg_R_Foot"
+    ],
+    "root_bones": [
+      "Root"
+    ],
+    "leaf_end_bones": [],
+    "triangles": 2334,
+    "vertex_groups": 22,
+    "has_armature_modifier": true,
+    "uv_layers": [
+      "UVMap"
+    ],
+    "materials": [
+      "MAT-Triceratops"
+    ],
+    "images": [
+      "Triceratops_Color.png",
+      "Triceratops_Normal.png",
+      "Triceratops_Roughness.png"
+    ],
+    "size_m": [
+      2.569,
+      5.106,
+      2.836
+    ],
+    "size_studs": [
+      9.18,
+      18.23,
+      10.13
+    ],
+    "min_z_m": -0.0,
+    "head_is_forward_of_tail": true,
+    "feet_below_head": true,
+    "mesh_length_axis_y": 5.106,
+    "closed_shells": 53,
+    "inverted_shells": 0,
+    "open_shells": 0,
+    "file_size_kb": 317.3
+  },
+  "animations/Triceratops_Attack.fbx": {
+    "objects": [
+      "Triceratops",
+      "TriceratopsMesh"
+    ],
+    "non_mesh_non_armature": [],
+    "bones": 23,
+    "bone_names": [
+      "Root",
+      "Hips",
+      "Chest",
+      "Neck",
+      "Head",
+      "Jaw",
+      "Frill",
+      "FrontLeg_L_Upper",
+      "FrontLeg_L_Lower",
+      "FrontLeg_L_Foot",
+      "FrontLeg_R_Upper",
+      "FrontLeg_R_Lower",
+      "FrontLeg_R_Foot",
+      "Tail_01",
+      "Tail_02",
+      "Tail_03",
+      "Tail_04",
+      "BackLeg_L_Upper",
+      "BackLeg_L_Lower",
+      "BackLeg_L_Foot",
+      "BackLeg_R_Upper",
+      "BackLeg_R_Lower",
+      "BackLeg_R_Foot"
+    ],
+    "root_bones": [
+      "Root"
+    ],
+    "leaf_end_bones": [],
+    "triangles": 2334,
+    "vertex_groups": 22,
+    "has_armature_modifier": true,
+    "uv_layers": [
+      "UVMap"
+    ],
+    "materials": [
+      "MAT-Triceratops"
+    ],
+    "images": [],
+    "size_m": [
+      2.569,
+      5.106,
+      2.836
+    ],
+    "size_studs": [
+      9.18,
+      18.23,
+      10.13
+    ],
+    "min_z_m": -0.0,
+    "head_is_forward_of_tail": true,
+    "feet_below_head": true,
+    "mesh_length_axis_y": 5.106,
+    "closed_shells": 53,
+    "inverted_shells": 0,
+    "open_shells": 0,
+    "action": "Triceratops|Attack",
+    "action_frames": [
+      2,
+      42
+    ],
+    "animated_bones": 23,
+    "file_size_kb": 374.1
+  },
+  "animations/Triceratops_Idle.fbx": {
+    "objects": [
+      "Triceratops",
+      "TriceratopsMesh"
+    ],
+    "non_mesh_non_armature": [],
+    "bones": 23,
+    "bone_names": [
+      "Root",
+      "Hips",
+      "Chest",
+      "Neck",
+      "Head",
+      "Jaw",
+      "Frill",
+      "FrontLeg_L_Upper",
+      "FrontLeg_L_Lower",
+      "FrontLeg_L_Foot",
+      "FrontLeg_R_Upper",
+      "FrontLeg_R_Lower",
+      "FrontLeg_R_Foot",
+      "Tail_01",
+      "Tail_02",
+      "Tail_03",
+      "Tail_04",
+      "BackLeg_L_Upper",
+      "BackLeg_L_Lower",
+      "BackLeg_L_Foot",
+      "BackLeg_R_Upper",
+      "BackLeg_R_Lower",
+      "BackLeg_R_Foot"
+    ],
+    "root_bones": [
+      "Root"
+    ],
+    "leaf_end_bones": [],
+    "triangles": 2334,
+    "vertex_groups": 22,
+    "has_armature_modifier": true,
+    "uv_layers": [
+      "UVMap"
+    ],
+    "materials": [
+      "MAT-Triceratops"
+    ],
+    "images": [],
+    "size_m": [
+      2.569,
+      5.115,
+      2.836
+    ],
+    "size_studs": [
+      9.18,
+      18.27,
+      10.13
+    ],
+    "min_z_m": -0.0,
+    "head_is_forward_of_tail": true,
+    "feet_below_head": true,
+    "mesh_length_axis_y": 5.106,
+    "closed_shells": 53,
+    "inverted_shells": 0,
+    "open_shells": 0,
+    "action": "Triceratops|Idle",
+    "action_frames": [
+      2,
+      92
+    ],
+    "animated_bones": 23,
+    "file_size_kb": 437.5
+  },
+  "animations/Triceratops_Run.fbx": {
+    "objects": [
+      "Triceratops",
+      "TriceratopsMesh"
+    ],
+    "non_mesh_non_armature": [],
+    "bones": 23,
+    "bone_names": [
+      "Root",
+      "Hips",
+      "Chest",
+      "Neck",
+      "Head",
+      "Jaw",
+      "Frill",
+      "FrontLeg_L_Upper",
+      "FrontLeg_L_Lower",
+      "FrontLeg_L_Foot",
+      "FrontLeg_R_Upper",
+      "FrontLeg_R_Lower",
+      "FrontLeg_R_Foot",
+      "Tail_01",
+      "Tail_02",
+      "Tail_03",
+      "Tail_04",
+      "BackLeg_L_Upper",
+      "BackLeg_L_Lower",
+      "BackLeg_L_Foot",
+      "BackLeg_R_Upper",
+      "BackLeg_R_Lower",
+      "BackLeg_R_Foot"
+    ],
+    "root_bones": [
+      "Root"
+    ],
+    "leaf_end_bones": [],
+    "triangles": 2334,
+    "vertex_groups": 22,
+    "has_armature_modifier": true,
+    "uv_layers": [
+      "UVMap"
+    ],
+    "materials": [
+      "MAT-Triceratops"
+    ],
+    "images": [],
+    "size_m": [
+      2.569,
+      5.137,
+      2.881
+    ],
+    "size_studs": [
+      9.18,
+      18.35,
+      10.29
+    ],
+    "min_z_m": -0.0,
+    "head_is_forward_of_tail": true,
+    "feet_below_head": true,
+    "mesh_length_axis_y": 5.106,
+    "closed_shells": 53,
+    "inverted_shells": 0,
+    "open_shells": 0,
+    "action": "Triceratops|Run",
+    "action_frames": [
+      2,
+      22
+    ],
+    "animated_bones": 23,
+    "file_size_kb": 349.3
+  },
+  "animations/Triceratops_Walk.fbx": {
+    "objects": [
+      "Triceratops",
+      "TriceratopsMesh"
+    ],
+    "non_mesh_non_armature": [],
+    "bones": 23,
+    "bone_names": [
+      "Root",
+      "Hips",
+      "Chest",
+      "Neck",
+      "Head",
+      "Jaw",
+      "Frill",
+      "FrontLeg_L_Upper",
+      "FrontLeg_L_Lower",
+      "FrontLeg_L_Foot",
+      "FrontLeg_R_Upper",
+      "FrontLeg_R_Lower",
+      "FrontLeg_R_Foot",
+      "Tail_01",
+      "Tail_02",
+      "Tail_03",
+      "Tail_04",
+      "BackLeg_L_Upper",
+      "BackLeg_L_Lower",
+      "BackLeg_L_Foot",
+      "BackLeg_R_Upper",
+      "BackLeg_R_Lower",
+      "BackLeg_R_Foot"
+    ],
+    "root_bones": [
+      "Root"
+    ],
+    "leaf_end_bones": [],
+    "triangles": 2334,
+    "vertex_groups": 22,
+    "has_armature_modifier": true,
+    "uv_layers": [
+      "UVMap"
+    ],
+    "materials": [
+      "MAT-Triceratops"
+    ],
+    "images": [],
+    "size_m": [
+      2.569,
+      5.094,
+      2.86
+    ],
+    "size_studs": [
+      9.18,
+      18.19,
+      10.22
+    ],
+    "min_z_m": -0.0,
+    "head_is_forward_of_tail": true,
+    "feet_below_head": true,
+    "mesh_length_axis_y": 5.106,
+    "closed_shells": 53,
+    "inverted_shells": 0,
+    "open_shells": 0,
+    "action": "Triceratops|Walk",
+    "action_frames": [
+      2,
+      38
+    ],
+    "animated_bones": 23,
+    "file_size_kb": 369.1
+  }
+}
