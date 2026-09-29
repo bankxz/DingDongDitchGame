@@ -596,7 +596,7 @@ brow_r = loft(BROW, "tan", cap0=True, cap1=True)
 PRIMS.remove(brow_r)
 brow_l = dict(brow_r, verts=[mir_v(v) for v in brow_r["verts"]],
               faces=[(tuple(reversed(f)), list(reversed(u))) for f, u in brow_r["faces"]])
-fuse(head_prim, [brow_r, brow_l], H)
+# (brow ridges removed by request; BROW_SPEC kept for reference, not built)
 
 # eyeball: faceted gem sitting deep in the socket, deep blue rim -> bright centre
 rim = [EYE_C + EYE_N * -0.5 + (EYE_E1 * a + EYE_E2 * b) * 0.88 for a, b in ALMOND]
