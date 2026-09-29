@@ -32,3 +32,4 @@
   - Added the `FlyIdle` (hover) and `FlyWalk` clips. The Root stays still and the Torso lifts. The foot IK is switched off while these clips are sampled.
   - Rested the claw tips on the ground.
   - Gave each eyebrow a large bevel on its front-outer edge, mirrored on both sides of all three heads.
+- **Round 7:** The centre head's gold horn used to float above the skull. Its base now sits on the cranium cap, sunk 0.1 studs into it so there's no seam, and it's about 50% taller (0.9 studs instead of 0.55).

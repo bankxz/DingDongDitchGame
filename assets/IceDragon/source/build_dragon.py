@@ -451,7 +451,7 @@ def build_head(k):
         for y, L, x in ((1.0, 0.42, 0.62), (1.5, 0.64, 0.58), (2.0, 0.46, 0.55), (2.55, 0.8, 0.5), (2.88, 0.4, 0.2)):
             shard_tooth(P(x * sg, y, -0.42), -u + d * 0.08, L * HS, 0.3 * HS, hw)
     if k == 'C':  # gold horn in the middle of the forehead
-        gold_spike(P(0, 1.25, 0.95), R @ V((0, 0.35, 1)), 0.55 * HS, 0.26 * HS, hw)
+        gold_spike(P(0, 0.85, 0.86), R @ V((0, 0.3, 1)), 0.9 * HS, 0.3 * HS, hw)   # base sunk into the cranium cap
     # mouth interior / tongue joining the jaws
     hbox((0, 0.85, -0.62), (1.15, 1.3, 0.55), 'red')
     # lower jaw: white block, red top, hinged open ~38 deg

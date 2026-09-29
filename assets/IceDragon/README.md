@@ -66,7 +66,7 @@ The stud relief comes from [dudeax/Roblox-HD-Studs](https://github.com/dudeax/Ro
   - a white gum line with big white fangs, including a long pair at the front corners
   - stacked white cheek blocks at the mouth corner
   - a white blocky lower jaw with a chin block and upward fangs, open about 38°, with a red mouth and tongue
-  - gold horn spikes at the back of the skull, plus a gold forehead horn on the centre head
+  - gold horn spikes at the back of the skull, plus a tall gold forehead horn on the centre head, set into the cranium with no gap
   - an ice mane and a chin icicle
 - **Side heads** are turned outward (about 39°), so the front view shows their profiles like the reference.
 - **Claws**: each paw has four chunky white claws with chamfered edges. Each claw runs forward off a navy toe block and then bends straight down to a flat, blunt tip on the ground. A gold chevron with a small cyan crystal sits on the foot above each toe.
