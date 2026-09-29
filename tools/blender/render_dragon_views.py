@@ -14,7 +14,7 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 BLEND = os.path.join(ROOT, "assets", "models", "AncientDragon", "AncientDragon.blend")
 args = sys.argv[1:]
 out = args.pop(0) if args else "/tmp/dragon_views"
-action, frame, mask = "", 1, False
+action, frame, mask, night = "", 1, False, False
 views = []
 while args:
     a = args.pop(0)
@@ -24,6 +24,8 @@ while args:
         frame = int(args.pop(0))
     elif a == "--mask":
         mask = True
+    elif a == "--night":
+        night = True
     else:
         views.append(a)
 os.makedirs(out, exist_ok=True)
@@ -76,6 +78,10 @@ fo = bpy.data.objects.new("fill", fill)
 sc.collection.objects.link(fo)
 fo.rotation_euler = (math.radians(60), 0, math.radians(150))
 
+if night:  # dusk lighting to show the emissive wings / runes / eyes
+    bg.inputs["Strength"].default_value = 0.12
+    sun.energy = 0.5
+    fill.energy = 0.15
 sc.render.engine = "CYCLES"
 sc.cycles.samples = 4 if mask else 28
 sc.cycles.use_denoising = not mask
@@ -111,6 +117,7 @@ VIEWS = {
     "claw": ((5, -9, 2.0), (2.6, -2.5, 0.6), 50, (500, 380)),
     "eye": ((5.5, -9.0, 8.6), (0.9, -5.3, 8.2), 60, (500, 380)),
     "mouth": ((3.2, -10.5, 6.6), (0.0, -5.6, 7.0), 45, (500, 380)),
+    "mouth_front": ((0.0, -12.0, 6.9), (0.0, -5.8, 7.3), 50, (500, 380)),
     "arm": ((12, -3, 3.2), (2.6, -0.3, 2.4), 35, (500, 380)),
     "feet_under": ((1.5, -6.0, -6.0), (2.3, 1.5, 0.3), 32, (600, 420)),
     "spine": ((9, 16, 13), (0, 5, 4.5), 30, (600, 380)),

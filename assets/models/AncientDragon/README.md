@@ -20,7 +20,9 @@ Stud-textured low-poly dragon, rigged, with idle and walk animations.
 ## Importing into Roblox Studio
 
 1. **Model:** Home → Import 3D → `AncientDragon.fbx`. Keep "Import as rig" / skinned mesh on. The dragon is about 24 studs nose to tail. If it comes in at the wrong size, change the importer's scale unit to centimeters.
-2. **Glow parts:** the importer doesn't carry emission, so set the `Dragon_Glow` and `Dragon_Eye` MeshParts to `Material = Neon` (or keep their texture and add a PointLight) for the cyan glow.
+2. **Glow:** the runes (`Dragon_Glow`), eyes (`Dragon_Eye`) and wing webbing (`Dragon_Membrane`) are emissive in Blender. FBX can't carry emission into Studio, so re-apply it there:
+   - `Dragon_Glow` and `Dragon_Eye`: set `Material = Neon`.
+   - `Dragon_Membrane`: to keep the painted rune pattern, add a `SurfaceAppearance` with `ColorMap = textures/Dragon_WingMembrane.png`. If your Studio version shows emissive properties on SurfaceAppearance, use the same image as the emissive map. For a plain glow instead, set it to `Neon` with `Color = (20, 190, 215)`.
 3. **Stud relief (optional):** add a `SurfaceAppearance` to a stud MeshPart, with `ColorMap` set to its `Dragon_*_Stud.png` and `NormalMap` set to `Dragon_Stud_Normal.png`.
 4. **Animations:** open the Animation Editor on the imported rig → ⋯ → Import → From FBX Animation → pick `AncientDragon_Idle.fbx`, then publish. Repeat for `AncientDragon_Walk.fbx`. Both loop seamlessly, so tick Looping before publishing.
 

@@ -396,7 +396,11 @@ def build_neck_head():
                 return a[0][2] + (b[0][2] - a[0][2]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t
         r = rs[0] if y > rs[0][0][1] else rs[-1]
         return r[0][2], r[1], r[2]
-    obox("Mouth", (0, -5.3, 6.45), (0.36, 0, 0), (0, 1.4, 0.2), (0, -0.05, 0.08), H)
+    # palate: tapered plate tucked just under the skull, narrower than the tooth rows and ending behind the fangs
+    zb, hwb, hhb = head_at(-3.95)
+    zf, hwf, hhf = head_at(-6.05)
+    brick("Mouth", (0, -3.95, zb - hhb - 0.02), (0, -6.05, zf - hhf - 0.02), hwb * 0.95, 0.1, H, gap=0.0,
+          w1=hwf * 0.8, bevel=0.0)
     blade("Dark", [(0, -4.0, 8.2), (0, -5.3, 7.82), (0, -6.6, 7.28), (0, -7.45, 6.9)], 0.95, 0.36, H,
           up=(0, -0.3, 1), taper_to=0.36)
     blade("Gold", [(0, -6.9, 7.2), (0, -7.25, 7.5), (0, -7.4, 7.95)], 0.3, 0.3, H, up=(0, -1, 0.3))
@@ -456,7 +460,11 @@ def build_neck_head():
     Jb = "Jaw"
     JAW_RINGS = [((0, -4.05, 6.35), 0.72, 0.3), ((0, -5.1, 5.72), 0.5, 0.25), ((0, -6.2, 5.05), 0.3, 0.19)]
     tube("Dark", JAW_RINGS, Jb, up=(0, -0.55, 0.85), chamfer=0.42)
-    obox("Mouth", (0, -4.9, 6.0), (0.34, 0, 0), (0, 0.9, -0.55), (0, 0.03, 0.05), Jb)
+    # tongue: tapered strip lying along the top of the lower jaw, inside the lower tooth rows
+    jup_ = V((0, -0.55, 0.85)).normalized()
+    (c0, w0_, h0_), (c2, w2_, h2_) = JAW_RINGS[0], JAW_RINGS[2]
+    brick("Mouth", V(c0) + V((0, -0.15, 0)) + jup_ * (h0_ - 0.06), V(c2) + V((0, 0.35, 0)) + jup_ * (h2_ - 0.04),
+          w0_ * 0.95, 0.08, Jb, up=jup_, gap=0.0, w1=w2_ * 0.8, bevel=0.0)
     strip("Tan", [(0, -4.1, 5.98), (0, -5.1, 5.38), (0, -6.15, 4.78)], 1.0, 0.26, Jb, up=(0, 0.55, -0.85),
           taper_to=0.5)
     for s in (1, -1):
@@ -731,7 +739,7 @@ def face_uvs(verts, face, mode):
 MAT_IMAGES = {
     "Dark": ("Dragon_Dark_Stud.png", 0.0), "Gold": ("Dragon_Gold_Stud.png", 0.0),
     "Tan": ("Dragon_Tan_Stud.png", 0.0), "Bone": ("Dragon_Bone_Stud.png", 0.0),
-    "Glow": ("Dragon_Glow.png", 1.0), "Membrane": ("Dragon_WingMembrane.png", 0.0),
+    "Glow": ("Dragon_Glow.png", 2.2), "Membrane": ("Dragon_WingMembrane.png", 0.9),
     "Eye": ("Dragon_Eye.png", 1.2),
     "Mouth": ("Dragon_Mouth_Stud.png", 0.0),
 }
