@@ -1,0 +1,68 @@
+{
+ "Body_Lava": {
+  "triangles": 524,
+  "material": "Body_Lava"
+ },
+ "Lava_Cracks_Neon": {
+  "triangles": 196,
+  "material": "Lava_Cracks_Neon"
+ },
+ "Mane_Neon": {
+  "triangles": 672,
+  "material": "Mane_Neon"
+ },
+ "Tail_Neon": {
+  "triangles": 868,
+  "material": "Tail_Neon"
+ },
+ "Hooves_Dark": {
+  "triangles": 176,
+  "material": "Hooves_Dark"
+ },
+ "Armour_Volcanic": {
+  "triangles": 1496,
+  "material": "Armour_Volcanic"
+ },
+ "Eyes": {
+  "triangles": 48,
+  "material": "Eyes"
+ },
+ "TOTAL_triangles": 3980,
+ "bones": [
+  "Root",
+  "Hips",
+  "Spine",
+  "Chest",
+  "Neck",
+  "Head",
+  "Jaw",
+  "Mane_1",
+  "Mane_2",
+  "Mane_3",
+  "FrontLeg_Upper_L",
+  "FrontLeg_Lower_L",
+  "FrontHoof_L",
+  "FrontLeg_Upper_R",
+  "FrontLeg_Lower_R",
+  "FrontHoof_R",
+  "Tail_1",
+  "Tail_2",
+  "Tail_3",
+  "BackLeg_Upper_L",
+  "BackLeg_Lower_L",
+  "BackHoof_L",
+  "BackLeg_Upper_R",
+  "BackLeg_Lower_R",
+  "BackHoof_R"
+ ],
+ "actions": {
+  "LavaHorse_Idle": [
+   1,
+   91
+  ],
+  "LavaHorse_Walk": [
+   1,
+   37
+  ]
+ }
+}
