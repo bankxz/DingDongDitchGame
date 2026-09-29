@@ -18,6 +18,12 @@ TEX_DIR = os.path.join(OUT, 'textures')
 os.makedirs(TEX_DIR, exist_ok=True)
 
 TEX_RES = 1024            # Roblox max texture size
+STUD_SHADE = 1.5          # baked stud bevel contrast (was 0.7)
+STUD_AO = 0.55            # stud contact-shadow strength (was 0.28)
+STUD_NORMAL_BOOST = 1.6   # normal-map bevel depth multiplier
+STUD_SHADE = 0.30          # baked stud bevel contrast (was 0.7)
+STUD_AO = 0.12             # stud contact-shadow strength (was 0.28)
+STUD_NORMAL_SCALE = 0.55   # normal-map bevel depth (1.0 = source maps)
 STUD_PITCH = 0.22         # metres between studs (reference body ~5 studs tall)
 FPS = 30
 
@@ -201,13 +207,17 @@ def bake_textures(ob, mb):
     nm = cv2.remap(nm_small, sx, sy, cv2.INTER_LINEAR, borderMode=cv2.BORDER_WRAP)
     ao = ao * (1 - flat) + flat
     nvec = nm * 2 - 1
+    nvec[..., :2] *= STUD_NORMAL_SCALE            # shallower bevels = subtler studs
+    nvec /= np.linalg.norm(nvec, axis=2, keepdims=True)
+    nvec[..., :2] *= STUD_NORMAL_BOOST            # deeper bevels = more solid-looking studs
+    nvec /= np.linalg.norm(nvec, axis=2, keepdims=True)
     nvec = nvec * (1 - flat[..., None]) + np.array([0, 0, 1], np.float32) * flat[..., None]
     # baked bevel lighting (top-left key) so studs read even without a normal map
     light = np.array([-0.45, 0.55, 0.70]); light /= np.linalg.norm(light)
     lam = np.clip((nvec @ light.astype(np.float32)), 0, 1)
     lam0 = float(np.array([0, 0, 1]) @ light)
-    shade = 1.0 + 0.7 * (lam - lam0)
-    shade *= (0.72 + 0.28 * ao ** 1.5)            # AO contact shadow round the studs
+    shade = 1.0 + STUD_SHADE * (lam - lam0)
+    shade *= (1.0 - STUD_AO + STUD_AO * ao ** 1.5)            # AO contact shadow round the studs
     shade *= (1.0 - 0.28 * groove)                # brick seams
     final = np.clip(col * shade[..., None], 0, 1)
     Image.fromarray((final * 255).astype(np.uint8)).save(os.path.join(TEX_DIR, 'Drake_Color.png'))
