@@ -1,0 +1,33 @@
+{
+  "source_files": ["reference_sheet.webp (user attachment 1)", "roblox_stud_examples (user attachments 2-4)"],
+  "primary_view": "3/4 perspective + front",
+  "canonical_policy": "front_side_canonical",
+  "conflict_report": [
+    "TOP view shows the tail laid straight back with the stinger pointing backwards; 3/4, FRONT, BACK, LEFT and RIGHT views all show the tail curled up and forward over the body with the stinger hanging down/forward. One rigid model cannot satisfy both. Policy: 5 of 6 views win (tail curled). TOP view is used only for the body footprint, leg splay angles and claw spread."
+  ],
+  "expected_primary_parts": {
+    "count": 18,
+    "labels": ["head (2 glowing eyes)", "carapace plate front", "carapace plate mid", "carapace plate rear",
+               "pincer L", "pincer R",
+               "leg L1", "leg L2", "leg L3", "leg L4", "leg R1", "leg R2", "leg R3", "leg R4",
+               "tail segments x6", "stinger x1"]
+  },
+  "palette": {
+    "charcoal_rock": "#2E2A2B",
+    "dark_gray": "#4A4446",
+    "deep_red": "#A8261C",
+    "lava_orange": "#F26A10",
+    "hot_yellow": "#FFD83A"
+  },
+  "surface_rules": [
+    "Rock blocks: charcoal/dark-brown with square Roblox studs (TEXTURE, not geometry) and glowing lava seams on every block edge",
+    "Body plates: extra glowing crack lines",
+    "Claw fingers, stinger, leg tips: studded gradient deep red -> lava orange -> hot yellow toward the tip",
+    "Eyes: two glowing yellow-orange slits low on the head front"
+  ],
+  "budget": {"max_tris": 5000},
+  "validation_thresholds": {
+    "part_count_exact": true,
+    "views_rendered": ["persp", "front", "back", "left", "right", "top"]
+  }
+}
