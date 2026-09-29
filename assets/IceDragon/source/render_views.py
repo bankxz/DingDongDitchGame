@@ -38,7 +38,7 @@ views = {
  'back': ((0, 45, 5.2), 'ORTHO', 14.5), 'top': ((0, 2.5, 45), 'ORTHO', 19.0),
  'persp34': ((22, -22, 12), 'PERSP', 35),
  'closeup': ((9, -14, 9.5), 'PERSP', 45),
- 'head_detail': ((11.6, -1.1, 9.2), 'PERSP', 62), 'claw_detail': ((-7.0, -7.5, 1.6), 'PERSP', 75),
+ 'head_detail': ((11.6, -1.1, 9.2), 'PERSP', 62), 'eye_close': ((8.4, -3.6, 8.9), 'PERSP', 70), 'claw_detail': ((-7.0, -7.5, 1.6), 'PERSP', 75),
  'heads_front': ((0, -30, 8.3), 'ORTHO', 12.5), 'heads_side': ((30, -3.5, 7.6), 'ORTHO', 7.5), 'ref34': ((24, -14, 9), 'PERSP', 42),
 }
 only = os.environ.get('VIEWS')
@@ -50,6 +50,7 @@ for name, (loc, typ, s) in views.items():
     tgt = Vector((0, 2.5 if name != 'front' and name != 'back' else 0, 5.2))
     if name == 'persp34': tgt = Vector((0, 1.5, 4.5))
     if name == 'closeup': tgt = Vector((0.5, -3, 6.2))
+    if name == 'eye_close': tgt = Vector((4.6, -3.2, 7.7))
     if name == 'head_detail': tgt = Vector((4.6, -3.5, 7.4))
     if name == 'claw_detail': tgt = Vector((-3.85, -3.4, 0.45))
     if name == 'heads_front': tgt = Vector((0, 0, 8.3))

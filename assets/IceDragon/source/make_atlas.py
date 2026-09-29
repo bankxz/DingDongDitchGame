@@ -116,10 +116,22 @@ def tooth(d, w, h, im):
 draw_slot('tooth', tooth)
 
 def eye(d, w, h, im):
-    im.paste((0x4d, 0xd9, 0xfe), [0, 0, w, h])
-    for r in range(w // 2, 0, -1):
-        t = 1 - r / (w / 2)
-        d.ellipse([w/2 - r, h/2 - r, w/2 + r, h/2 + r], fill=lerp((0x4d, 0xd9, 0xfe), (0xff, 0xff, 0xff), t ** 0.7))
+    """Glowing dragon eye, painted pre-squashed for a ~3:1 eye surface so the iris reads
+    round on the model: white-hot glow, bright cyan iris ring, dark vertical slit pupil."""
+    ASPECT = 2.3                                               # eye surface width / height
+    im.paste((0x2e, 0xb8, 0xfa), [0, 0, w, h])
+    cx, cy = w * 0.56, h * 0.5
+    for k in range(60, 0, -1):                                 # white-hot glow filling the opening
+        t = 1 - k / 60; rx = w * 0.55 * k / 60; ry = h * 0.55 * k / 60
+        d.ellipse([cx - rx, cy - ry, cx + rx, cy + ry], fill=lerp((0x2e, 0xb8, 0xfa), (0xf6, 0xff, 0xff), min(1, t * 1.8)))
+    iry = h * 0.42; irx = iry / ASPECT                         # iris (round on the model)
+    for k in range(30, 0, -1):
+        t = 1 - k / 30
+        d.ellipse([cx - irx * k / 30, cy - iry * k / 30, cx + irx * k / 30, cy + iry * k / 30],
+                  fill=lerp((0x3a, 0xc4, 0xff), (0xe4, 0xfd, 0xff), t))
+    pry = h * 0.34; prx = max(2.0, pry * 0.16 / ASPECT)        # vertical slit pupil
+    d.ellipse([cx - prx, cy - pry, cx + prx, cy + pry], fill=(0x05, 0x10, 0x36))
+    d.ellipse([cx + irx * 0.25, cy - iry * 0.55, cx + irx * 0.7, cy - iry * 0.3], fill=(0xff, 0xff, 0xff))
 draw_slot('eye', eye)
 
 def gem(d, w, h, im):

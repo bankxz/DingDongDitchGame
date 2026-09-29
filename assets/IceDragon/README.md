@@ -15,7 +15,7 @@ It uses the Roblox stud look (the studs are texture, not geometry).
 | `validation/` | Renders compared with the reference, and animation contact sheets. |
 
 ## Stats
-- **4,968 triangles** (the limit is 5,000). `IceDragon_Body` has 3,392 and `IceDragon_Ice` has 1,576.
+- **4,944 triangles** (the limit is 5,000). `IceDragon_Body` has 3,392 and `IceDragon_Ice` has 1,552.
 - **41 bones**, with at most 3 weights per vertex:
   - Root, Torso, Pelvis
   - 3 necks × 3 bones, plus Head and Jaw for each head
@@ -57,7 +57,9 @@ The stud relief comes from [dudeax/Roblox-HD-Studs](https://github.com/dudeax/Ro
   - an eye socket cut into each side of the skull:
     - a brow ledge that grows out of the cranium cap forms the top, overhangs the eye, slopes down toward the front (the angry slant) and rises at the outside (the V seen from the front)
     - a cheek ridge flush with the skull side forms the bottom
-    - the glow sits recessed in the socket and wraps around the front corner, so the eyes show head-on too
+    - the eye inside the socket is a slightly domed, angry-almond-shaped surface, not a block: the brow cuts the top edge down toward the snout, and the bottom edge is curved
+    - it faces outward and a little forward, so the eyes show head-on too
+    - its texture is a white-hot glow with a bright cyan iris, a dark vertical slit pupil and a small highlight, painted pre-squashed so the iris looks round on the model
   - a white gum line with big white fangs, including a long pair at the front corners
   - stacked white cheek blocks at the mouth corner
   - a white blocky lower jaw with a chin block and upward fangs, open about 38°, with a red mouth and tongue

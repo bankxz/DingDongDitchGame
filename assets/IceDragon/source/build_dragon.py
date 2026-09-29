@@ -357,6 +357,29 @@ def gold_spike(base, dirv, length, width, wt):
     shard(BODY, base, dirv, length, width, wt, twist=0.78, simple=True)
     BODY.f[g0:] = [(i, 'gold', None) for i, sl, uv in BODY.f[g0:]]
 
+EYE_OUTLINE = [  # (along head forward, up) - angry eye: brow cuts the top edge down toward the snout
+    (-0.42, 0.13), (-0.14, 0.17), (0.16, 0.10), (0.42, -0.02), (0.46, -0.09),
+    (0.26, -0.19), (-0.04, -0.21), (-0.32, -0.12)]
+
+def eye_lens(c, n, up, fwd, wt, dome=0.05):
+    """Slightly domed eye surface in the socket, UV'd across the whole eye swatch
+    (glow, iris, slit pupil). Faces point along n (outward + forward)."""
+    n = V(n).normalized(); t = (V(fwd) - n * V(fwd).dot(n)).normalized(); w = (V(up) - n * V(up).dot(n) - t * V(up).dot(t)).normalized()
+    pts = [V(c) + (t * a + w * b) * HS for a, b in EYE_OUTLINE]
+    # order counter-clockwise about n so faces point outward
+    ref = n.cross(t)
+    pts.sort(key=lambda p: math.atan2((p - V(c)).dot(ref), (p - V(c)).dot(t)))
+    x0, y0, sw, sh = SLOTS['eye']
+    us = [(p - V(c)).dot(t) for p in pts]; vs = [(p - V(c)).dot(w) for p in pts]
+    umin, umax, vmin, vmax = min(us), max(us), min(vs), max(vs)
+    uv = lambda uu, vv: ((x0 + 3 + (uu - umin) / (umax - umin) * (sw - 6)) / ASIZE, 1 - (y0 + 3 + (1 - (vv - vmin) / (vmax - vmin)) * (sh - 6)) / ASIZE)
+    ids = [GLOW.add_v(p, wt) for p in pts]
+    ci = GLOW.add_v(V(c) + n * dome * HS, wt)
+    cuv = uv(0.0, 0.0)
+    for i in range(len(ids)):
+        j = (i + 1) % len(ids)
+        GLOW.face([ci, ids[i], ids[j]], 'eye', [cuv, uv(us[i], vs[i]), uv(us[j], vs[j])])
+
 def build_head(k):
     """Blocky head per the HEAD / EYE DETAIL close-up: flat navy skull, blunt box snout,
     brow ledge fused into the cranium over a recessed glowing eye socket, white gum line with big fangs, white cheek
@@ -389,8 +412,7 @@ def build_head(k):
         hbox((0.8 * sg, 0.72, 0.06), (0.46, 1.35, 0.38), 'navy', rot=Matrix.Rotation(-0.12, 3, 'X'))
         hbox((0.78 * sg, 1.42, 0.02), (0.36, 0.42, 0.34), 'royal')
         # recessed glow filling the socket; opens at the front corner so it reads head-on
-        box(GLOW, P(0.72 * sg, 1.32, 0.35), [0.28 * HS, 0.7 * HS, 0.26 * HS], 'eye', hw,
-            R @ Matrix.Rotation(-0.2, 3, 'X'), 0.9)
+        eye_lens(P(0.8 * sg, 1.3, 0.37), s * sg * 0.8 + d * 0.55, u, d, hw)
         # white cheek blocks at the mouth corner (two stacked, as in the close-up)
         hbox((0.93 * sg, 0.35, -0.2), (0.42, 0.95, 0.9), 'white')
         hbox((0.86 * sg, 0.85, -0.55), (0.36, 0.6, 0.5), 'white')

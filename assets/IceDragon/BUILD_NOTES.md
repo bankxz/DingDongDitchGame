@@ -21,3 +21,4 @@
   - Each eye is now a recessed socket built into the skull: the brow ledge is fused into the cranium cap, the cheek ridge forms the socket floor, and a glowing block sits inside the socket.
   - The snout was narrowed from 1.66 to 1.25 studs, and the jaw, teeth and gum were narrowed to match.
   - To stay under 5k tris, I removed the lower-jaw chin sub-block and the small second gold spike on each side.
+- **Round 4 (feedback: the eye is a block and has no pupil):** I replaced the glowing block with a domed eye surface in the angry-almond outline taken from the reference close-up. I also painted a new eye texture onto it: a white-hot glow, a cyan iris and a dark slit pupil, drawn at the eye's 2.3:1 aspect so the iris stays round. This saved 24 tris.
