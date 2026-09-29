@@ -270,17 +270,21 @@ def eye_frame(s):
   n = Vector((s * u ** (e - 1) / hw, -0.12, v ** (e - 1) / hh)).normalized()   # superellipse normal, slight forward
   up = (Vector((0, 0, 1)) - n * n.z).normalized(); rt = up.cross(n)
   return c, n, up, rt
-SOCK_R, SOCK_D = 1.9, 0.8
+EYE_A, EYE_B, EYE_D = 1.6, 0.72, 0.42     # almond half-length (along head), half-height, eyeball depth
+SOCK_A, SOCK_B, SOCK_D = 2.5, 1.55, 0.75  # socket hollow radii + depth
+def sock_d(p, s):
+  c, n, up, rt = eye_frame(s); q = p - c
+  return math.hypot(q.dot(rt) / SOCK_A, q.dot(up) / SOCK_B)
 for s in (1, -1):
   c, n, _, _ = eye_frame(s)
   for ring in rings:
     for p in ring:
-      d = (p - c).length
-      if d < SOCK_R: p -= n * SOCK_D * (1 - (d / SOCK_R) ** 2) ** 1.5
+      d = sock_d(p, s)
+      if d < 1: p -= n * SOCK_D * (1 - d * d) ** 1.5
 
 def body_cat(r, k, g):
   j, x, z = g.y, g.x, g.z
-  if r >= 0 and min((g - eye_frame(s)[0]).length for s in (1, -1)) < 1.25: return "socketdark"
+  if r >= 0 and min(sock_d(g, s) for s in (1, -1)) < 0.62: return "socketdark"
   hw, zb, zt, e = ring_params(j)
   v = (z - zb) / max(0.1, zt - zb)
   if r == -1: return 'camo'                                   # caps: snout tip / tail tip
@@ -304,19 +308,25 @@ loft(jrings, jaw_cat, lambda p: {'Jaw': 1.0})
 print('T jaw', ACC.tris())
 
 # ---- eyes: rounded eyeball (painted slit pupil) sitting in the socket, framed by a rim that thickens into a brow
-def eyeball(c, n, up, rt, r, bw, seg=12, rows=7):
-  pole = lambda z: ACC.addv(W(*(c + n * (r * z))), bw)
+def almond(px, py):
+  """unit-disc point -> almond: oval that tapers to points at both ends (outline y = +-(1 - x^2))"""
+  return px, py * math.sqrt(max(0.0, 1 - px * px))
+
+def eyeball(c, n, up, rt, A, B, D, bw, seg=16, rows=6):
+  def P(px, py, pz):
+    x, y = almond(px, py)
+    return ACC.addv(W(*(c + rt * (A * x) + up * (B * y) + n * (D * pz))), bw)
   rings_ = []
   for i in range(1, rows):
     ph = math.pi * i / rows
-    rings_.append([ACC.addv(W(*(c + (rt * math.cos(2 * math.pi * k / seg) + up * math.sin(2 * math.pi * k / seg)) * (r * math.sin(ph))
-                                + n * (r * math.cos(ph)))), bw) for k in range(seg)])
-  front, back = pole(1), pole(-1)
+    rings_.append([P(math.sin(ph) * math.cos(2 * math.pi * k / seg), math.sin(ph) * math.sin(2 * math.pi * k / seg), math.cos(ph))
+                   for k in range(seg)])
+  front, back = P(0, 0, 1), P(0, 0, -1)
   rect = cell_rect('eyeball'); (u0, v0), (u1, _), (_, v1) = rect[0], rect[1], rect[2]
   cw = W(*c)
-  def uv(vi):   # planar projection along the eye axis -> pupil faces straight out
+  def uv(vi):   # planar projection along the eye axis, iris fitted to the almond's height
     q = (ACC.v[vi] - cw) / U
-    return (u0 + (u1 - u0) * (0.5 + 0.5 * q.dot(rt) / r), v0 + (v1 - v0) * (0.5 + 0.5 * q.dot(up) / r))
+    return (u0 + (u1 - u0) * (0.5 + 0.5 * q.dot(rt) / A), v0 + (v1 - v0) * (0.5 + 0.5 * q.dot(up) / B))
   def f(ids):
     pts = [ACC.v[i] for i in ids]; cen = sum(pts, Vector()) / len(pts)
     if newell(pts).dot(cen - cw) < 0: ids = ids[::-1]
@@ -328,27 +338,30 @@ def eyeball(c, n, up, rt, r, bw, seg=12, rows=7):
     for a in range(len(rings_) - 1):
       f([rings_[a][k], rings_[a + 1][k], rings_[a + 1][k2], rings_[a][k2]])
 
-def socket_rim(c, n, up, rt, R, bw, seg=14, sides=6):
+def socket_rim(c, n, up, rt, A, B, bw, seg=16, sides=6):
   ids = []
+  outline = lambda th: (lambda x, y: rt * (A * x) + up * (B * y))(*almond(math.cos(th), math.sin(th)))
   for k in range(seg):
     th = 2 * math.pi * k / seg
-    d = rt * math.cos(th) + up * math.sin(th)
-    rm = 0.32 + 0.3 * max(0.0, math.sin(th)) ** 1.5          # thicker on top = brow ridge
-    ids.append([ACC.addv(W(*(c + d * (R + rm * math.cos(2 * math.pi * m / sides)) + n * (rm * math.sin(2 * math.pi * m / sides)))), bw)
+    o = outline(th)
+    tng = outline(th + 1e-3) - outline(th - 1e-3)
+    out = tng.cross(n).normalized()
+    if out.dot(o) < 0: out = -out
+    rm = 0.2 + 0.26 * max(0.0, math.sin(th)) ** 1.5          # thin lids, thicker on top = brow ridge
+    ids.append([ACC.addv(W(*(c + o + out * (rm * math.cos(2 * math.pi * m / sides)) + n * (rm * math.sin(2 * math.pi * m / sides)))), bw)
                 for m in range(sides)])
   for k in range(seg):
     for m in range(sides):
       q = [ids[k][m], ids[(k + 1) % seg][m], ids[(k + 1) % seg][(m + 1) % sides], ids[k][(m + 1) % sides]]
       tube_c = sum((ACC.v[i] for i in q), Vector()) / 4
-      th = 2 * math.pi * (k + .5) / seg
-      ring_c = W(*(c + (rt * math.cos(th) + up * math.sin(th)) * R))
+      ring_c = W(*(c + (outline(2 * math.pi * k / seg) + outline(2 * math.pi * (k + 1) / seg)) / 2))
       if newell([ACC.v[i] for i in q]).dot(tube_c - ring_c) < 0: q = q[::-1]
       ACC.face(q, 'socket')
 
 for s in (1, -1):
   c, n, up, rt = eye_frame(s)
-  eyeball(c - n * 0.3, n, up, rt, 0.85, {'Head': 1.0})
-  socket_rim(c - n * 0.12, n, up, rt, 1.12, {'Head': 1.0})
+  eyeball(c - n * 0.4, n, up, rt, EYE_A, EYE_B, EYE_D, {'Head': 1.0})          # front sits level with the head surface
+  socket_rim(c - n * 0.28, n, up, rt, EYE_A + 0.12, EYE_B + 0.12, {'Head': 1.0})
 print('T eyes', ACC.tris())
 
 # ----------------------------------------------------------------------------- legs: rounded tapered limbs + big flat feet

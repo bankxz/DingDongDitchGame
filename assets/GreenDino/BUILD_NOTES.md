@@ -15,7 +15,7 @@ A green crocodile-dinosaur rebuilt from the reference sheet as smooth, rounded l
 | `source/` | Scripts that rebuild everything: `make_atlas.py` → `build_dino.py` → `export_roblox.py` (`render_views.py` renders the validation images) |
 
 ## Stats
-- **3,926 triangles** (budget: 5,000), 1 mesh, 1 material, 1 texture.
+- **4,006 triangles** (budget: 5,000), 1 mesh, 1 material, 1 texture.
 - 22 bones: Root, Hips, Spine, Chest, Neck, Head, Jaw, Tail1-3, UpperArm/LowerArm/Hand and Thigh/Shin/Foot for each side (L = +X).
 - At most 2 bone influences per vertex; every vertex is weighted.
 - The body, head and tail are one continuous smooth loft (welded vertices, smooth shading), with weights blending along the spine. The lower jaw and each limb segment are rounded tapered tubes bound rigidly to one bone.
@@ -28,8 +28,9 @@ The texture is **painted, not pixel-style**, and the studs are **in the texture,
 - Atlas: 1024² (Roblox's limit), 4×4 patches of 4×4 cells, 64 px per cell, drawn at 2× and Lanczos-downsampled. Teeth and claws are plain.
 
 ## Eyes
-- **Socket:** each eye sits in a real hollow pressed into the head mesh (up to 0.8 cells deep), framed by a rounded rim that thickens on top into a brow ridge.
-- **Eyeball:** a low-poly sphere (12×7) sunk into the socket.
+- **Eyeball shape:** almond, a long oval running along the head that tapers to points at the front and back.
+- **Set into the head:** each eyeball sits in an oval hollow pressed into the head mesh, and its front is level with the head surface.
+- **Rim:** a thin lid rim follows the almond outline and thickens on top into a brow ridge.
 - **Texture:** projected straight along the eye's axis, with a glowing orange iris, a vertical black reptile slit pupil and a small highlight. The emissive mask makes the iris glow but not the pupil.
 - Eyes, rim and socket all move with the Head bone.
 

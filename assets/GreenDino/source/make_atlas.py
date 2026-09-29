@@ -94,7 +94,7 @@ def eye_cell():
   t = np.clip(np.hypot(X, Y), 0, 1)[..., None]
   core, mid, rim = hx('#ffe68a'), hx('#ff9a1c'), hx('#a8360c')
   img = np.where(t < 0.4, core * (1 - t / 0.4) + mid * (t / 0.4), mid * (1 - (t - 0.4) / 0.6) + rim * ((t - 0.4) / 0.6))
-  pupil = np.clip((1 - np.hypot(X / 0.15, Y / 0.66)) / 0.12, 0, 1)      # soft-edged vertical slit
+  pupil = np.clip((1 - np.hypot(X / 0.085, Y / 0.8)) / 0.15, 0, 1)      # soft-edged vertical slit (eye mapping widens it ~2x)
   img = img * (1 - pupil[..., None]) + hx('#120806') * pupil[..., None]
   hl = np.clip((1 - np.hypot((X + 0.34) / 0.13, (Y + 0.38) / 0.13)) / 0.25, 0, 1)
   img = img * (1 - hl[..., None]) + hx('#fff8e8') * hl[..., None]
