@@ -53,8 +53,8 @@ def obox(mat, c, ax, ay, az, bone, uvmode="stud", drop=None):
     add_piece(mat, vs, [f for k, f in faces.items() if k != drop], bone, uvmode)
 
 
-def brick(mat, p0, p1, w, h, bone, up=(0, 0, 1), gap=0.06, w1=None, h1=None, uvmode="stud", drop=None):
-    """brick spanning p0->p1 (shortened by gap at both ends), width along side, height along up"""
+def brick(mat, p0, p1, w, h, bone, up=(0, 0, 1), gap=0.06, w1=None, h1=None, uvmode="stud", drop=None, bevel=0.22):
+    """bevelled plate spanning p0->p1 (shortened by gap); top face inset by `bevel` for an angular chamfer"""
     p0, p1 = V(p0), V(p1)
     s, d, u = frame(p1 - p0, up)
     L = (p1 - p0).length
@@ -62,9 +62,12 @@ def brick(mat, p0, p1, w, h, bone, up=(0, 0, 1), gap=0.06, w1=None, h1=None, uvm
         p0, p1 = p0 + d * gap, p1 - d * gap
     w1 = w if w1 is None else w1
     h1 = h if h1 is None else h1
-    vs = [p0 - s * w / 2 - u * h / 2, p0 + s * w / 2 - u * h / 2, p0 + s * w / 2 + u * h / 2, p0 - s * w / 2 + u * h / 2,
-          p1 - s * w1 / 2 - u * h1 / 2, p1 + s * w1 / 2 - u * h1 / 2, p1 + s * w1 / 2 + u * h1 / 2,
-          p1 - s * w1 / 2 + u * h1 / 2]
+    ins = d * min(L * 0.12, 0.12) * (bevel / 0.22)
+    tw, tw1 = w * (1 - bevel), w1 * (1 - bevel)
+    vs = [p0 - s * w / 2 - u * h / 2, p0 + s * w / 2 - u * h / 2, p0 + s * tw / 2 + u * h / 2 + ins,
+          p0 - s * tw / 2 + u * h / 2 + ins,
+          p1 - s * w1 / 2 - u * h1 / 2, p1 + s * w1 / 2 - u * h1 / 2, p1 + s * tw1 / 2 + u * h1 / 2 - ins,
+          p1 - s * tw1 / 2 + u * h1 / 2 - ins]
     faces = {"start": (0, 3, 2, 1), "end": (4, 5, 6, 7), "down": (0, 1, 5, 4), "right": (1, 2, 6, 5),
              "up": (2, 3, 7, 6), "left": (3, 0, 4, 7)}
     add_piece(mat, vs, [f for k, f in faces.items() if k != drop], bone, uvmode)
@@ -74,10 +77,55 @@ def spike(mat, base, tip, w, h=None, bone="Root", up=(0, 0, 1), cap=False):
     base, tip = V(base), V(tip)
     h = w if h is None else h
     s, d, u = frame(tip - base, up)
-    vs = [base - s * w / 2 - u * h / 2, base + s * w / 2 - u * h / 2, base + s * w / 2 + u * h / 2,
-          base - s * w / 2 + u * h / 2, tip]
+    vs = [base - u * h / 2, base + s * w / 2, base + u * h / 2, base - s * w / 2, tip]
     faces = [(0, 1, 4), (1, 2, 4), (2, 3, 4), (3, 0, 4)] + ([(0, 3, 2, 1)] if cap else [])
     add_piece(mat, vs, faces, bone)
+
+
+def blade(mat, pts, w, h, bone, up=(0, 0, 1), taper_to=0.0, tip_mat=None, tip_frac=0.35, curve_up=None):
+    """continuous sleek blade: diamond cross-section lofted along pts, tapering to a sharp point.
+    bone: str or per-point list. tip_mat colours the last tip_frac of the length (e.g. cream horn tips)."""
+    pts = [V(p) for p in pts]
+    n = len(pts)
+    bones = [bone] * n if isinstance(bone, str) else list(bone) + [bone[-1]] * (n - len(bone))
+    rings = []
+    for i, p in enumerate(pts[:-1]):
+        d = pts[min(i + 1, n - 1)] - pts[max(i - 1, 0)]
+        sd, dd, u = frame(d, up)
+        f = i / (n - 1)
+        ww, hh = w + (taper_to - w) * f, h + (taper_to * h / max(w, 1e-6) - h) * f
+        rings.append([p - u * hh / 2, p + sd * ww / 2, p + u * hh / 2, p - sd * ww / 2])
+    split = max(1, min(len(rings) - 1, int(round(len(rings) * (1 - tip_frac))))) if tip_mat else len(rings)
+
+    def emit(mat_, r0, r1, with_tip, start_cap):
+        verts, faces, bw = [], [], []
+        for i in range(r0, r1):
+            verts += rings[i]
+            bw += [[(bones[i], 1.0)]] * 4
+        m = r1 - r0
+        for i in range(m - 1):
+            for k in range(4):
+                a, b = i * 4 + k, i * 4 + (k + 1) % 4
+                faces.append((a, b, b + 4, a + 4))
+        if start_cap:
+            faces.append((3, 2, 1, 0))
+        if with_tip:
+            verts.append(pts[-1])
+            bw.append([(bones[-1], 1.0)])
+            t = len(verts) - 1
+            last = (m - 1) * 4
+            for k in range(4):
+                faces.append((last + k, last + (k + 1) % 4, t))
+        else:
+            last = (m - 1) * 4
+            faces.append((last, last + 1, last + 2, last + 3))
+        add_piece(mat_, verts, faces, bw)
+
+    if split >= len(rings):
+        emit(mat, 0, len(rings), True, True)
+    else:
+        emit(mat, 0, split + 1, False, True)
+        emit(tip_mat, split, len(rings), True, True)
 
 
 def strip(mat, pts, w, h, bone, up=(0, 0, 1), gap=0.05, taper_to=None, tip_mat=None, tip=False, drop=None):
@@ -222,7 +270,7 @@ def wing_joints(s):
 def build_torso():
     rings = [((0, -2.75, 3.95), 1.25, 1.2), ((0, -1.6, 3.95), 1.75, 1.5), ((0, 0.4, 3.95), 1.95, 1.55),
              ((0, 2.4, 3.8), 1.9, 1.45), ((0, 4.4, 3.6), 1.75, 1.3), ((0, 6.3, 3.35), 1.35, 1.05)]
-    tube("Dark", rings, ["Chest", "Chest", "Chest", "Spine", "Hips", "Hips"], chamfer=0.35)
+    tube("Dark", rings, ["Chest", "Chest", "Chest", "Spine", "Hips", "Hips"], chamfer=0.48)
 
     # tan throat-to-belly plate column (front + underside)
     belly = [(-2.95, 5.2), (-3.05, 4.3), (-3.0, 3.4), (-2.6, 2.6), (-1.2, 2.35), (0.8, 2.35), (2.8, 2.4),
@@ -269,8 +317,8 @@ def build_torso():
         if i % 3 == 1:
             for x in (-hw * 0.45, hw * 0.45):
                 obox("Dark", (x, y + 0.7, top - 0.02), (0.45, 0, 0), (0, 0.35, 0), (0, 0, 0.22), bn, drop="-z")
-        h = (1.2 if i < 8 else 0.9) * (1.0 if i % 2 == 0 else 0.7)
-        spike("Gold" if i % 2 == 0 else "Bone", (0, y + 0.05, top + 0.3), (0, y + 0.45, top + 0.3 + h), 0.5, 0.45,
+        h = (1.45 if i < 8 else 1.1) * (1.0 if i % 2 == 0 else 0.68)
+        spike("Gold" if i % 2 == 0 else "Bone", (0, y + 0.1, top + 0.25), (0, y + 0.85, top + 0.25 + h), 0.34, 0.7,
               bone=bn, up=(0, -1, 0))
 
 
@@ -278,7 +326,7 @@ def build_torso():
 def build_neck_head():
     nrings = [((0, -2.0, 5.0), 1.2, 1.15), ((0, -2.8, 5.7), 1.2, 1.15), ((0, -3.35, 6.55), 1.05, 1.0),
               ((0, -3.7, 7.2), 0.95, 0.9)]
-    tube("Dark", nrings, ["Chest", "Neck1", "Neck2", "Neck3"], up=(0, 1, 0), chamfer=0.35)
+    tube("Dark", nrings, ["Chest", "Neck1", "Neck2", "Neck3"], up=(0, 1, 0), chamfer=0.48)
     throat = [(-3.3, 5.05), (-3.75, 5.65), (-4.1, 6.25), (-4.4, 6.8), (-4.6, 7.2)]
     for i in range(len(throat) - 1):
         (y0, z0), (y1, z1) = throat[i], throat[i + 1]
@@ -289,7 +337,7 @@ def build_neck_head():
         c = V(c)
         for s in (1, -1):
             obox("Gold", c + V((s * (hw + 0.05), 0.2, 0.25)), (0.18, 0, 0), (0, 0.4, -0.2), (0, 0.2, 0.4), bn)
-        spike("Gold", c + V((0, hh * 0.55, hh * 0.6)), c + V((0, hh * 0.55 + 1.0, hh * 0.6 + 0.9)), 0.5, 0.45,
+        spike("Gold", c + V((0, hh * 0.55, hh * 0.6)), c + V((0, hh * 0.55 + 1.4, hh * 0.6 + 1.1)), 0.32, 0.6,
               bone=bn, up=(0, -1, 1))
     for s in (1, -1):
         strip("Gold", [X(s, (1.3, -2.6, 5.3)), X(s, (1.9, -2.4, 4.9)), X(s, (2.45, -2.0, 4.2)),
@@ -297,15 +345,17 @@ def build_neck_head():
 
     H = "Head"
     tube("Dark", [((0, -3.55, 7.55), 1.05, 0.9), ((0, -4.6, 7.45), 1.0, 0.82), ((0, -5.6, 7.1), 0.8, 0.62),
-                  ((0, -6.45, 6.85), 0.66, 0.5)], H, chamfer=0.25)
+                  ((0, -6.55, 6.8), 0.5, 0.42)], H, chamfer=0.4)
     obox("Glow", (0, -5.0, 6.5), (0.52, 0, 0), (0, 1.1, 0.16), (0, -0.05, 0.08), H, uvmode="throat")
-    strip("Dark", [(0, -4.2, 8.35), (0, -5.2, 8.0), (0, -6.3, 7.5)], 1.1, 0.32, H, up=(0, -0.3, 1))
-    obox("Dark", (0, -6.6, 6.95), (0.6, 0, 0), (0, 0.2, 0), (0, 0, 0.45), H)
-    strip("Gold", [(0, -5.75, 7.95), (0, -5.0, 8.3), (0, -4.3, 8.55), (0, -3.7, 8.75)], 0.6, 0.4, H, up=(0, 0.3, 1))
-    spike("Gold", (0, -3.55, 8.7), (0, -3.0, 9.9), 0.55, 0.5, bone=H, up=(0, -1, 0))
+    blade("Dark", [(0, -4.1, 8.3), (0, -5.2, 7.98), (0, -6.4, 7.45), (0, -7.0, 7.05)], 1.15, 0.4, H,
+          up=(0, -0.3, 1), taper_to=0.55)
+    blade("Gold", [(0, -6.35, 7.55), (0, -6.75, 7.85), (0, -6.95, 8.35)], 0.34, 0.34, H, up=(0, -1, 0.3))
+    blade("Gold", [(0, -5.8, 7.95), (0, -5.0, 8.32), (0, -4.2, 8.62), (0, -3.5, 9.05), (0, -2.9, 10.1)], 0.6, 0.42,
+          H, up=(0, 0.3, 1), tip_mat="Bone", tip_frac=0.3)
     for s in (1, -1):
         brick("Dark", X(s, (0.55, -4.1, 8.25)), X(s, (0.8, -5.45, 7.7)), 0.5, 0.42, H, up=X(s, (0.5, 0, 1)))
-        brick("Gold", X(s, (0.7, -3.9, 8.55)), X(s, (0.95, -4.9, 8.15)), 0.4, 0.3, H, up=X(s, (0.4, 0, 1)))
+        blade("Gold", [X(s, (0.95, -5.45, 8.05)), X(s, (0.95, -4.5, 8.45)), X(s, (1.0, -3.4, 8.7)),
+                       X(s, (1.1, -2.3, 8.8))], 0.42, 0.34, H, up=X(s, (0.4, 0, 1)))
         # eye faces forward-outward so it reads from the front and the side (eye detail)
         en = X(s, (0.62, -0.78, 0.05)).normalized()
         et = X(s, (0.78, 0.62, 0.0)).normalized()
@@ -314,30 +364,30 @@ def build_neck_head():
         brick("Gold", X(s, (1.02, -4.0, 6.95)), X(s, (0.86, -5.7, 6.8)), 0.32, 0.36, H, up=X(s, (1, 0, 0.2)))
         brick("Gold", X(s, (0.95, -3.7, 8.05)), X(s, (1.05, -4.5, 7.95)), 0.35, 0.45, H, up=X(s, (1, 0, 0.3)))
         obox("Gold", X(s, (1.15, -3.75, 7.1)), X(s, (0.25, 0.08, 0)), (0, 0.5, 0), (0, 0, 0.7), H)
-        spike("Gold", X(s, (1.1, -3.6, 7.35)), X(s, (1.75, -2.4, 7.5)), 0.45, 0.4, bone=H)
-        spike("Gold", X(s, (1.1, -3.7, 6.85)), X(s, (1.9, -2.6, 6.55)), 0.45, 0.4, bone=H)
-        spike("Gold", X(s, (1.0, -3.9, 6.45)), X(s, (1.55, -2.95, 5.85)), 0.4, 0.35, bone=H)
+        blade("Gold", [X(s, (1.05, -3.7, 7.35)), X(s, (1.5, -2.8, 7.5)), X(s, (2.0, -1.9, 7.75))], 0.42, 0.3, H)
+        blade("Gold", [X(s, (1.05, -3.8, 6.85)), X(s, (1.6, -2.9, 6.65)), X(s, (2.15, -2.1, 6.55))], 0.42, 0.3, H)
+        blade("Gold", [X(s, (0.95, -3.95, 6.45)), X(s, (1.35, -3.15, 6.0)), X(s, (1.75, -2.5, 5.6))], 0.36, 0.28, H)
         for k in range(5):
             y = -4.55 - k * 0.42
             z = 6.62 - k * 0.07
             L = 0.45 if k < 4 else 0.65
-            spike("Bone", X(s, (0.58 - k * 0.03, y, z)), X(s, (0.55 - k * 0.03, y - 0.06, z - L)), 0.22, 0.22,
+            spike("Bone", X(s, (0.58 - k * 0.03, y, z)), X(s, (0.55 - k * 0.03, y - 0.1, z - L * 1.15)), 0.2, 0.2,
                   bone=H, up=(0, -1, 0))
-        strip("Gold", [X(s, (0.65, -3.9, 8.05)), X(s, (1.15, -3.45, 9.0)), X(s, (1.45, -2.75, 9.85)),
-                       X(s, (1.45, -1.9, 10.5)), X(s, (1.2, -1.0, 11.0))], 0.8, 0.8, H, up=(0, -1, 0),
-              taper_to=0.2, tip_mat="Bone", tip=True, gap=0.04)
-        strip("Gold", [X(s, (0.85, -3.5, 7.95)), X(s, (1.5, -2.9, 8.5)), X(s, (1.95, -2.0, 8.95)),
-                       X(s, (2.15, -0.9, 9.25))], 0.66, 0.66, H, up=(0, -1, 0), taper_to=0.18, tip_mat="Bone",
-              tip=True, gap=0.04)
-        strip("Gold", [X(s, (1.0, -3.3, 7.55)), X(s, (1.85, -2.7, 7.85)), X(s, (2.55, -1.9, 8.15)),
-                       X(s, (2.9, -1.05, 8.35))], 0.58, 0.58, H, up=(0, 0, 1), taper_to=0.16, tip_mat="Bone",
-              tip=True, gap=0.04)
-        strip("Gold", [X(s, (0.55, -3.3, 8.0)), X(s, (0.8, -2.55, 8.45)), X(s, (0.95, -1.7, 8.9))],
-              0.55, 0.55, H, up=(0, 0, 1), taper_to=0.15, tip_mat="Bone", tip=True, gap=0.04)
+        blade("Gold", [X(s, (0.65, -3.9, 8.05)), X(s, (1.15, -3.45, 9.0)), X(s, (1.45, -2.75, 9.85)),
+                       X(s, (1.45, -1.9, 10.55)), X(s, (1.15, -0.9, 11.15)), X(s, (0.8, 0.0, 11.5))], 0.98, 0.86, H,
+              up=(0, -1, 0), tip_mat="Bone", tip_frac=0.4)
+        blade("Gold", [X(s, (0.85, -3.5, 7.95)), X(s, (1.5, -2.9, 8.5)), X(s, (1.95, -2.0, 8.95)),
+                       X(s, (2.15, -0.9, 9.25)), X(s, (2.1, 0.2, 9.45))], 0.8, 0.68, H, up=(0, -1, 0),
+              tip_mat="Bone", tip_frac=0.4)
+        blade("Gold", [X(s, (1.0, -3.3, 7.55)), X(s, (1.85, -2.7, 7.85)), X(s, (2.55, -1.9, 8.15)),
+                       X(s, (3.0, -0.9, 8.3)), X(s, (3.2, 0.1, 8.35))], 0.7, 0.56, H, up=(0, 0, 1),
+              tip_mat="Bone", tip_frac=0.4)
+        blade("Gold", [X(s, (0.55, -3.3, 8.0)), X(s, (0.8, -2.55, 8.45)), X(s, (0.95, -1.6, 8.95)),
+                       X(s, (0.95, -0.6, 9.3))], 0.6, 0.5, H, up=(0, 0, 1), tip_mat="Bone", tip_frac=0.4)
 
     Jb = "Jaw"
     tube("Dark", [((0, -4.05, 6.35), 0.88, 0.36), ((0, -4.9, 5.8), 0.75, 0.32), ((0, -5.7, 5.25), 0.6, 0.26)], Jb,
-         up=(0, -0.55, 0.85), chamfer=0.3)
+         up=(0, -0.55, 0.85), chamfer=0.42)
     obox("Glow", (0, -4.8, 6.02), (0.45, 0, 0), (0, 0.8, -0.52), (0, 0.03, 0.05), Jb, uvmode="throat")
     strip("Tan", [(0, -4.1, 5.95), (0, -4.9, 5.42), (0, -5.7, 4.9)], 1.25, 0.32, Jb, up=(0, 0.55, -0.85),
           taper_to=0.9)
@@ -354,13 +404,9 @@ def claw(p, fwd, size, bone):
     """chunky cream claw: 2 bricks + point, curving down (claw/foot detail)"""
     fwd = V(fwd).normalized()
     p = V(p)
-    p1 = p + fwd * size * 1.35 + V((0, 0, 0.12))
-    p2 = p1 + fwd * size * 1.0 - V((0, 0, size * 0.55))
-    brick("Bone", p, p1, size * 0.95, size * 0.95, bone, gap=0.03, w1=size * 0.9, h1=size * 0.9, drop="start")
-    brick("Bone", p1, p2, size * 0.88, size * 0.88, bone, gap=0.03, w1=size * 0.78, h1=size * 0.78,
-          up=(fwd.x, fwd.y, 1.6))
-    spike("Bone", p2, p2 + fwd * size * 0.35 - V((0, 0, size * 0.6)), size * 0.78, size * 0.78, bone=bone,
-          up=(fwd.x, fwd.y, 1.0))
+    blade("Bone", [p, p + fwd * size * 0.9 + V((0, 0, 0.14)), p + fwd * size * 1.7 + V((0, 0, 0.02)),
+                   p + fwd * size * 2.25 - V((0, 0, size * 0.45)), p + fwd * size * 2.45 - V((0, 0, size * 1.0))],
+          size * 0.95, size * 1.05, bone, up=(0, 0, 1))
 
 
 def build_legs():
@@ -368,9 +414,9 @@ def build_legs():
         L = leg_joints(s)
         ua, fa, ha = "UpperArm" + sfx, "Forearm" + sfx, "Hand" + sfx
         tube("Dark", [(L["UpperArm"] + V((0, 0, 0.3)), 1.3, 1.35), (L["Forearm"], 1.15, 1.15)], ua, up=(0, -1, 0),
-             chamfer=0.3)
+             chamfer=0.42)
         tube("Dark", [(L["Forearm"], 1.15, 1.15), (L["Hand"] + V((0, 0, 0.2)), 1.05, 1.0)], fa, up=(0, -1, 0),
-             chamfer=0.3)
+             chamfer=0.42)
         ring_of_bricks(L["UpperArm"] + X(s, (1.42, -0.1, -0.1)), X(s, (1, -0.15, 0)), 1.3, ua, n=8, bw=0.55, bh=0.5)
         for k in range(3):
             z = L["Forearm"].z - 0.15 - k * 0.5
@@ -384,7 +430,8 @@ def build_legs():
         spike("Gold", L["Forearm"] + X(s, (0.5, 0.6, 0.3)), L["Forearm"] + X(s, (0.95, 1.6, 0.7)), 0.5, 0.5, bone=fa)
         strip("Gold", [L["Hand"] + X(s, (-1.0, 0.1, 0.55)), L["Hand"] + X(s, (0.0, 0.1, 0.6)),
                        L["Hand"] + X(s, (1.0, 0.1, 0.55))], 0.5, 0.4, fa, up=(0, 0, 1), gap=0.04)
-        obox("Dark", L["Hand"] + V((0, -0.35, -0.35)), (1.25, 0, 0), (0, 0.95, 0), (0, 0, 0.55), ha)
+        brick("Dark", L["Hand"] + V((0, 0.6, -0.35)), L["Hand"] + V((0, -1.3, -0.4)), 2.5, 1.15, ha, gap=0.0,
+              w1=2.4, h1=0.6, bevel=0.3)
         for k in range(4):
             x = (k - 1.5) * 0.62
             claw(L["Hand"] + V((x, -1.2, -0.3)), (0, -1, 0), 0.6, ha)
@@ -393,9 +440,9 @@ def build_legs():
         L = leg_joints(s)
         th, sh, ft = "Thigh" + sfx, "Shin" + sfx, "Foot" + sfx
         tube("Dark", [(L["Thigh"] + V((0, 0.2, 0.4)), 1.35, 1.4), (L["Shin"], 1.05, 1.0)], th, up=(0, -1, 0),
-             chamfer=0.3)
+             chamfer=0.42)
         tube("Dark", [(L["Shin"], 1.0, 0.95), (L["Foot"] + V((0, 0, 0.2)), 0.9, 0.85)], sh, up=(0, -1, 0),
-             chamfer=0.3)
+             chamfer=0.42)
         ring_of_bricks(L["Thigh"] + X(s, (1.45, -0.1, -0.25)), X(s, (1, 0, 0)), 1.15, th, n=8, bw=0.5, bh=0.45)
         spike("Gold", L["Shin"] + X(s, (0.2, -0.6, 0.2)), L["Shin"] + X(s, (0.3, -1.4, 0.35)), 0.5, 0.5, bone=sh)
         strip("Gold", [L["Thigh"] + X(s, (-0.3, -1.3, -0.9)), L["Thigh"] + X(s, (0.7, -1.3, -1.0)),
@@ -406,7 +453,8 @@ def build_legs():
               drop="down")
         strip("Gold", [L["Foot"] + X(s, (-0.95, 0.0, 0.55)), L["Foot"] + X(s, (0.0, 0.0, 0.6)),
                        L["Foot"] + X(s, (0.95, 0.0, 0.55))], 0.5, 0.4, sh, up=(0, 0, 1), gap=0.04)
-        obox("Dark", L["Foot"] + V((0, -0.4, -0.35)), (1.0, 0, 0), (0, 0.85, 0), (0, 0, 0.5), ft)
+        brick("Dark", L["Foot"] + V((0, 0.45, -0.35)), L["Foot"] + V((0, -1.25, -0.4)), 2.0, 1.05, ft, gap=0.0,
+              w1=1.95, h1=0.55, bevel=0.3)
         for k in range(3):
             x = (k - 1) * 0.6
             claw(L["Foot"] + V((x, -1.2, -0.3)), (0, -1, 0), 0.55, ft)
@@ -418,7 +466,7 @@ def build_legs():
 # ============================================================== tail
 def build_tail():
     rings = [(TAIL[i], TAIL_HW[i], TAIL_HH[i]) for i in range(len(TAIL))]
-    tube("Dark", rings, ["Tail%d" % min(i + 1, 7) for i in range(len(TAIL))], chamfer=0.3)
+    tube("Dark", rings, ["Tail%d" % min(i + 1, 7) for i in range(len(TAIL))], chamfer=0.45)
     n = len(TAIL) - 1
     for i in range(n):
         b = "Tail%d" % (i + 1)
@@ -430,9 +478,9 @@ def build_tail():
         L = (p1 - p0).length
         brick("Gold", mid - d * L * 0.42 + up * hh * 0.95, mid + d * L * 0.1 + up * hh * 0.95, hw * 1.3, 0.34, b,
               up=up, gap=0.02, drop="down")
-        sh = 1.35 - 0.1 * i
-        spike("Gold", mid - d * L * 0.15 + up * (hh + 0.1), mid + d * L * 0.3 + up * (hh + sh), hw * 1.0, L * 0.55,
-              bone=b, up=-d)
+        sh = 1.6 - 0.12 * i
+        spike("Gold", mid - d * L * 0.1 + up * (hh + 0.05), mid + d * L * 0.55 + up * (hh + sh), max(0.26, hw * 0.45),
+              L * 0.75, bone=b, up=-d)
         for s in (1, -1):
             c = mid + side * s * hw * 0.98
             obox("Dark", c, side * s * 0.08, d * hh * 0.62, up * hh * 0.62, b)
@@ -440,7 +488,7 @@ def build_tail():
             brick("Gold", mid - d * L * 0.45 + side * s * hw * 0.8 - up * hh * 0.7,
                   mid + d * L * 0.05 + side * s * hw * 0.8 - up * hh * 0.7, 0.35, hh * 0.55, b, up=side * s, gap=0.02,
                   drop="down")
-    spike("Gold", TAIL[-1], TAIL[-1] + (TAIL[-1] - TAIL[-2]).normalized() * 1.3, 0.55, 0.5, bone="Tail7")
+    spike("Gold", TAIL[-1], TAIL[-1] + (TAIL[-1] - TAIL[-2]).normalized() * 1.9, 0.5, 0.6, bone="Tail7")
 
 
 # ============================================================== wings
@@ -453,40 +501,37 @@ def build_wings():
         nrm = (hand - W["Wing1"]).cross(W["F2Tip"] - hand).normalized()
         if nrm.x * s < 0:
             nrm = -nrm
-        tube("Dark", [(W["Wing1"], 0.55, 0.55), (W["Wing2"], 0.48, 0.48)], w1, up=nrm, chamfer=0.3)
-        tube("Dark", [(W["Wing2"], 0.48, 0.48), (hand, 0.42, 0.42)], w2, up=nrm, chamfer=0.3)
-        for a, c, bn in ((W["Wing1"], W["Wing2"], w1), (W["Wing2"], hand, w2)):
-            for j in range(2):
-                q0, q1 = a.lerp(c, j / 2), a.lerp(c, (j + 1) / 2)
-                out = X(s, (0.45, -0.25, 0))
-                brick("Gold", q0 + out, q1 + out, 0.62, 0.5, bn, up=nrm, gap=0.05)
+        tube("Dark", [(W["Wing1"], 0.55, 0.55), (W["Wing2"], 0.48, 0.48)], w1, up=nrm, chamfer=0.42)
+        tube("Dark", [(W["Wing2"], 0.48, 0.48), (hand, 0.42, 0.42)], w2, up=nrm, chamfer=0.42)
+        out = X(s, (0.45, -0.25, 0))
+        blade("Gold", [W["Wing1"] + out, W["Wing2"] + out, hand + out + V((0, 0, 0.3)), hand + out + V((0, -0.3, 1.6))],
+              0.7, 0.5, [w1, w2, wh, wh], up=nrm, taper_to=0.35)
         obox("Dark", hand + V((0, 0, 0.1)), (0.5, 0, 0), (0, 0.5, 0), (0, 0, 0.45), wh)
         obox("Gold", hand + X(s, (0.25, -0.2, 0.45)), (0.45, 0, 0), (0, 0.4, 0), (0, 0, 0.25), wh)
-        spike("Gold", hand + V((0, -0.2, 0.6)), hand + X(s, (-0.2, -0.5, 1.4)), 0.4, 0.4, bone=wh)
+
 
         F1 = W["F1"]
         bones_f1 = [f1, f1, f1b, f1b, f1b]
-        strip("Gold", F1, 0.95, 0.65, bones_f1, up=nrm, gap=0.06, taper_to=0.6)
+        f1_tip = F1[-1] + (F1[-1] - F1[-2]).normalized() * 1.4
+        blade("Gold", F1 + [f1_tip], 0.95, 0.6, bones_f1 + [f1b, f1b], up=nrm, taper_to=0.3)
         for i in range(len(F1) - 1):
             a, c = F1[i], F1[i + 1]
             inward = W["F3Tip"] - (a + c) / 2
             inward = (inward - nrm * inward.dot(nrm)).normalized()
-            brick("Dark", a + inward * 0.42, c + inward * 0.42, 0.28, 0.5, bones_f1[i], up=nrm, gap=0.1)
-        spike("Gold", F1[-1] - (F1[-1] - F1[-2]).normalized() * 0.2, F1[-1] + (F1[-1] - F1[-2]).normalized() * 1.0,
-              0.45, 0.4, bone=f1b, up=nrm)
+            brick("Dark", a + inward * 0.42, c + inward * 0.42, 0.26, 0.45, bones_f1[i], up=nrm, gap=0.1)
         for i in (1, 2, 3):
             p = F1[i]
-            spike("Gold", p, p + V((0, 0.35, 0.8)) + X(s, (0.15, 0, 0)), 0.38, 0.38, bone=bones_f1[i], up=nrm)
+            spike("Gold", p, p + V((0, 0.7, 1.0)) + X(s, (0.15, 0, 0)), 0.26, 0.5, bone=bones_f1[i], up=nrm)
         for tipk, bn, k in (("F2Tip", f2, 3), ("F3Tip", f3, 3), ("F4Tip", f4, 2)):
             tip = W[tipk]
             pts = [hand.lerp(tip, t / k) for t in range(k + 1)]
-            strip("Gold", pts, 0.8, 0.55, bn, up=nrm, gap=0.06, taper_to=0.55)
             dv = (tip - hand).normalized()
+            blade("Gold", pts + [tip + dv * 1.3], 0.8, 0.5, bn, up=nrm, taper_to=0.25)
             sd = nrm.cross(dv).normalized()
             if sd.z > 0:
                 sd = -sd
             brick("Dark", hand.lerp(tip, 0.15) + sd * 0.55, tip - dv * 0.3 + sd * 0.5, 0.3, 0.5, bn, up=nrm, gap=0.05)
-            spike("Gold", tip - dv * 0.1, tip + dv * 0.95, 0.4, 0.36, bone=bn, up=nrm)
+
 
         # membrane with stair-stepped scalloped trailing edges
         body = W["Body"]
@@ -514,8 +559,6 @@ def build_wings():
                 t = k / (steps * 2)
                 base = a.lerp(b, t)
                 q = base + (hand - base).normalized() * (math.sin(math.pi * t) * depth)
-                if k % 2 == 1:
-                    q = q + (hand - base).normalized() * 0.28
                 w = 1.0 - t
                 out.append(P(q, [(ba, w), (bb, 1 - w)] if ba != bb else [(ba, 1.0)]))
             out.append(ib)
@@ -527,14 +570,14 @@ def build_wings():
             for k in range(len(edge) - 1):
                 faces.append((center, edge[k], edge[k + 1]))
 
-        e12 = stepped(f1_idx[-1], fl["F2Tip"][2], 1.6, f1b, f2)
+        e12 = stepped(f1_idx[-1], fl["F2Tip"][2], 2.0, f1b, f2, steps=3)
         fan(fl["F2Tip"][1], [f1_idx[2], f1_idx[3], f1_idx[4]] + e12)
         faces.append((iH, f1_idx[1], fl["F2Tip"][1]))
         faces.append((f1_idx[1], f1_idx[2], fl["F2Tip"][1]))
-        e23 = stepped(fl["F2Tip"][2], fl["F3Tip"][2], 1.3, f2, f3)
+        e23 = stepped(fl["F2Tip"][2], fl["F3Tip"][2], 1.7, f2, f3, steps=3)
         fan(fl["F3Tip"][1], [fl["F2Tip"][1]] + e23)
         faces.append((iH, fl["F2Tip"][1], fl["F3Tip"][1]))
-        e34 = stepped(fl["F3Tip"][2], fl["F4Tip"][2], 1.0, f3, f4, steps=4)
+        e34 = stepped(fl["F3Tip"][2], fl["F4Tip"][2], 1.35, f3, f4, steps=3)
         fan(fl["F4Tip"][1], [fl["F3Tip"][1]] + e34)
         faces.append((iH, fl["F3Tip"][1], fl["F4Tip"][1]))
         e4b = stepped(fl["F4Tip"][2], iBody, 0.5, f4, "Spine", steps=3)
