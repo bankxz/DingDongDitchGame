@@ -519,8 +519,9 @@ def build_legs():
               up=X(s, (0.5, -0.7, 0)), gap=0.05, drop="down")
         brick("Gold", L["Hand"] + V((0, 0.4, 0.5)), L["Hand"] + V((0, -0.4, 0.42)), 1.45, 0.34, fa, gap=0.0,
               w1=1.3, up=(0, 0.2, 1), bevel=0.35)
-        brick("Dark", L["Hand"] + V((0, 0.55, -0.3)), L["Hand"] + V((0, -1.3, -0.45)), 2.2, 1.15, ha, gap=0.0,
-              w1=2.5, h1=0.5, bevel=0.45)
+        # hand: lofted pad (rounded heel -> wide palm -> flat toe end) so the underside is bevelled, not a slab
+        tube("Dark", [(L["Hand"] + V((0, 0.6, -0.2)), 0.75, 0.5), (L["Hand"] + V((0, -0.3, -0.3)), 1.15, 0.56),
+                      (L["Hand"] + V((0, -1.25, -0.5)), 1.22, 0.3)], ha, up=(0, 0, 1), chamfer=0.55)
         for k in range(4):
             x = (k - 1.5) * 0.62
             claw(L["Hand"] + V((x, -1.2, -0.3)), (0, -1, 0), 0.6, ha)
@@ -543,8 +544,8 @@ def build_legs():
               drop="down")
         brick("Gold", L["Foot"] + V((0, 0.35, 0.45)), L["Foot"] + V((0, -0.35, 0.38)), 1.25, 0.32, sh, gap=0.0,
               w1=1.1, up=(0, 0.2, 1), bevel=0.35)
-        brick("Dark", L["Foot"] + V((0, 0.45, -0.3)), L["Foot"] + V((0, -1.25, -0.45)), 1.75, 1.05, ft, gap=0.0,
-              w1=2.05, h1=0.48, bevel=0.45)
+        tube("Dark", [(L["Foot"] + V((0, 0.5, -0.2)), 0.62, 0.48), (L["Foot"] + V((0, -0.3, -0.3)), 0.98, 0.52),
+                      (L["Foot"] + V((0, -1.2, -0.5)), 1.02, 0.3)], ft, up=(0, 0, 1), chamfer=0.55)
         for k in range(3):
             x = (k - 1) * 0.6
             claw(L["Foot"] + V((x, -1.2, -0.3)), (0, -1, 0), 0.55, ft)

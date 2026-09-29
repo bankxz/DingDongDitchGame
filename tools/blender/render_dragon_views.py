@@ -112,6 +112,7 @@ VIEWS = {
     "eye": ((5.5, -9.0, 8.6), (0.9, -5.3, 8.2), 60, (500, 380)),
     "mouth": ((3.2, -10.5, 6.6), (0.0, -5.6, 7.0), 45, (500, 380)),
     "arm": ((12, -3, 3.2), (2.6, -0.3, 2.4), 35, (500, 380)),
+    "feet_under": ((1.5, -6.0, -6.0), (2.3, 1.5, 0.3), 32, (600, 420)),
     "spine": ((9, 16, 13), (0, 5, 4.5), 30, (600, 380)),
 }
 # The reference TOP/BOTTOM panels show the wings spread flat (flight pose) while FRONT/BACK/SIDE show them
@@ -156,7 +157,7 @@ for name, (loc, tgt, lens, res) in VIEWS.items():
     d = Vector(tgt) - cam.location
     cam.rotation_euler = d.to_track_quat("-Z", "Y").to_euler()
     cam_d.lens = lens
-    if name == "bottom":
+    if name in ("bottom", "feet_under"):
         ground.hide_render = True
     elif not mask:
         ground.hide_render = False
