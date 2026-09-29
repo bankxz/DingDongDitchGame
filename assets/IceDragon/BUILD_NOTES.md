@@ -22,3 +22,9 @@
   - The snout was narrowed from 1.66 to 1.25 studs, and the jaw, teeth and gum were narrowed to match.
   - To stay under 5k tris, I removed the lower-jaw chin sub-block and the small second gold spike on each side.
 - **Round 4 (feedback: the eye is a block and has no pupil):** I replaced the glowing block with a domed eye surface in the angry-almond outline taken from the reference close-up. I also painted a new eye texture onto it: a white-hot glow, a cyan iris and a dark slit pupil, drawn at the eye's 2.3:1 aspect so the iris stays round. This saved 24 tris.
+- **Round 5 (feedback: ice should look like the reference, studs at half strength):**
+  - The stud relief, the stud-top tint and the normal map are now at 50% strength (`STUD_STRENGTH`).
+  - The ice texture was redrawn with glowing facet edges.
+  - The shards are now broad, flat blades.
+  - Most shards became 4-tri blades, and the triangles this saved were spent on much denser ice.
+  - The Blender glow on the ice was lowered from 1.4 to 0.55, so the ice keeps its colour instead of washing out to white.

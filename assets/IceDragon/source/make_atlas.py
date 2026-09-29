@@ -52,9 +52,11 @@ L = np.array([-0.45, 0.55, 0.70]); L /= np.linalg.norm(L)   # light from top-lef
 lam = np.clip((nrm * L).sum(-1), 0, 1)
 flat = float(L[2])
 shade_tile = np.clip(0.80 + 0.20 * ao, 0, 1) * (1.0 + 0.9 * (lam - flat))
+STUD_STRENGTH = 0.5                                     # stud relief/tint shown at half opacity
+shade_tile = 1.0 + STUD_STRENGTH * (shade_tile - 1.0)
 inlet = load(os.path.join(STUDS, '2x2 Textures/Diffuse Maps/Inlets 2x2 AO Diffuse.png'), tile)[..., 0]
 stud_mask = np.clip((inlet.max() - inlet) / max(1e-6, inlet.max() - inlet.min()) * 1.6, 0, 1)
-TOP_TINT = {'navy': ((0x1a, 0x4c, 0xb8), 0.55)}   # brighter blue stud tops like the reference blocks
+TOP_TINT = {'navy': ((0x1a, 0x4c, 0xb8), 0.55 * 0.5)}   # brighter blue stud tops like the reference blocks
 
 img = np.zeros((S, S, 3), np.float32)
 nmap = np.zeros((S, S, 3), np.float32); nmap[...] = (0.5, 0.5, 1.0)
@@ -73,6 +75,8 @@ for name, (x, y, w, h) in SLOTS.items():
             m = np.tile(stud_mask, reps)[:h, :w][..., None] * a
             cc = cc * (1 - m) + col(tc)[None, None] * m
         img[y:y+h, x:x+w] = np.clip(cc * sh[..., None], 0, 1)
+        nn = nn * STUD_STRENGTH + np.array([0, 0, 1.0]) * (1 - STUD_STRENGTH)
+        nn = nn / np.linalg.norm(nn, axis=-1, keepdims=True)
         nmap[y:y+h, x:x+w] = nn * 0.5 + 0.5
 
 def draw_slot(name, fn):
@@ -90,19 +94,33 @@ def gold(d, w, h, im):
 draw_slot('gold', gold)
 
 def crystal(d, w, h, im):
-    # v=0 (bottom row) is shard base, v=1 (top) is the tip; u across a facet
+    """Reference ice (ICE CRYSTAL SPIKE close-up): pale translucent sky-blue facets that
+    lighten toward the tip, every facet edge traced by a glowing white-cyan line, plus
+    faint internal fracture lines. v=0 (bottom row) is the shard base, v=1 the tip.
+    Lines follow both shard UV layouts used by build_dragon.shard()."""
     for j in range(h):
-        t = 1 - j / (h - 1)                       # 0 base -> 1 tip
+        t = 1 - j / (h - 1)                                   # 0 base -> 1 tip
         for i in range(w):
-            u = abs(i / (w - 1) - 0.5) * 2        # 0 centre ridge -> 1 facet edge
-            c = lerp((0x1c, 0x8c, 0xf0), (0x4d, 0xd9, 0xfe), min(1, t * 1.3))
-            c = lerp(c, (0xe6, 0xfb, 0xff), max(0, 1 - u * 3.2) * 0.75)     # bright ridge
-            c = lerp(c, (0xff, 0xff, 0xff), max(0, (u - 0.9) * 10) * 0.8)   # glowing facet edge
-            c = lerp(c, (0xff, 0xff, 0xff), max(0, t - 0.75) * 1.6)         # white hot tip
+            uu = i / (w - 1)
+            c = lerp((0x1c, 0x8c, 0xf2), (0x7c, 0xdc, 0xff), t ** 0.8)
+            c = lerp(c, (0x9c, 0xe6, 0xff), max(0, 1 - abs(uu - 0.5) * 4) * 0.35)  # lighter centre
             d.point((i, j), fill=c)
-    # internal fracture lines like the reference shards
-    for a, b in [((w*0.5, h), (w*0.2, h*0.35)), ((w*0.5, h*0.7), (w*0.85, h*0.3)), ((w*0.3, h*0.9), (w*0.5, h*0.05))]:
-        d.line([a, b], fill=(0xd0, 0xf6, 0xff), width=2)
+    P = lambda uu, vv: (uu * (w - 1), (1 - vv) * (h - 1))
+    edges = [((0, 0), (0.5, 1)), ((1, 0), (0.5, 1)),          # simple shard facet edges
+             ((0, 0.32), (0.5, 1)), ((1, 0.32), (0.5, 1)),    # full shard upper facet edges
+             ((0.2, 0), (0, 0.32)), ((0.8, 0), (1, 0.32)),    # full shard lower facet edges
+             ((0, 0.32), (1, 0.32)), ((0, 0), (1, 0))]        # shoulder + base
+    inner = [((0.5, 0.05), (0.5, 0.95)), ((0.2, 0.18), (0.5, 0.6)), ((0.82, 0.12), (0.55, 0.55))]
+    halo = im.copy(); hd = ImageDraw.Draw(halo)
+    for a_, b_ in edges:
+        hd.line([P(*a_), P(*b_)], fill=(0x7c, 0xe8, 0xff), width=9)
+    halo = halo.filter(ImageFilter.GaussianBlur(3))
+    im.paste(Image.blend(im, halo, 0.7))
+    d = ImageDraw.Draw(im)
+    for a_, b_ in inner:
+        d.line([P(*a_), P(*b_)], fill=(0xa8, 0xee, 0xff), width=2)
+    for a_, b_ in edges:
+        d.line([P(*a_), P(*b_)], fill=(0xf2, 0xfd, 0xff), width=3)
 draw_slot('crystal', crystal)
 
 def red(d, w, h, im):

@@ -4,7 +4,7 @@
    "IceDragon_Body",
    "IceDragon_Ice"
   ],
-  "tris": 4944,
+  "tris": 4888,
   "bones": 41,
   "max_influences": 3,
   "actions": {
@@ -22,8 +22,8 @@
    "IceDragon_Normal.png"
   ],
   "size": [
-   15.64,
-   19.58,
+   15.77,
+   19.64,
    12.04
   ]
  },
@@ -32,7 +32,7 @@
    "IceDragon_Body",
    "IceDragon_Ice"
   ],
-  "tris": 4944,
+  "tris": 4888,
   "bones": 41,
   "max_influences": 3,
   "actions": {
@@ -46,8 +46,8 @@
    "IceDragon_Normal.png"
   ],
   "size": [
-   15.64,
-   19.58,
+   15.77,
+   19.64,
    12.04
   ]
  },
@@ -56,7 +56,7 @@
    "IceDragon_Body",
    "IceDragon_Ice"
   ],
-  "tris": 4944,
+  "tris": 4888,
   "bones": 41,
   "max_influences": 3,
   "actions": {
@@ -70,8 +70,8 @@
    "IceDragon_Normal.png"
   ],
   "size": [
-   15.64,
-   19.58,
+   15.77,
+   19.64,
    12.04
   ]
  },
@@ -81,7 +81,7 @@
    "IceDragon_Ice",
    "Icosphere"
   ],
-  "tris": 5024,
+  "tris": 4968,
   "bones": 41,
   "max_influences": 3,
   "actions": {
@@ -99,8 +99,8 @@
    "IceDragon_Normal"
   ],
   "size": [
-   15.64,
-   19.58,
+   15.77,
+   19.64,
    12.91
   ]
  }

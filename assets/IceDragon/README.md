@@ -9,13 +9,13 @@ It uses the Roblox stud look (the studs are texture, not geometry).
 | `IceDragon_Idle.fbx` / `IceDragon_Walk.fbx` | One clip each, for **Animation Editor → ⋯ → Import → From FBX Animation**. |
 | `IceDragon.glb` | Same model and clips as glTF. |
 | `IceDragon.blend` | Blender 4.2 source scene. |
-| `textures/IceDragon_Color.png` | 1024² colour atlas with Roblox studs baked in (works as a plain `TextureID`). |
+| `textures/IceDragon_Color.png` | 1024² colour atlas with Roblox studs baked in at 50% strength (works as a plain `TextureID`). |
 | `textures/IceDragon_Normal.png` | Matching stud normal map (optional, for `SurfaceAppearance`). |
 | `source/*.py` | Build scripts that regenerate everything (see below). |
 | `validation/` | Renders compared with the reference, and animation contact sheets. |
 
 ## Stats
-- **4,944 triangles** (the limit is 5,000). `IceDragon_Body` has 3,392 and `IceDragon_Ice` has 1,552.
+- **4,888 triangles** (the limit is 5,000). `IceDragon_Body` has 3,392 and `IceDragon_Ice` has 1,496.
 - **41 bones**, with at most 3 weights per vertex:
   - Root, Torso, Pelvis
   - 3 necks × 3 bones, plus Head and Jaw for each head
@@ -68,6 +68,18 @@ The stud relief comes from [dudeax/Roblox-HD-Studs](https://github.com/dudeax/Ro
 - **Side heads** are turned outward (about 39°), so the front view shows their profiles like the reference.
 - **Claws**: each paw has four chunky white claws with chamfered edges. Each claw runs forward off a navy toe block and then bends straight down to a flat, blunt tip on the ground. A gold chevron with a small cyan crystal sits on the foot above each toe.
 - `validation/compare_head.png`, `compare_claw.png`, `compare_heads_front.png` and `compare_heads_side.png` show the reference next to the model.
+
+## Ice (matched to the ICE CRYSTAL SPIKE close-up)
+- The crystals are broad, flat, blade-like shards, 1.85× wider than before and half as thick as they are wide.
+- Their texture is a saturated cyan-blue that lightens toward the tip. Every facet edge is traced by a glowing white-cyan line, and faint fracture lines run inside each facet.
+- Most shards use the cheap 4-tri blade shape, and the texture draws their facets. The large hero shards (spine column, tail fan, crest centres) keep the full faceted shape.
+- The saved triangles went into more crystals:
+  - a layered spine column with side fringes
+  - a double row on the tail
+  - a 15-shard tail burst
+  - 13-shard head crests
+  - more crystals on the necks and wing edges
+- In Roblox, set `IceDragon_Ice` to `Material = Glass` (or give it `Transparency ≈ 0.15`) for the translucent look, or to `Neon` for glow.
 
 ## Known differences from the concept sheet
 The concept art is a high-detail voxel render made of thousands of separate blocks and several hundred crystals. At under 5k triangles, this model keeps these things from it:

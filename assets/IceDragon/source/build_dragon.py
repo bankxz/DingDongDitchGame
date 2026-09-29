@@ -97,15 +97,20 @@ def box(acc, c, size, slot, wt, M=Matrix.Identity(3), taper=1.0, slots=None):
             pts.append(c + M @ V((x * tp, y * tp, z)))
     poly_box(acc, pts, slot, wt, slots)
 
-def shard(acc, base, d, length, width, wt, twist=0.0, sides=4, simple=False):
+def shard(acc, base, d, length, width, wt, twist=0.0, sides=4, simple=False, hero=False):
     """Faceted ice crystal: base ring -> wider shoulder -> tip. Crystal-atlas UVs.
     simple=True gives a 4-tri pyramid for filler shards (tri budget)."""
     d = V(d).normalized(); base = V(base)
     s, u = frame(d); u = -u          # ring runs counter-clockwise around d => outward faces
+    FLAT = 1.0
+    if acc is GLOW and not hero:
+        simple = True                # 4-tri blade; the ice texture draws its facet edges
+    if acc is GLOW:                  # ice: broad flat blades like the reference (thickness 55 % of width)
+        width *= 1.85; FLAT = 0.5
     x, y, w, h = SLOTS['crystal']
     U = lambda uu, vv: ((x + 3 + uu * (w - 6)) / ASIZE, 1 - (y + 3 + (1 - vv) * (h - 6)) / ASIZE)
     if simple:
-        row = [acc.add_v(base + (s * math.cos(twist + 2 * math.pi * k / sides) + u * math.sin(twist + 2 * math.pi * k / sides)) * width * 0.5, wt) for k in range(sides)]
+        row = [acc.add_v(base + (s * math.cos(twist + 2 * math.pi * k / sides) + u * FLAT * math.sin(twist + 2 * math.pi * k / sides)) * width * 0.5, wt) for k in range(sides)]
         tip = acc.add_v(base + d * length, wt)
         for k in range(sides):
             acc.face([row[k], row[(k + 1) % sides], tip], 'crystal', [U(0, 0), U(1, 0), U(0.5, 1)])
@@ -115,7 +120,7 @@ def shard(acc, base, d, length, width, wt, twist=0.0, sides=4, simple=False):
         row = []
         for k in range(sides):
             a = twist + 2 * math.pi * k / sides
-            p = base + d * (length * t) + (s * math.cos(a) + u * math.sin(a)) * (width * 0.5 * wf)
+            p = base + d * (length * t) + (s * math.cos(a) + u * FLAT * math.sin(a)) * (width * 0.5 * wf)
             row.append(acc.add_v(p, wt))
         rows.append(row)
     tip = acc.add_v(base + d * length, wt)
@@ -301,30 +306,35 @@ for i, p in enumerate(TAIL):
 rings[0]['c'] = V((0, 4.4, 4.1))
 loft(BODY, rings, 8, lambda n, c, i: 'white' if n.z < -0.35 else 'navy', cap1='navy')
 
-# spine crystals: big central column + side shards (back view)
+# spine crystals: dense layered column (back view) - hero centre shards + fringes of blades
 spine = [(-1.0, 1.0, 1.25), (0.1, 1.2, 1.55), (1.3, 1.3, 1.7), (2.6, 1.25, 1.55), (3.8, 1.0, 1.35)]
-for y, s, L in spine:
-    zc = [z for yy, z, rx, ry in TORSO]
-    top = 4.45 + 2.15
+top = 4.45 + 2.15
+for n_, (y, s_, L) in enumerate(spine):
     wt = torso_w(y)
-    shard(GLOW, (0, y, top - 0.45), (0, 0.3, 1), L * 1.75, 0.95 * s, wt, twist=0.78)
+    shard(GLOW, (0, y, top - 0.45), (0, 0.3, 1), L * 1.75, 0.95 * s_, wt, twist=0.78, hero=True)
+    shard(GLOW, (0, y + 0.55, top - 0.5), (0, 0.55, 1), L * 1.2, 0.8 * s_, wt, twist=0.2)       # in-between layer
     for sg in (1, -1):
-        shard(GLOW, (0.55 * sg, y + 0.25, top - 0.55), (0.5 * sg, 0.3, 1), L * 1.15, 0.7 * s, wt, twist=0.3, simple=True)
+        shard(GLOW, (0.55 * sg, y + 0.25, top - 0.55), (0.5 * sg, 0.3, 1), L * 1.15, 0.7 * s_, wt, twist=0.3)
+        shard(GLOW, (1.0 * sg, y - 0.1, top - 0.8), (0.9 * sg, 0.25, 1), L * 0.85, 0.6 * s_, wt, twist=1.1)
+        shard(GLOW, (1.4 * sg, y + 0.35, top - 1.15), (1.0 * sg, 0.3, 0.7), L * 0.6, 0.5 * s_, wt, twist=0.6)
 for i in range(1, 5):
     p = TAIL[i]; r = TR[i][1]
     wt = W(f'Tail{i}')
     L = 1.75 - 0.2 * i
-    shard(GLOW, p + V((0, 0, r * 0.6)), (0, 0.45, 1), L, 0.7 - 0.08 * i, wt, twist=0.78)
+    shard(GLOW, p + V((0, 0, r * 0.6)), (0, 0.45, 1), L, 0.7 - 0.08 * i, wt, twist=0.78, hero=True)
+    shard(GLOW, p + V((0, 0.7, r * 0.55)), (0, 0.6, 1), L * 0.8, 0.6 - 0.07 * i, wt, twist=0.3)
     for sg in (1, -1):
-        shard(GLOW, p + V((0.3 * sg, 0.25, r * 0.5)), (0.7 * sg, 0.4, 0.8), L * 0.75, 0.5 - 0.05 * i, wt, twist=0.2, simple=True)
-# tail tip fan
+        shard(GLOW, p + V((0.3 * sg, 0.25, r * 0.5)), (0.7 * sg, 0.4, 0.8), L * 0.75, 0.5 - 0.05 * i, wt, twist=0.2)
+        shard(GLOW, p + V((0.45 * sg, 0.8, r * 0.3)), (0.9 * sg, 0.5, 0.5), L * 0.55, 0.42 - 0.04 * i, wt, twist=0.9)
+# tail tip fan: a big layered burst of ice
 tip = TAIL[5]
-for i in range(11):
-    a = (i / 10 - 0.5) * 2.6
-    d = V((math.sin(a), math.cos(a) * 0.9 + 0.35, 0.25 + 0.25 * math.cos(a)))
-    shard(GLOW, tip + V((0, -0.45, 0.05)), d, 2.4 * (1 - 0.3 * abs(a) / 1.3), 0.6, W('Tail5'), twist=i * 0.7, simple=(i % 2 == 1))
-for sg in (1, -1):
-    shard(GLOW, tip + V((0, -0.3, 0.1)), (0.35 * sg, 0.7, 0.9), 1.9, 0.55, W('Tail5'))
+for i in range(15):
+    a = (i / 14 - 0.5) * 2.8
+    d = V((math.sin(a), math.cos(a) * 0.9 + 0.35, 0.25 + 0.3 * math.cos(a)))
+    shard(GLOW, tip + V((0, -0.45, 0.05)), d, 2.5 * (1 - 0.3 * abs(a) / 1.4), 0.62, W('Tail5'), twist=i * 0.7, hero=(i % 3 == 1))
+for k_ in range(5):
+    a = (k_ / 4 - 0.5) * 1.8
+    shard(GLOW, tip + V((0, -0.8, 0.2)), (math.sin(a) * 0.7, 0.55, 1.0), 1.6, 0.55, W('Tail5', 'Tail4', 0.3), twist=k_)
 gold_frame(BODY, TAIL[4] + V((0, -0.25, 0.42)), (0, 0.2, 1), (0, 1, 0), 0.26, 0.34, 0.35, 0.08, W('Tail4', 'Tail5', 0.5))
 gem_plate(GLOW, TAIL[4] + V((0, -0.25, 0.46)), (0, 0.2, 1), (0, 1, 0), 0.16, 0.22, 0.08, W('Tail4', 'Tail5', 0.5))
 
@@ -440,11 +450,11 @@ def build_head(k):
     # chin icicle
     shard(GLOW, J(0, 1.7, -0.5), -ju + jd * 0.25, 1.0 * HS, 0.34 * HS, jw, twist=0.78)
     # ice mane: crystals erupting from the back of the skull, up and back
-    for j in range(9):
-        a = (j / 8 - 0.5) * 2
-        dd = (u * 1.0 - d * 0.6 + s * a * 0.8).normalized()
+    for j in range(13):
+        a = (j / 12 - 0.5) * 2
+        dd = (u * 1.0 - d * 0.6 + s * a * 0.85).normalized()
         L = (2.3 - 0.8 * abs(a)) * (1.15 if k == 'C' else 1.0)
-        shard(GLOW, P(a * 0.62, 0.1 - abs(a) * 0.15, 0.8 - abs(a) * 0.1), dd, L, 0.58, hw, twist=j * 0.6, simple=(j % 2 == 1))
+        shard(GLOW, P(a * 0.62, 0.1 - abs(a) * 0.15 - (j % 2) * 0.35, 0.8 - abs(a) * 0.1), dd, L * (1 - 0.15 * (j % 2)), 0.58, hw, twist=j * 0.6, hero=(j == 6))
     for sg in (1, -1):  # side spikes flaring back from the cheeks
         shard(GLOW, P(1.0 * sg, 0.1, 0.35), (s * sg - d * 0.6 + u * 0.35), 1.3, 0.42, hw, twist=0.4, simple=True)
 
@@ -469,6 +479,7 @@ for k, pts in NECKS.items():
         for sg in (1, -1):
             side = T.cross(back).normalized()
             shard(GLOW, m + back * 0.55 + side * 0.5 * sg, (back + side * 0.7 * sg + V((0, 0, 0.4))).normalized(), 1.2, 0.5, wt, simple=True)
+            shard(GLOW, m + back * 0.3 + side * 0.8 * sg + T * 0.3, (back * 0.6 + side * 1.0 * sg + V((0, 0, 0.3))).normalized(), 0.9, 0.42, wt)
     build_head(k)
 
 # legs
@@ -558,13 +569,13 @@ def wing(side, sg):
     # ice along the leading edge and at the tip
     for t in (0.2, 0.5, 0.8):
         p = w[1].lerp(w[2], t)
-        cluster(GLOW, p + V((0, 0, 0.25)), V((0.3 * sg, -0.2, 1.0)), 0.5, 3, 1.4 - 0.3 * t, 0.5, W(b2), seed=int(t * 10) + 20 * sg, side=(0, 1, 0))
+        cluster(GLOW, p + V((0, 0, 0.25)), V((0.3 * sg, -0.2, 1.0)), 0.6, 5, 1.4 - 0.3 * t, 0.5, W(b2), seed=int(t * 10) + 20 * sg, side=(0, 1, 0))
     for t in (0.3, 0.7):
         p = w[0].lerp(w[1], t)
         cluster(GLOW, p + V((0.3 * sg, -0.3, 0)), V((0.8 * sg, -0.5, 0.5)), 0.4, 2, 1.2, 0.45, W(b1), seed=30 + int(t * 10))
     for t in (0.25, 0.65):   # ice along the outer edge (front view)
         p = mid3.lerp(w[3], t) if t > 0.5 else w[2].lerp(mid3, t * 2)
-        cluster(GLOW, p + V((0.25 * sg, 0, 0)), V((1.0 * sg, 0.5, 0.1)), 0.5, 3, 1.3, 0.48, W(b3), seed=40 + int(t * 10), side=(0, 0, 1))
+        cluster(GLOW, p + V((0.25 * sg, 0, 0)), V((1.0 * sg, 0.5, 0.1)), 0.6, 5, 1.3, 0.48, W(b3), seed=40 + int(t * 10), side=(0, 0, 1))
     cluster(GLOW, w[3] + V((0, -0.1, 0.5)), V((0.15 * sg, 0.25, -1)), 0.35, 4, 2.2, 0.65, W(b3), seed=41, side=(0, 1, 0))
 wing('L', 1); wing('R', -1)
 for sg in (1, -1):
@@ -625,7 +636,7 @@ def make_mat(name, glow):
     b.inputs['Roughness'].default_value = 0.45 if not glow else 0.15
     if glow:
         nt.links.new(t.outputs['Color'], b.inputs['Emission Color'])
-        b.inputs['Emission Strength'].default_value = 1.4
+        b.inputs['Emission Strength'].default_value = 0.55
     else:
         nt_ = nt.nodes.new('ShaderNodeTexImage'); nt_.image = nrm_img
         nm = nt.nodes.new('ShaderNodeNormalMap'); nm.inputs['Strength'].default_value = 0.8
