@@ -72,3 +72,16 @@ The result is 4,956 tris. Walk and idle deformation were checked on contact shee
   - Studs are smaller (0.36u) and keep their true size.
   - UV phase comes from world coordinates, so studs line up across faces instead of being stretched per face.
 - 4,982 tris.
+
+## v4.1 feedback → v4.2
+**User feedback:** "texture is still pixelated, and the head looks nothing like a dragon's".
+- **Texture:** I rewrote the generator.
+  - Swatches get a soft, low-contrast stud relief with low-frequency colour variation, and no per-cell colour steps.
+  - The wing membrane is painted per pixel as a smooth gradient: dark leading band, then teal, then a glowing trailing edge.
+  - The runes, the rune plates (disc, chest, tail, knee) and the eye are drawn as anti-aliased vector shapes (4× supersampled) with soft glow halos.
+- **Head:** a custom-section skull replaces the rounded tube. It is a flat-topped wedge snout with nostril flare and a pinch behind it, a raised brow, wide cheekbones and a tapered back skull.
+  - The angry brow ridge angles down toward the snout.
+  - The lower jaw hangs open with a dark mouth, and there are fangs plus upper and lower teeth.
+  - It also has nostrils, a gold nose ridge and a glowing snout slit.
+  - The eye canal is carved into the new skull under the brow.
+- 4,980 tris.

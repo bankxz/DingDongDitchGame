@@ -169,6 +169,31 @@ def catmull(pts, sub=8):
     return out
 
 
+def dragon_section(L, zt, zb, wt, wb):
+    """10-point head cross-section: flat top, slanted upper sides, full cheeks, narrower underside."""
+    h = zt - zb
+    right = [(0.5 * wt, zt), (wt, zt - 0.22 * h), (wb, zb + 0.45 * h), (0.82 * wb, zb + 0.08 * h), (0.35 * wb, zb)]
+    ring = right + [(-x, z) for x, z in reversed(right)]
+    return [P(x, L, z) for x, z in ring]
+
+
+def section_loft(sections, bones, color_fn, smooth=True):
+    """closed loft through explicit cross-sections (same point count), capped at both ends."""
+    mb.new_part()
+    rings = [[mb.vert(p, bn) for p in sec] for sec, bn in zip(sections, bones)]
+    n = len(sections[0])
+    for i in range(len(rings) - 1):
+        ctr = (sum(sections[i], Vector()) + sum(sections[i + 1], Vector())) / (2 * n)
+        for k in range(n):
+            q = outward([rings[i][k], rings[i][(k + 1) % n], rings[i + 1][(k + 1) % n], rings[i + 1][k]], ctr)
+            pts = [mb.co[j] for j in q]
+            nn, _, _ = face_basis(pts)
+            add_poly(q, color_fn(i, k, nn, sum(pts, Vector()) / 4), smooth)
+    for r, nb in ((rings[0], sections[1]), (rings[-1], sections[-2])):
+        c = sum((mb.co[j] for j in r), Vector()) / n
+        add_poly(outward(r[:], sum(nb, Vector()) / n), color_fn(-1, 0, Vector(), c), False)   # face away from the neighbour ring
+
+
 def horn(pts, r0, r1, key, bone, nseg=4, n=6, rib=0.08, tip=True):
     """smooth tapered horn/spike/claw made of slightly stepped segments (the reference's ribbed horns)."""
     path = [Vector(p) for p in resample(catmull([tuple(p) for p in pts]), nseg + 1)]
@@ -188,7 +213,7 @@ def curved_cone(pts, r0, key, bone, n=4):
     horn(pts, r0, r0 * 0.35, key, bone, nseg=2, n=n)
 
 
-def eyeball(c, axis, r, bone, seg=8, rings=5):
+def eyeball(c, axis, r, bone, seg=7, rings=5):
     """UV sphere looking along `axis`; planar UVs put the painted iris + slit pupil on the front."""
     c = Vector(c); ax = Vector(axis).normalized()
     up = Vector((0, 0, 1)); rt = up.cross(ax).normalized(); up = ax.cross(rt).normalized()
@@ -286,7 +311,7 @@ def build():
             return G                                     # gold back armour plates
         return C
     loft([P(0, l, z) for l, z, *_ in body], [(rx, rz) for _, _, rx, rz, _ in body],
-         [w for *_, w in body], body_col, n=16, p=2.3, cap1=True)
+         [w for *_, w in body], body_col, n=14, p=2.3, cap1=True)
     mb.body_part = mb.part
 
     # ================= tail: segments with gold bands, side runes =================
@@ -317,7 +342,7 @@ def build():
         if s == 'bottom':
             return B
         return C
-    loft(path, radii, wts, tail_col, n=10, p=2.4, cap0=True, cap1=True)
+    loft(path, radii, wts, tail_col, n=9, p=2.4, cap0=True, cap1=True)
     # tail spikes (pairs, leaning back) and tip cluster
     for i in range(len(tpath) - 1):
         (l0, z0, r0), (l1, z1, r1) = tpath[i], tpath[i + 1]
@@ -334,41 +359,48 @@ def build():
     for dl, dz, dx in ((2.2, 0.2, 0.0), (1.6, 1.0, 0.55), (1.6, 1.0, -0.55)):
         cone(P(0, lt - 0.2, zt), P(dx, lt + dl, zt + dz), 0.36, H, 'Tail9')
 
-    # ================= head: rounded skull with carved eye canals, ribbed horn crown =================
+    # ================= head: dragon skull (flat-topped wedge snout, brow, cheekbones), open jaw =================
     hb, jb = 'Head', 'Jaw'
-    skull = [(6.4, 9.0, 1.15, 1.2), (5.4, 9.05, 1.25, 1.25), (4.2, 8.9, 1.18, 1.1),
-             (3.0, 8.6, 0.98, 0.92), (1.8, 8.35, 0.86, 0.78), (0.8, 8.25, 0.76, 0.62)]
+    # (L, z top, z bottom, top half-width, lower half-width) - measured off the reference side/front views
+    skull = [(0.4, 8.7, 7.95, 0.5, 0.6), (1.2, 8.95, 7.8, 0.65, 0.78), (2.3, 9.1, 7.75, 0.66, 0.84),
+             (3.3, 9.5, 7.75, 0.9, 1.0), (4.2, 10.0, 7.8, 1.12, 1.18), (5.2, 10.15, 7.85, 1.12, 1.4),
+             (6.2, 9.95, 8.0, 0.95, 1.2), (6.8, 9.6, 8.4, 0.7, 0.85)]
 
     def skull_col(seg, k, nn, c):
         if seg < 0:
             return D
-        if nn.z < -0.55:
-            return CR
-        if nn.z > 0.6 and c.y + L0 < 2.6:
-            return 'slate'
+        if nn.z < -0.6:
+            return D                                  # roof of the open mouth
         return C
-    loft([P(0, l, z) for l, z, _, _ in skull], [(rx, rz) for _, _, rx, rz in skull], [hb] * len(skull),
-         skull_col, n=12, p=2.8)
+    section_loft([dragon_section(*r) for r in skull], [hb] * len(skull), skull_col)
     mb.skull_part = mb.part
 
     def strip(pts, rx, rz, key, bone=hb, n=6):
         loft([P(*q) for q in pts], [(rx, rz)] * len(pts), [bone] * len(pts), solid(key), n=n, p=2.2)
-    strip([(0, 1.5, 9.05), (0, 3.0, 9.48), (0, 4.4, 9.98), (0, 5.7, 10.25)], 0.3, 0.12, G)       # crest strip
-    jaw = [(5.2, 7.35, 1.02, 0.5), (3.4, 7.1, 0.92, 0.45), (1.4, 6.95, 0.72, 0.38)]
-    loft([P(0, l, z) for l, z, _, _ in jaw], [(rx, rz) for _, _, rx, rz in jaw], [jb] * 3,
-         lambda s, k, nn, c: CR if nn.z > 0.5 else C, n=8, p=2.4)
+    strip([(0, 0.9, 8.97), (0, 2.3, 9.12), (0, 3.3, 9.52), (0, 4.4, 10.02), (0, 5.7, 10.17)], 0.26, 0.1, G)   # nose ridge
+    jaw = [(1.0, 7.25, 6.75, 0.48, 0.44), (2.4, 7.45, 6.8, 0.66, 0.58), (4.0, 7.65, 6.95, 0.88, 0.78),
+           (5.4, 7.85, 7.2, 1.02, 0.88)]
+
+    def jaw_col(seg, k, nn, c):
+        if nn.z > 0.6:
+            return D                                  # inside of the mouth
+        return CR if nn.z < -0.5 else C
+    section_loft([dragon_section(*r) for r in jaw], [jb] * len(jaw), jaw_col)
     mb.eyes = []
     for s in (1, -1):
-        strip([(s * 0.75, 2.8, 9.5), (s * 1.18, 3.8, 9.7), (s * 1.15, 5.0, 9.75)], 0.22, 0.17, G)   # brow ridge
-        strip([(s * 1.1, 3.2, 8.45), (s * 1.2, 4.6, 8.5), (s * 1.18, 5.8, 8.65)], 0.12, 0.2, G)     # cheek band
-        strip([(s * 1.1, 5.0, 8.05), (s * 1.12, 6.3, 8.15)], 0.14, 0.3, CR)                         # cheek plate
-        strip([(s * 0.8, 1.15, 8.1), (s * 0.84, 1.75, 8.15)], 0.08, 0.12, GL)                      # snout glow slit
-        strip([(s * 0.66, 1.0, 7.8), (s * 0.72, 2.3, 7.78), (s * 0.78, 3.6, 7.8)], 0.12, 0.16, CR)   # tooth row
-        horn([P(s * 0.58, 1.1, 7.85), P(s * 0.6, 1.05, 6.9), P(s * 0.62, 0.95, 6.0)], 0.2, 0.06, H, hb, nseg=2)
-        horn([P(s * 0.8, 2.5, 7.75), P(s * 0.82, 2.5, 7.1)], 0.13, 0.05, H, hb, nseg=1, n=5)
-        # eye canal (carved in main) + eyeball with painted slit pupil
-        axis = Vector((s * 0.94, -0.34, 0.0)).normalized()
-        surf = P(s * 1.13, 3.95, 9.12)
+        strip([(s * 0.72, 3.0, 9.55), (s * 1.15, 4.0, 9.98), (s * 1.22, 5.1, 10.2)], 0.26, 0.2, G)   # angry brow ridge
+        strip([(s * 0.86, 2.4, 8.55), (s * 1.18, 4.2, 8.62), (s * 1.38, 5.8, 8.7)], 0.1, 0.2, G)    # cheek band
+        strip([(s * 1.25, 5.0, 8.15), (s * 1.3, 6.2, 8.3)], 0.14, 0.3, CR)                          # cheek plate
+        strip([(s * 0.7, 1.2, 8.4), (s * 0.78, 2.2, 8.5)], 0.07, 0.1, GL)                          # snout glow slit
+        strip([(s * 0.3, 0.45, 8.6), (s * 0.34, 0.85, 8.72)], 0.13, 0.1, D, n=5)                    # nostril
+        horn([P(s * 0.5, 0.8, 7.95), P(s * 0.52, 0.75, 7.2), P(s * 0.54, 0.65, 6.55)], 0.17, 0.05, H, hb, nseg=2)  # fang
+        for l in (1.6, 2.5, 3.4):
+            horn([P(s * 0.6, l, 7.85), P(s * 0.6, l, 7.45)], 0.1, 0.03, H, hb, nseg=1, n=4)          # upper teeth
+        for l in (1.8, 3.0):
+            horn([P(s * 0.5, l, 7.35), P(s * 0.5, l, 7.7)], 0.09, 0.03, H, jb, nseg=1, n=4)          # lower teeth
+        # eye canal (carved in main) + eyeball with painted slit pupil, under the brow
+        axis = Vector((s * 0.9, -0.35, 0.18)).normalized()
+        surf = P(s * 1.13, 4.0, 9.35)
         mb.eyes.append((mb.vert(surf, hb), mb.vert(surf + axis, hb)))
         eyeball(surf - axis * 0.33, axis, 0.32, hb)
         # great cream crescent horn: back, up, curling in at the tip
@@ -556,7 +588,7 @@ def breastplate(centre, cell, bone, rows=8):
         return (W_ / 2) * max(0.08, (8 - y) / 3)
     ox_, oy_ = RUNE_ORIGIN['chest']
     mb.new_part(direct=True)
-    cols = 5
+    cols = 4
     front, back = [], []
     for r in range(rows + 1):
         y = H_ * r / rows
