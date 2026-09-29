@@ -435,7 +435,9 @@ def eye_frame():
     return p, e1, e2, n
 
 
-ALMOND = [(0.74, 0.0), (0.34, 0.31), (-0.36, 0.29), (-0.74, 0.02), (-0.34, -0.27), (0.36, -0.25)]
+EYE_SCALE = 1.6   # reference eyes are large glowing almonds (~2.4 x 1 studs)
+ALMOND = [(a * EYE_SCALE, b * EYE_SCALE) for a, b in
+          [(0.74, 0.0), (0.34, 0.31), (-0.36, 0.29), (-0.74, 0.02), (-0.34, -0.27), (0.36, -0.25)]]
 
 
 def almond_prism(c, e1, e2, n, d0, d1, s0, s1, shift0=Vector()):
@@ -519,15 +521,15 @@ if fn.dot(EYE_N) < 0:
 add_prim(rim + [apex], faces, "glow", H, True)
 # slit pupil: white-hot core, raised just in front of the eyeball
 pc = EYE_C + EYE_N * -0.23 + EYE_E1 * 0.04
-pv = [pc + EYE_E2 * 0.2, pc + EYE_E1 * 0.08, pc - EYE_E2 * 0.2, pc - EYE_E1 * 0.08]
-ptip = pc + EYE_N * 0.09
+pv = [pc + EYE_E2 * 0.36, pc + EYE_E1 * 0.13, pc - EYE_E2 * 0.36, pc - EYE_E1 * 0.13]
+ptip = pc + EYE_N * 0.12
 faces = [((i, (i + 1) % 4, 4), PUPIL_UV) for i in range(4)]
 fn = (pv[1] - pv[0]).cross(ptip - pv[0])
 if fn.dot(EYE_N) < 0:
     faces = [((b, a, c), [u[1], u[0], u[2]]) for (a, b, c), u in faces]
 add_prim(pv + [ptip], faces, "glow", H, True)
 
-EYE_AVOID = [(EYE_C, 1.5), (EYE_C + EYE_N * 1.1, 1.3), (EYE_C + Vector((0, -1.6, 0)), 1.4), (EYE_C + Vector((-0.4, -2.6, 0)), 1.2)]  # socket + sight lines
+EYE_AVOID = [(EYE_C, 2.0), (EYE_C + EYE_N * 1.1, 1.3), (EYE_C + Vector((0, -1.6, 0)), 1.4), (EYE_C + Vector((-0.4, -2.6, 0)), 1.2)]  # socket + sight lines
 loft_blocks(HEAD, 14, (2.3, 4.6), (-0.1 * math.pi, 0.5 * math.pi), tan_p=0.45, half=True, size=(0.8, 1.2),
             avoid=EYE_AVOID)
 loft_blocks(HEAD, 6, (0.2, 2.0), (0.1 * math.pi, 0.5 * math.pi), tan_p=0.9, half=True, size=(0.7, 1.0),
@@ -540,11 +542,11 @@ box(-1.55, 1.55, 1.15, 5.8, 9.1, 9.5, "tan", H)                          # upper
 # corner just over the eye and sweeps up and back to the top outer corner of the skull, so the
 # brows read as an angry V from the front and as a thick overhang from the side.
 BROW = Loft([
-    (V(1.2, 3.15, 12.35), 0.32, 0.24, w1(H)),
-    (V(1.75, 3.75, 12.72), 0.62, 0.42, w1(H)),
-    (V(2.2, 4.6, 13.08), 0.72, 0.5, w1(H)),
-    (V(2.35, 5.55, 13.3), 0.6, 0.45, w1(H)),
-    (V(2.25, 6.4, 13.25), 0.12, 0.12, w1(H)),
+    (V(1.1, 2.95, 12.6), 0.32, 0.24, w1(H)),
+    (V(1.7, 3.6, 13.0), 0.62, 0.42, w1(H)),
+    (V(2.2, 4.55, 13.3), 0.72, 0.5, w1(H)),
+    (V(2.35, 5.55, 13.45), 0.6, 0.45, w1(H)),
+    (V(2.25, 6.4, 13.35), 0.12, 0.12, w1(H)),
 ], 8, sq=2.6)
 loft(BROW, "tan", mirror=True, cap0=True)
 # mouth interior + throat
