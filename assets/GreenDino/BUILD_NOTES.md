@@ -15,7 +15,7 @@ A green crocodile-dinosaur rebuilt from the reference sheet as smooth, rounded l
 | `source/` | Scripts that rebuild everything: `make_atlas.py` → `build_dino.py` → `export_roblox.py` (`render_views.py` renders the validation images) |
 
 ## Stats
-- **4,558 triangles** (budget: 5,000), 1 mesh, 1 material, 1 texture.
+- **3,418 triangles** (budget: 5,000), down from 4,558 after optimisation, 1 mesh, 1 material, 1 texture.
 - 22 bones: Root, Hips, Spine, Chest, Neck, Head, Jaw, Tail1-3, UpperArm/LowerArm/Hand and Thigh/Shin/Foot for each side (L = +X).
 - At most 2 bone influences per vertex; every vertex is weighted.
 - The body, head and tail are one continuous smooth loft (welded vertices, smooth shading), with weights blending along the spine. The lower jaw and each limb segment are rounded tapered tubes bound rigidly to one bone.
@@ -35,7 +35,19 @@ The texture is **painted, not pixel-style**, and the studs are **in the texture,
 - Eyes, rim and socket all move with the Head bone.
 
 ## Claws
-Each foot has 3 curved, tapered talons. Each one is a rounded 6-sided cross-section swept along a curve: the base is buried in the toe, the claw arches over and hooks down to a sharp tip touching the ground. They're plain cream and bound to the foot bone.
+Each foot has 3 chunky curved talons, centred on the foot. Each one is a symmetric 6-sided cross-section swept along a curve and tapering slowly: the base is buried in the toe, the claw arches over and hooks down to a sharp tip touching the ground. They're plain cream and bound to the foot bone.
+
+## Optimisation
+- **Triangles:** 4,558 → 3,418 (−25%) with no visible change:
+  - Claws: 6-sided, no hidden base cap.
+  - Eyeballs: only the visible front half, flat back hidden in the socket.
+  - Eye rims: 12×4 instead of 16×6.
+  - Teeth: single-point pyramids with no tip cap or hidden base.
+  - Body: fewer rings on the straight trunk and tail; every ring around the head and eye sockets is kept.
+  - Legs: 8-sided, no cap on the top ends buried in the body.
+- **Vertices:** 3,550 → 2,866.
+- **Animation files:** carry just the rig, mesh and keys. The texture is only embedded in `GreenDino.fbx`, and redundant keys are simplified away. Each animation file went from about 1.6 MB to 0.28 MB. The exported poses match the source to within 2 cm on the 13 m model.
+- **Checks:** all 30 tooth roots are still inside the jaw mesh. Every vertex is weighted, with at most 2 influences.
 
 ## Teeth
 Each tooth's root is placed from the actual jaw surface height under all four of its base corners, then sunk 0.55 cells into the gum, so no gap shows. A check that ray-tests all 30 tooth roots against the jaw meshes passes (0 roots outside). Upper teeth use the same bone blend as the gum they sit in, so they stay seated while animating.

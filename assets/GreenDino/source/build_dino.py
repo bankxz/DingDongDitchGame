@@ -167,14 +167,14 @@ def loft(rings, cat_fn, wfn, cap0=True, cap1=True, fit='auto'):
       if newell(pts).dot(out) < 0: t = t[::-1]
       ACC.face(t, None, uvs=[uv_of[i] for i in t])
 
-def tube(path, sides, e, cat, bone, jit=0.0):
+def tube(path, sides, e, cat, bone, jit=0.0, cap0=True):
   """rigid limb segment: rounded rings along a path of ((x,y,z), rx, rz)"""
   d = (Vector(path[-1][0]) - Vector(path[0][0])).normalized()
   u = d.cross(Vector((0, 0, 1)))
   u = Vector((1, 0, 0)) if u.length < 1e-4 else u.normalized()
   v = u.cross(d).normalized()
   rings = [ring_pts(*c, rx, rz, sides, e, u, v, (lambda k: 1 + rng.uniform(-jit, jit)) if jit else None) for c, rx, rz in path]
-  loft(rings, lambda r, k, g: cat, lambda p: {bone: 1.0})
+  loft(rings, lambda r, k, g: cat, lambda p: {bone: 1.0}, cap0=cap0)
 
 # ----------------------------------------------------------------------------- body profile (from LEFT SIDE / TOP / BOTTOM crops)
 L = 52
@@ -245,7 +245,8 @@ def z_surf(j, x):
   return (zb + zt) / 2 + (zt - zb) / 2 * (1 - u ** e) ** (1 / e)
 
 NB = 18
-JS = [0, 0.9, 2.0, 3.2, 4.4, 5.0, 5.6, 6.2, 6.8, 8.0, 9.2, 10.4, 11.6, 13.0] + [13.0 + 1.6 * i for i in range(1, 23)] + [49.5, 51.0, 52.0]
+JS = ([0, 0.9, 2.0, 3.2, 4.4, 5.0, 5.6, 6.2, 6.8, 8.0, 9.2, 10.4, 11.6, 13.0] + [13.0 + 2.0 * i for i in range(1, 12)]
+      + [37.4, 39.8, 42.2, 44.6, 47.0, 49.4, 51.0, 52.0])
 JS = sorted(set(round(j, 2) for j in JS if j <= L))
 noise = {}
 def jit_for(ri):
@@ -312,16 +313,16 @@ def almond(px, py):
   """unit-disc point -> almond: oval that tapers to points at both ends (outline y = +-(1 - x^2))"""
   return px, py * math.sqrt(max(0.0, 1 - px * px))
 
-def eyeball(c, n, up, rt, A, B, D, bw, seg=16, rows=6):
+def eyeball(c, n, up, rt, A, B, D, bw, seg=12, rows=6):
   def P(px, py, pz):
     x, y = almond(px, py)
     return ACC.addv(W(*(c + rt * (A * x) + up * (B * y) + n * (D * pz))), bw)
   rings_ = []
-  for i in range(1, rows):
+  for i in range(1, rows // 2 + 1):          # front hemisphere only; the back half would be hidden inside the head
     ph = math.pi * i / rows
     rings_.append([P(math.sin(ph) * math.cos(2 * math.pi * k / seg), math.sin(ph) * math.sin(2 * math.pi * k / seg), math.cos(ph))
                    for k in range(seg)])
-  front, back = P(0, 0, 1), P(0, 0, -1)
+  front, back = P(0, 0, 1), P(0, 0, 0)
   rect = cell_rect('eyeball'); (u0, v0), (u1, _), (_, v1) = rect[0], rect[1], rect[2]
   cw = W(*c)
   def uv(vi):   # planar projection along the eye axis, iris fitted to the almond's height
@@ -338,7 +339,7 @@ def eyeball(c, n, up, rt, A, B, D, bw, seg=16, rows=6):
     for a in range(len(rings_) - 1):
       f([rings_[a][k], rings_[a + 1][k], rings_[a + 1][k2], rings_[a][k2]])
 
-def socket_rim(c, n, up, rt, A, B, bw, seg=16, sides=6):
+def socket_rim(c, n, up, rt, A, B, bw, seg=12, sides=4):
   ids = []
   outline = lambda th: (lambda x, y: rt * (A * x) + up * (B * y))(*almond(math.cos(th), math.sin(th)))
   for k in range(seg):
@@ -365,11 +366,11 @@ for s in (1, -1):
 print('T eyes', ACC.tris())
 
 # ----------------------------------------------------------------------------- legs: rounded tapered limbs + big flat feet
-def claw(x0, x1, y_back, z0, length, height, bone, sides=6, steps=5):
-  """curved, tapered talon: rounded base buried in the toe, hooking forward and down to a sharp tip (-Y is forward)"""
+def claw(x0, x1, y_back, z0, length, height, bone, sides=6, steps=4):
+  """chunky curved talon: thick rounded base buried in the toe, hooking forward and down to a sharp tip (-Y is forward)"""
   xc, hw = (x0 + x1) / 2, abs(x1 - x0) / 2
   P0 = Vector((xc, y_back + 0.5, z0 + height * 0.55))                 # inside the toe
-  P1 = Vector((xc, y_back - length * 0.75, z0 + height * 1.05))       # arch over the top
+  P1 = Vector((xc, y_back - length * 0.75, z0 + height * 0.95))       # arch over the top
   P2 = Vector((xc, y_back - length * 1.3, z0 + 0.05))                 # tip, just touching the ground
   bez = lambda t: P0 * (1 - t) ** 2 + P1 * (2 * t * (1 - t)) + P2 * t * t
   side = Vector((1, 0, 0))
@@ -379,12 +380,11 @@ def claw(x0, x1, y_back, z0, length, height, bone, sides=6, steps=5):
     c = bez(t); tg = (bez(min(1, t + 0.01)) - bez(max(0, t - 0.01))).normalized()
     up = tg.cross(side).normalized()
     if up.z < 0: up = -up
-    k = (1 - t) ** 0.85                                                # taper toward the tip
-    rx, ry = hw * k, height * 0.42 * k
+    k = (1 - t) ** 0.65                                                # slow taper = chunky, still a sharp tip
+    rx, ry = hw * k, height * 0.46 * k
     rings_.append([ACC.addv(W(*(c + side * (rx * math.cos(2 * math.pi * m / sides)) + up * (ry * math.sin(2 * math.pi * m / sides)))), bone)
                    for m in range(sides)])
   tip = ACC.addv(W(*P2), bone)
-  base = ACC.addv(W(*(P0 + (P0 - bez(0.05)).normalized() * 0.2)), bone)
   cen = lambda ids: sum((ACC.v[i] for i in ids), Vector()) / len(ids)
   def f(ids, axis_pt):
     pts = [ACC.v[i] for i in ids]
@@ -397,30 +397,29 @@ def claw(x0, x1, y_back, z0, length, height, bone, sides=6, steps=5):
       f([rings_[i][m], rings_[i][m2], rings_[i + 1][m2], rings_[i + 1][m]], ax)
   for m in range(sides):
     m2 = (m + 1) % sides
-    f([rings_[-1][m], rings_[-1][m2], tip], W(*bez((steps - 0.5) / steps)))
-    f([rings_[0][m], rings_[0][m2], base], W(*bez(0.1)))
+    f([rings_[-1][m], rings_[-1][m2], tip], W(*bez((steps - 0.5) / steps)))   # base end is buried in the toe: no cap
 
 LEG = {
   'front': ([('UpperArm_', [((6.0, fj, 8.4), 3.8, 3.9), ((8.6, fj, 6.4), 3.6, 3.5), ((10.2, fj, 4.6), 3.0, 3.0)]),
              ('LowerArm_', [((10.2, fj, 5.4), 2.8, 2.9), ((10.3, fj, 2.0), 2.9, 3.0)]),
              ('Hand_', [((10.3, fj + 2.8, 1.2), 3.3, 1.25), ((10.3, fj, 1.5), 3.7, 1.5), ((10.3, fj - 3.0, 1.2), 3.5, 1.2)])],
-            7.0, fj - 3.2, FRONT_YAW),
+            10.3, fj - 3.2, FRONT_YAW),   # foot centre x, claw base y, splay
   'rear': ([('Thigh_', [((5.6, rj, 7.6), 3.8, 3.9), ((8.0, rj, 6.0), 3.5, 3.4), ((9.2, rj, 4.4), 2.9, 2.9)]),
             ('Shin_', [((9.2, rj, 5.0), 2.7, 2.7), ((9.3, rj, 2.0), 2.8, 2.8)]),
             ('Foot_', [((9.3, rj + 2.8, 1.2), 3.3, 1.25), ((9.3, rj, 1.5), 3.7, 1.5), ((9.3, rj - 3.0, 1.2), 3.5, 1.2)])],
-           6.0, rj - 3.2, REAR_YAW),
+           9.3, rj - 3.2, REAR_YAW),
 }
 for s, side in ((1, 'L'), (-1, 'R')):
   for key_, (segs, x0c, base_j, ang) in LEG.items():
     mark = len(ACC.v)
     for bn, path in segs:
       path = [((s * c[0], c[1], c[2]), rx, rz) for c, rx, rz in path]
-      tube(path, 10, 2.6, 'legcamo', bn + side, jit=0.04)
+      tube(path, 8, 2.6, 'legcamo', bn + side, jit=0.04, cap0=bn not in ('UpperArm_', 'Thigh_'))
     bone = segs[-1][0] + side
     for c in range(3):   # claws: 3 per foot, cream, at the front of each foot
-      xa = x0c + 0.5 + c * 2.3; xb = xa + 1.5
-      if s < 0: xa, xb = -xb, -xa
-      claw(xa, xb, base_j + 0.8, 0.0, 1.7, 1.9, {bone: 1.0})
+      xm = s * (x0c + (c - 1) * 2.25)                 # centred on the foot so no claw pokes out of its side
+      xa, xb = xm - 0.92, xm + 0.92
+      claw(xa, xb, base_j + 0.8, 0.0, 1.75, 2.1, {bone: 1.0})
     # splay the whole limb around its hip/shoulder (TOP / BOTTOM views: feet point diagonally out)
     piv = W(*BONES[segs[0][0] + side][0]); R = Matrix.Rotation(-s * ang, 3, 'Z')
     for vi in range(mark, len(ACC.v)): ACC.v[vi] = piv + R @ (ACC.v[vi] - piv)
@@ -481,13 +480,9 @@ def tooth(x, y, zbase, length, down, bone, size=0.85):
   hs = size / 2; tip = 0.12
   zt = zbase - length if down else zbase + length
   base = [W(x - hs, y - hs, zbase), W(x + hs, y - hs, zbase), W(x + hs, y + hs, zbase), W(x - hs, y + hs, zbase)]
-  tp = [W(x - tip, y - tip, zt), W(x + tip, y - tip, zt), W(x + tip, y + tip, zt), W(x - tip, y + tip, zt)]
-  for a in range(4):
-    c = (a + 1) % 4
-    q = [base[a], base[c], tp[c], tp[a]]
-    if not down: q = q[::-1]
-    ACC.quad(q, 'tooth', bone, fit=(1, 2))
-  ACC.quad(tp if down else tp[::-1], 'tooth', bone, fit=(1, 1))
+  apex = W(x, y, zt)
+  for a in range(4):   # 4-sided pyramid; the base is buried in the gum so it needs no cap
+    ACC.quad([base[a], base[(a + 1) % 4], apex], 'tooth', bone, fit=(1, 2))
   ACC.end()
 
 def se_height(hw, zb, zt, e, x, top):
