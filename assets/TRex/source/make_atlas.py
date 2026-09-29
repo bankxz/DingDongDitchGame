@@ -9,7 +9,7 @@ Usage: python3 make_atlas.py <stud_normal_png> <stud_ao_png> <out_dir>
 import sys
 import random
 import numpy as np
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFilter
 
 ATLAS = 1024
 TILE = 256
@@ -34,7 +34,6 @@ TILES = {
 }
 ORDER = list(TILES)
 MIX_COLOURS = [(128, 40, 42), (92, 50, 58), (70, 34, 40), (140, 48, 46), (100, 34, 36), (76, 52, 60)]
-CRACK = (255, 52, 28)
 
 
 def one_stud(path, mode):
@@ -62,7 +61,46 @@ def mottle(colours, rng, cells=4):
     return np.asarray(small.resize((TILE, TILE), Image.BICUBIC), np.float32)
 
 
+def crack_network(rng, count):
+    """Branching, jagged lava cracks: a few trunks that fork into thinner branches.
+    Returns (glow, body, core) greyscale masks."""
+    masks = [Image.new('L', (TILE, TILE), 0) for _ in range(3)]
+    draws = [ImageDraw.Draw(m) for m in masks]
+
+    def grow(x, y, ang, width, steps, depth):
+        pts = [(x, y)]
+        for _ in range(steps):
+            ang += rng.uniform(-0.75, 0.75)
+            ln = rng.uniform(6, 15)
+            x, y = x + ln * np.cos(ang), y + ln * np.sin(ang)
+            pts.append((x, y))
+            if depth < 2 and rng.random() < 0.28:          # fork off a thinner branch
+                grow(x, y, ang + rng.choice((-1, 1)) * rng.uniform(0.6, 1.2), width * 0.6,
+                     rng.randrange(2, 5), depth + 1)
+        w = max(1, int(round(width)))
+        draws[0].line(pts, fill=255, width=w * 5)          # wide soft glow
+        draws[1].line(pts, fill=255, width=w + 1)          # hot red body
+        draws[2].line(pts, fill=255, width=max(1, w - 1))  # yellow-orange core
+        for p in pts[1:-1]:                                # round the jagged joints
+            r = (w + 1) / 2
+            draws[1].ellipse((p[0] - r, p[1] - r, p[0] + r, p[1] + r), fill=255)
+
+    for _ in range(count):
+        grow(rng.uniform(0, TILE), rng.uniform(0, TILE), rng.uniform(0, 2 * np.pi),
+             rng.uniform(2.4, 3.6), rng.randrange(6, 12), 0)
+    glow = masks[0].filter(ImageFilter.GaussianBlur(6))
+    body = masks[1].filter(ImageFilter.GaussianBlur(0.8))
+    core = masks[2].filter(ImageFilter.GaussianBlur(0.6))
+    return [np.asarray(m, np.float32)[..., None] / 255.0 for m in (glow, body, core)]
+
+
+GLOW_RGB = np.array((190, 26, 12), np.float32)
+BODY_RGB = np.array((245, 52, 18), np.float32)
+CORE_RGB = np.array((255, 176, 70), np.float32)
+
+
 def make_tile(name, shade, rng):
+    """Returns (albedo, emissive) images for one tile."""
     base, jitter, stud_k, cracks, seams = TILES[name]
     if base is None:
         colour = mottle(MIX_COLOURS, rng)
@@ -76,37 +114,33 @@ def make_tile(name, shade, rng):
             p = min(i * CELL, TILE - 1)
             img[p, :] *= 0.72
             img[:, p] *= 0.72
-    img = np.clip(img, 0, 255).astype(np.uint8)
-    pil = Image.fromarray(img)
+    emit = np.zeros_like(img)
+    if name in ('EYE', 'LAVA'):
+        emit = img.copy()
     if cracks:
-        d = ImageDraw.Draw(pil)
-        for _ in range(4 if name in ('MIX', 'MAROON') else 2):
-            x, y = rng.uniform(0, TILE), rng.uniform(0, TILE)
-            ang = rng.uniform(0, 2 * np.pi)
-            pts = [(x, y)]
-            for _ in range(rng.randrange(4, 8)):
-                ang += rng.uniform(-0.9, 0.9)
-                ln = rng.uniform(10, 26)
-                x, y = x + ln * np.cos(ang), y + ln * np.sin(ang)
-                pts.append((x, y))
-            d.line(pts, fill=(140, 20, 16), width=5)
-            d.line(pts, fill=CRACK, width=2)
-    return pil
+        glow, body, core = crack_network(rng, 5 if name in ('MIX', 'MAROON') else 3)
+        g = glow * 0.55
+        img = img * (1 - g) + GLOW_RGB * g                 # warm halo on the surrounding surface
+        img = img * (1 - body) + BODY_RGB * body
+        img = img * (1 - core) + CORE_RGB * core
+        emit = np.maximum(emit, GLOW_RGB * glow * 0.35 + BODY_RGB * body * 0.9 + CORE_RGB * core)
+    to_img = lambda a: Image.fromarray(np.clip(a, 0, 255).astype(np.uint8))  # noqa: E731
+    return to_img(img), to_img(emit)
 
 
 def main(normal_png, ao_png, out_dir):
     rng = random.Random(7)
     shade = stud_shading(normal_png, ao_png)
     atlas = Image.new('RGB', (ATLAS, ATLAS), (0, 0, 0))
+    emissive = Image.new('RGB', (ATLAS, ATLAS), (0, 0, 0))   # glowing eyes, lava and cracks
     per_row = ATLAS // TILE
     for i, name in enumerate(ORDER):
-        atlas.paste(make_tile(name, shade, rng), ((i % per_row) * TILE, (i // per_row) * TILE))
+        alb, emi = make_tile(name, shade, rng)
+        pos = ((i % per_row) * TILE, (i // per_row) * TILE)
+        atlas.paste(alb, pos)
+        emissive.paste(emi, pos)
     atlas.save(f'{out_dir}/TRex_Studs_Albedo.png')
-    # emissive mask: glowing eyes, lava blocks and the red cracks
-    a = np.asarray(atlas).astype(np.int16)
-    glow = (a[..., 0] > 200) & (a[..., 1] < 90) & (a[..., 2] < 70)
-    em = np.where(glow[..., None], a, 0).astype(np.uint8)
-    Image.fromarray(em).save(f'{out_dir}/TRex_Studs_Emissive.png')
+    emissive.save(f'{out_dir}/TRex_Studs_Emissive.png')
     # tangent-space normal atlas so Roblox SurfaceAppearance can add real stud relief
     n = one_stud(normal_png, 'RGB').resize((CELL, CELL), Image.LANCZOS)
     tile = Image.new('RGB', (TILE, TILE))

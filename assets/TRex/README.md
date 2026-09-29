@@ -12,9 +12,11 @@ Low-poly T-rex with the Roblox stud texture, rigged, with Idle and Walk animatio
 | `textures/` | 1024² stud atlas: albedo, normal, emissive |
 | `source/` | Scripts that rebuild everything from scratch |
 
-- 4,410 triangles, one mesh, one material, one 1024×1024 texture atlas
+- 4,776 triangles, one mesh, one material, one 1024×1024 texture atlas
 - 25 bones: Root, Hips, Spine, Chest, Neck, Head, Jaw, Tail1–6, Thigh/Shin/Foot .L/.R, UpperArm/Forearm/Hand .L/.R
 - Nothing floats: every part (teeth, claws, ribs, plates, horns, eyes) is sunk into the body. `source/check_floating.py` verifies this in the rest pose and in animated poses
+- Claws: curved, hooked talons that taper to a point (3 per foot, a dew claw, and 3 per hand)
+- Lava cracks: branching, glowing cracks with a hot orange core, a red body and a soft halo. They are baked into the albedo, with a matching emissive map
 - Eyes: real sockets are carved into the skull (dark inner walls). Each holds a round glowing red eyeball with a black slit pupil
 - Arms: a thick upper arm, a visible elbow joint with a bone spur, a forearm angled forward, a wrist, and a three-fingered clawed hand
 - Skin weights blend at the joints (neck, spine, tail, knees, elbows), so the body and tail bend smoothly. The bind pose is neutral, with the legs straight under the hips and the arms relaxed forward. The jaw is open in the bind pose to match the reference; the Jaw bone opens and closes it.

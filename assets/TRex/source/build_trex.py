@@ -212,6 +212,25 @@ def mhorn(base, top, bw, bd, tw, td, tile, bone, **kw):
         horn((base[0] * sgn, base[1], base[2]), (top[0] * sgn, top[1], top[2]), bw, bd, tw, td, tile, b, **kw)
 
 
+def talon(root, direction, length, hook, width, height, bone, up=(0, 0, 1), tile='TEETH'):
+    """Curved, tapering claw: arcs from `root` along `direction` and hooks down by `hook`,
+    narrowing to a sharp tip. Laterally flattened like a real talon."""
+    r, d, u = Vector(root), Vector(direction).normalized(), Vector(up).normalized()
+    p0, p1 = r, r + d * (length * 0.55) + u * (length * 0.12)
+    p2 = r + d * length - u * hook
+    ts = (0.0, 0.34, 0.68, 1.0)
+    path = [(1 - t) ** 2 * p0 + 2 * (1 - t) * t * p1 + t * t * p2 for t in ts]
+    taper = (1.0, 0.78, 0.45, 0.06)
+    loft(path, [(width * k, height * k) for k in taper], tile, [{bone: 1}] * 4, sides=5, p=2.2,
+         up=tuple(u), caps=(False, True))
+
+
+def mtalon(root, direction, length, hook, width, height, bone, up=(0, 0, 1), **kw):
+    for sgn, suf in ((1, '.L'), (-1, '.R')):
+        talon((root[0] * sgn, root[1], root[2]), (direction[0] * sgn, direction[1], direction[2]), length, hook,
+              width, height, bone + suf, up=(up[0] * sgn, up[1], up[2]), **kw)
+
+
 def W(**kw):
     return dict(kw)
 
@@ -461,8 +480,8 @@ def build_leg():
     for dx in (-1.3, 0.0, 1.3):
         mloft([(6.4 + dx, -4.6, 0.8), (6.4 + dx, -6.4, 0.7)], [(1.2, 1.6), (0.9, 1.1)], 'BONE', [F] * 2,
               sides=6, p=3.0)
-        mspike((6.4 + dx, -5.8, 0.65), (0.6, 0.5), (0, -1.8, -0.55), 'TEETH', 'Foot')
-    mhorn((6.4, -1.0, 0.65), (6.4, 0.6, 0.35), 0.9, 0.9, 0.4, 0.4, 'BONE', 'Foot')
+        mtalon((6.4 + dx, -5.7, 0.8), (dx * 0.12, -1, -0.05), 2.0, 0.75, 0.62, 0.95, 'Foot')
+    mtalon((6.4, -0.7, 0.75), (0, 1, -0.1), 1.2, 0.45, 0.5, 0.7, 'Foot')             # dew claw
 
 
 SHOULDER, ELBOW, WRIST, KNUCKLE = (5.0, -13.7, 8.9), (5.9, -14.0, 5.9), (5.9, -16.5, 4.8), (5.9, -17.7, 4.0)
@@ -499,7 +518,8 @@ def build_arm():
     for dx in (-0.75, 0.0, 0.75):
         mloft([_off(KNUCKLE, dx * 0.85, 0.8, 0.15), _off(HAND_TIP, dx * 1.1, 0.2, 0.3)], [(0.8, 0.8), (0.7, 0.7)],
               'DARK', [Ha] * 2, sides=6, p=2.4)
-        mspike(_off(HAND_TIP, dx * 1.1, 0.55, 0.3), (0.36, 0.36), (0, -0.85, -1.25), 'TEETH', 'Hand')
+        mtalon(_off(HAND_TIP, dx * 1.1, 0.75, 0.3), (dx * 0.1, -0.75, -0.65), 1.75, 0.55, 0.42, 0.62, 'Hand',
+               up=(0, 0.65, -0.75))
 
 
 # --------------------------------------------------------------------------- armature
