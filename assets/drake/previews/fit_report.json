@@ -1,0 +1,32 @@
+{
+ "front": {
+  "iou": 0.666,
+  "ref_aspect_w_over_h": 1.027,
+  "model_aspect": 1.004
+ },
+ "back": {
+  "iou": 0.545,
+  "ref_aspect_w_over_h": 0.837,
+  "model_aspect": 0.678
+ },
+ "three_quarter": {
+  "iou": 0.365,
+  "ref_aspect_w_over_h": 1.794,
+  "model_aspect": 2.393
+ },
+ "left": {
+  "iou": 0.591,
+  "ref_aspect_w_over_h": 3.766,
+  "model_aspect": 3.8
+ },
+ "right": {
+  "iou": 0.604,
+  "ref_aspect_w_over_h": 3.599,
+  "model_aspect": 3.703
+ },
+ "top": {
+  "iou": 0.588,
+  "ref_aspect_w_over_h": 9.28,
+  "model_aspect": 8.685
+ }
+}
