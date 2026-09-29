@@ -53,9 +53,11 @@ class MeshAcc:
   def __init__(self): self.v, self.f, self.uv, self.bone, self.smooth, self.vw = [], [], [], [], [], {}
   def addv(self, p, w):
     self.v.append(p); self.vw[len(self.v) - 1] = w; return len(self.v) - 1
-  def face(self, idx, cat, fit='auto', smooth=True, bone=None):
+  def face(self, idx, cat, fit='auto', smooth=True, bone=None, uvs=None):
     pts = [self.v[i] for i in idx]
-    if len(pts) == 4:
+    if uvs is not None:
+      self.uv.append(uvs)
+    elif len(pts) == 4:
       # loft quad: lay whole stud blocks along the quad's own edges so rows follow the body (belly plates)
       w = min(4, max(1, round(((pts[1] - pts[0]).length + (pts[2] - pts[3]).length) / 2 / U)))
       h = min(4, max(1, round(((pts[3] - pts[0]).length + (pts[2] - pts[1]).length) / 2 / U)))
@@ -99,6 +101,24 @@ def ring_pts(cx, cy, cz, rx, rz, n, e, axis_u=Vector((1, 0, 0)), axis_v=Vector((
     pts.append(Vector((cx, cy, cz)) + axis_u * (rx * j * sexp(math.cos(th), e)) + axis_v * (rz * j * sexp(math.sin(th), e)))
   return pts
 
+# wide seamless strips of the atlas (whole patch rows of one category) for end caps
+CAP_ROWS = {'camo': 0, 'cream': 3}
+def planar_cap_uv(pts, out, cat):
+  """one flat projection across a whole end cap (snout tip / jaw tip), 1 texture cell = 1 grid unit,
+  so studs keep their square shape instead of being squeezed into every fan triangle"""
+  row = CAP_ROWS.get(cat, 0)
+  fwd = -out.normalized()
+  right = fwd.cross(Vector((0, 0, 1)))
+  right = Vector((1, 0, 0)) if right.length < 1e-4 else right.normalized()
+  up = right.cross(fwd).normalized()
+  st = [(p.dot(right) / U, p.dot(up) / U) for p in pts]
+  s0 = min(a for a, _ in st); t0 = min(b for _, b in st)
+  w = max(a for a, _ in st) - s0; h = max(b for _, b in st) - t0
+  sc = min(1.0, 4.0 / max(h, 1e-6), 32.0 / max(w, 1e-6))
+  ox = rng.randint(0, max(0, int(32 - w * sc)))
+  oy = (7 - row) * 4 + (4 - h * sc) / 2
+  return [((ox + (a - s0) * sc) / ATL, (oy + (b - t0) * sc) / ATL) for a, b in st]
+
 def loft(rings, cat_fn, wfn, cap0=True, cap1=True, fit='auto'):
   """rings: list of equal-length lists of grid points. cat_fn(r, k, centre_grid) -> atlas category"""
   idx = [[ACC.addv(W(*p), wfn(W(*p))) for p in ring] for ring in rings]
@@ -117,12 +137,13 @@ def loft(rings, cat_fn, wfn, cap0=True, cap1=True, fit='auto'):
     c = sum(ring, Vector()) / n
     out = (c - sum(other, Vector()) / n).normalized()
     ci = ACC.addv(W(*(c + out * 0.35)), wfn(W(*c)))
-    g = c
+    cap_uv = planar_cap_uv([ACC.v[i] for i in ids] + [ACC.v[ci]], out, cat_fn(-1, 0, c))
+    uv_of = dict(zip(list(ids) + [ci], cap_uv))
     for k in range(n):
       t = [ids[k], ids[(k + 1) % n], ci]
       pts = [ACC.v[i] for i in t]
       if newell(pts).dot(out) < 0: t = t[::-1]
-      ACC.face(t, cat_fn(-1, k, g), (1, 1))
+      ACC.face(t, None, uvs=[uv_of[i] for i in t])
 
 def tube(path, sides, e, cat, bone, jit=0.0):
   """rigid limb segment: rounded rings along a path of ((x,y,z), rx, rz)"""
@@ -221,7 +242,7 @@ def body_cat(r, k, g):
   j, x, z = g.y, g.x, g.z
   hw, zb, zt, e = ring_params(j)
   v = (z - zb) / max(0.1, zt - zb)
-  if r == -1: return 'camo' if j < 26 else 'tan'           # caps: snout tip / tail tip
+  if r == -1: return 'camo'                                   # caps: snout tip / tail tip
   if j < 9.0 and v < 0.25: return 'red'                        # roof of the open mouth
   if 9.0 <= j < 11.2 and v < 0.3 and abs(x) < hw * 0.6: return 'darkred'   # throat (inside the mouth only)
   if j < 1.9 and v > 0.75 and abs(x) < 1.8: return 'dark'      # nostrils
