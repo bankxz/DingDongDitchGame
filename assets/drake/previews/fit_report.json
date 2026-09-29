@@ -1,32 +1,32 @@
 {
  "front": {
-  "iou": 0.666,
+  "iou": 0.649,
   "ref_aspect_w_over_h": 1.027,
-  "model_aspect": 1.004
+  "model_aspect": 1.101
  },
  "back": {
-  "iou": 0.545,
+  "iou": 0.62,
   "ref_aspect_w_over_h": 0.837,
-  "model_aspect": 0.678
+  "model_aspect": 0.844
  },
  "three_quarter": {
-  "iou": 0.365,
+  "iou": 0.381,
   "ref_aspect_w_over_h": 1.794,
-  "model_aspect": 2.393
+  "model_aspect": 2.465
  },
  "left": {
-  "iou": 0.591,
+  "iou": 0.604,
   "ref_aspect_w_over_h": 3.766,
-  "model_aspect": 3.8
+  "model_aspect": 3.71
  },
  "right": {
-  "iou": 0.604,
+  "iou": 0.622,
   "ref_aspect_w_over_h": 3.599,
-  "model_aspect": 3.703
+  "model_aspect": 3.626
  },
  "top": {
-  "iou": 0.588,
+  "iou": 0.595,
   "ref_aspect_w_over_h": 9.28,
-  "model_aspect": 8.685
+  "model_aspect": 8.993
  }
 }

@@ -4,7 +4,7 @@ A low-poly voxel sea drake built in Blender 4.2 from `reference/drake_reference_
 
 | | |
 |---|---|
-| Triangles | **2,290** total (budget < 5,000): body 1,510 + spikes 780 |
+| Triangles | **2,242** total (budget < 5,000): body 1,510 + spikes 732 |
 | Meshes | `Drake` (body) and `Drake_Spikes` (every crystal spike and fin), both skinned to the same rig |
 | Bones | 26: `Root` → `Chest` → `Neck1` → `Neck2` → `Head` → `Jaw`; `Spine1-5`, `Tail1-4`, `TailFan`; `Limb1_1/2_R/L`, `Fin2-4_R/L` |
 | Skin | ≤ 4 influences per vertex, normalised |
@@ -56,7 +56,8 @@ python3 source/fit_check.py reference/drake_reference_sheet.webp previews previe
 
 Checked every iteration by rendering the sheet's six views and overlaying the silhouettes.
 
-- **Silhouette overlap (IoU):** front 0.67, left/right 0.59–0.60, top 0.59, back 0.55, 3/4 0.37.
+- **Silhouette overlap (IoU):** front 0.65, back 0.62, left/right 0.60–0.62, top 0.60, 3/4 0.38.
+- **v2 rebuild:** the body and head proportions were re-measured column by column from the sheet's side view (body ~4.6 studs tall through the chest, head level with the back, slight neck lift). v1 had a thin body and an over-raised neck. `previews/compare_vs_reference.png` shows the sheet (top) against the model (bottom).
 - **Why the 3/4 view is low:** the sheet's 3/4 art shows the body coiled with the tail curled up high. That contradicts its own side and top views, where the body is almost straight, so I matched the side and top views.
 - **Matched:** palette, fin counts per side (8 dorsal, 4 side, 6 tail), crystal fin shapes and colours, the head mane and cheek frills, the angry slit eyes under brow plates, cream teeth and belly, and the crescent front arms with claws.
 - **Not a pixel-exact 1:1:** the reference is illustration art. The remaining differences are mainly finer head detail and exact fin placement.

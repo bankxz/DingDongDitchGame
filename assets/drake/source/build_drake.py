@@ -75,8 +75,9 @@ B = Builder()
 # ----------------------------------------------------------------------------
 BODY_L = 24.0
 # (t, half width, half height) measured from SIDE (height) and TOP (width) views
-PROFILE = [(0.0, 0.82, 1.02), (0.10, 0.92, 1.25), (0.22, 0.96, 1.40), (0.40, 0.90, 1.22),
-           (0.60, 0.74, 1.00), (0.80, 0.50, 0.66), (0.92, 0.33, 0.42), (1.0, 0.18, 0.22)]
+# measured from the SIDE view (0.042 studs/px): chest/mid-body ~4.6 studs tall
+PROFILE = [(0.0, 0.92, 1.10), (0.08, 1.05, 1.55), (0.18, 1.22, 2.25), (0.35, 1.25, 2.35), (0.55, 1.12, 2.0),
+           (0.62, 0.98, 1.62), (0.82, 0.62, 0.95), (0.92, 0.42, 0.60), (1.0, 0.25, 0.35)]
 
 
 def prof(t):
@@ -120,7 +121,7 @@ def seg_bone(t):
 RINGS = 36
 c = 0.62
 SECT = [(c, -1), (1, -c), (1, 0.0), (1, 0.4), (1, c), (c, 1), (-c, 1), (-1, c), (-1, 0.4), (-1, 0.0), (-1, -c), (-c, -1)]
-BELLY = {11, 0, 10, 1, 9}
+BELLY = {11, 0, 10}
 rings = []
 for i in range(RINGS + 1):
     t = i / RINGS
@@ -135,7 +136,7 @@ for i in range(RINGS):
 tail_tip = B.vert(spine_pt(1.0) + Y * 0.25, {"Tail4": 1.0})
 for k in range(12):
     B.face([rings[-1][k], rings[-1][(k + 1) % 12], tail_tip], M_BELLY if k in BELLY else M_BODY)
-B.face(list(reversed(rings[0])), M_BODY)
+B.face(list(reversed(rings[0])), M_BELLY)   # throat/chest front (cream in FRONT view)
 
 
 # ----------------------------------------------------------------------------
@@ -245,49 +246,48 @@ frustum((1.3, -0.95, 2.8), 0.30, 0.25, (1.6, 0.9, 2.7), 0.26, 0.22, BODYM, HW)  
 # teal cheek plates under the eyes
 frustum((1.25, -1.5, 1.45), 0.18, 0.28, (1.35, 0.2, 1.3), 0.20, 0.34, {"default": M_TEAL}, HW)
 # head crest & frill blades (FRONT: central crest + wide cheek frills; SIDE: swept back)
-blade((0.0, -0.6, 2.5), (0.0, 0.2, 4.7), Y, 1.9, 0.4, HW)                          # centre crest
-blade((0.35, -0.9, 2.6), (0.7, -0.2, 3.9), Y, 1.2, 0.18, HW)                        # brow blades
-blade((0.55, -0.1, 2.45), (1.05, 1.5, 4.25), Y, 1.8, 0.32, HW)
-blade((0.85, 0.6, 2.3), (1.55, 2.9, 3.6), Y, 1.7, 0.32, HW)
-blade((1.05, 1.0, 1.9), (1.8, 3.3, 2.35), Y, 1.5, 0.3, HW)
-blade((1.35, -0.5, 2.3), (3.7, 0.3, 3.4), Vector((0, 0.35, 1)), 1.5, 0.3, HW)                          # cheek frills (fan)
-blade((1.45, -0.2, 1.7), (3.8, 0.6, 1.9), Vector((0, 0.35, 1)), 1.5, 0.3, HW)
-blade((1.35, 0.1, 1.1), (3.2, 0.9, 0.35), Vector((0, 0.35, 1)), 1.3, 0.28, HW)
-blade((1.2, 0.5, 2.7), (2.6, 1.8, 4.1), Vector((0, 0.35, 1)), 1.4, 0.28, HW)
+blade((0.0, -0.5, 2.55), (0.0, 0.1, 5.1), Y, 2.0, 0.42, HW)                         # centre crest
+blade((0.55, 0.0, 2.5), (1.0, 1.4, 4.7), Y, 2.0, 0.36, HW)                          # crown pair
+blade((0.95, 0.9, 2.2), (1.7, 3.1, 3.4), Y, 1.9, 0.34, HW)                          # swept back
+blade((1.35, -0.5, 2.3), (3.3, 0.2, 3.3), Vector((0, 0.35, 1)), 1.8, 0.36, HW)      # temple frill
+blade((1.45, -0.1, 1.55), (3.4, 0.6, 1.5), Vector((0, 0.35, 1)), 1.7, 0.34, HW)     # cheek frill
+blade((1.3, 0.3, 0.95), (2.7, 1.1, 0.3), Vector((0, 0.35, 1)), 1.3, 0.3, HW)        # jaw frill
 
 # ----------------------------------------------------------------------------
 # dorsal fins: 8 pairs (SIDE: tall swept blades; TOP: V chevrons)
 # ----------------------------------------------------------------------------
-DORSAL = [(0.05, 2.3), (0.15, 2.5), (0.27, 2.3), (0.38, 2.0), (0.49, 1.75), (0.60, 1.5), (0.71, 1.25), (0.81, 1.0)]
+DORSAL = [(0.04, 2.5), (0.15, 2.6), (0.26, 2.5), (0.37, 2.3), (0.48, 2.1), (0.59, 1.9), (0.70, 1.6), (0.80, 1.3)]
 for t, hgt in DORSAL:
     w, h = prof(t)
     p = spine_pt(t)
     base = p + Z * (h * 0.92) + X * (w * 0.35)
     tip = base + Z * hgt + Y * hgt * 0.6 + X * hgt * 0.08
-    blade(base, tip, Y, hgt * 1.1, 0.18, {seg_bone(t): 1.0}, bulge=0.45)
+    blade(base, tip, Y, hgt * 0.95, 0.26, {seg_bone(t): 1.0}, bulge=0.45)
 
 # ----------------------------------------------------------------------------
 # side fins (4 per side): front limb with claws + 3 finned stubs
 # ----------------------------------------------------------------------------
 LIMB_BONES = []   # (name, head, tail, parent)
 # limb 1: shoulder -> elbow -> paw, blocky blue arm, cyan claws, teal fin on the forearm
-sh = spine_pt(0.21) + X * 0.75 - Z * 0.2
-el = Vector((2.7, sh.y - 0.5, 2.3))
-wr = Vector((3.8, sh.y - 0.9, 1.3))
-pw = Vector((4.0, sh.y - 1.2, 0.3))
-frustum(sh, 0.62, 0.62, el, 0.60, 0.60, BODYM, {"Limb1_1_R": 1.0}, up=Z)
-frustum(el, 0.60, 0.60, wr, 0.52, 0.52, BODYM, {"Limb1_2_R": 1.0}, up=Vector((1, 0, 0.3)))
-frustum(wr, 0.52, 0.52, pw, 0.40, 0.42, BODYM, {"Limb1_2_R": 1.0}, up=X)
+sh = spine_pt(0.22) + X * 1.0 - Z * 0.6
+el = Vector((3.0, sh.y - 0.6, 3.5))
+wr = Vector((4.05, sh.y - 1.0, 2.1))
+pw = Vector((4.1, sh.y - 1.3, 0.4))
+frustum(sh, 0.78, 0.78, el, 0.74, 0.74, BODYM, {"Limb1_1_R": 1.0}, up=Z)
+frustum(el, 0.74, 0.74, wr, 0.64, 0.64, BODYM, {"Limb1_2_R": 1.0}, up=Vector((1, 0, 0.3)))
+frustum(wr, 0.64, 0.64, pw, 0.48, 0.5, BODYM, {"Limb1_2_R": 1.0}, up=X)
 for dx, dy in ((0.1, -0.3), (0.3, 0.1), (-0.15, 0.25)):
     blade(pw + Vector((dx, dy, 0.25)), pw + Vector((dx * 1.5 + 0.15, dy - 0.5, -0.65)), Y, 0.55, 0.14, {"Limb1_2_R": 1.0})
 for f_, hgt in ((0.25, 1.5), (0.7, 1.3)):
     b_ = el.lerp(wr, f_) + Vector((0.3, 0, 0.3))
     blade(b_, b_ + Vector((1.1, 0.8, 1.0)) * (hgt / 1.5), Y, 1.3, 0.2, {"Limb1_2_R": 1.0})
+# tall outer blade rising from the wrist (FRONT view: cyan horns at the bottom corners)
+blade(wr + X * 0.4, wr + Vector((0.6, 0.4, 3.0)), Y, 1.4, 0.3, {"Limb1_2_R": 1.0})
 b_ = sh.lerp(el, 0.6) + Z * 0.35
 blade(b_, b_ + Vector((0.5, 0.9, 1.6)), Y, 1.3, 0.2, {"Limb1_1_R": 1.0})
-LIMB_BONES += [("Limb1_1_R", sh, el, seg_bone(0.21)), ("Limb1_2_R", el, pw, "Limb1_1_R")]
+LIMB_BONES += [("Limb1_1_R", sh, el, seg_bone(0.22)), ("Limb1_2_R", el, pw, "Limb1_1_R")]
 # limbs 2-4: short stub + big swept fin blade (SIDE/TOP)
-for n, (t, size) in enumerate([(0.30, 3.0), (0.52, 2.6), (0.74, 2.1)], start=2):
+for n, (t, size) in enumerate([(0.42, 3.2), (0.60, 2.8), (0.78, 2.3)], start=2):
     w, h = prof(t)
     p = spine_pt(t)
     s0 = p + X * (w * 0.8) - Z * (h * 0.45)
@@ -311,12 +311,13 @@ for ang, ln in ((28, 3.1), (58, 2.3), (-30, 2.2)):
     tip = tb + Vector((0.35, math.cos(a) * ln, math.sin(a) * ln))
     blade(tb + X * 0.14 + Z * 0.1, tip, Y, 1.6, 0.24, TF, bulge=0.4)
 
-HEAD_S = 1.18
+HEAD_S = 1.15
 PIVOT = Vector((0, 0.9, 1.1))
+HEAD_OFF = Vector((0, -0.25, 1.6))   # head sits high on the body front, level with the back (SIDE view)
 
 
 def hs(v):
-    return PIVOT + (Vector(v) - PIVOT) * HEAD_S
+    return PIVOT + (Vector(v) - PIVOT) * HEAD_S + HEAD_OFF
 
 
 hi, ji = B.gi("Head"), B.gi("Jaw")
@@ -562,7 +563,7 @@ bone("Root", (0, spine_pt(0.22).y, 0), (0, spine_pt(0.22).y, 1.0))
 bone("Chest", spine_pt(0.18), spine_pt(0.26), "Root")
 bone("Neck1", spine_pt(0.18), spine_pt(0.09), "Chest")
 bone("Neck2", spine_pt(0.09), spine_pt(0.0), "Neck1", True)
-bone("Head", spine_pt(0.0) + Z * 0.45, hs((0, -4.2, 1.6)), "Neck2")
+bone("Head", hs((0, 0.8, 1.4)), hs((0, -4.2, 1.6)), "Neck2")
 bone("Jaw", HINGE, jaw_p(-3.5, 0), "Head")
 prev = "Chest"
 for j in range(3, len(SP_N)):
@@ -604,10 +605,10 @@ def P(n):
 
 def ref_pose():
     """The reference sheet pose: neck raised in an S, head level, jaw wide, tail tip up."""
-    rw(P("Neck1"), X, -42)   # forward-pointing bones: negative X raises
-    rw(P("Neck2"), X, -30)
-    rw(P("Head"), X, 80)
-    rw(P("Jaw"), X, 12)
+    rw(P("Neck1"), X, -26)   # forward-pointing bones: negative X raises (chest lifts off the ground)
+    rw(P("Neck2"), X, -14)
+    rw(P("Head"), X, 38)     # nose tipped down ~12 deg as in the SIDE view
+    rw(P("Jaw"), X, 6)
     rw(P("Chest"), X, 2)
     for n, d in (("Spine1", 3), ("Spine2", 2), ("Spine3", -3), ("Spine4", -3), ("Spine5", -1), ("Tail1", 2),
                  ("Tail2", 3), ("Tail3", 5), ("Tail4", 7), ("TailFan", 8)):
