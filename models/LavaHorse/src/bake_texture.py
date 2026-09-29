@@ -169,7 +169,10 @@ def material_for(cat):
             e = cr.elements.new(pos); e.color = lin(h)
         b.set(ramp, 'Fac', g.outputs['Fac'])
         col = b.mix(1.0, ramp.outputs['Color'], stud_factor(b, 0.8), 'MULTIPLY')
-        emissive = 0.55
+        # mane/tail glow: strong everywhere, brightest toward the flame tips
+        gm = b.n('ShaderNodeMath', _operation='MULTIPLY_ADD')
+        b.set(gm, 0, g.outputs['Fac']); gm.inputs[1].default_value = 0.25; gm.inputs[2].default_value = 0.75
+        emissive = gm.outputs[0]
     elif cat in ('rock', 'hoof', 'muzzle'):
         rest = b.n('ShaderNodeAttribute', _attribute_name='rest', _attribute_type='GEOMETRY')
         noise = b.n('ShaderNodeTexNoise', Scale=2.2, Detail=2.0)
@@ -179,7 +182,7 @@ def material_for(cat):
         col = b.mix(noise.outputs['Fac'], lin(a), lin(c))
         col = b.mix(1.0, col, stud_factor(b, 1.35), 'MULTIPLY')
     elif cat == 'eye_white':
-        col = lin('#ffffff'); emissive = 0.6
+        col = lin('#ffffff')
     elif cat == 'eye_black':
         col = lin('#07070a')
     # colour pass -> Emission (so EMIT bake captures the flat albedo); emissive mask stored as custom prop
@@ -226,16 +229,28 @@ def main():
     tris = sum(len(p.vertices) - 2 for p in horse.data.polygons)
     print('TRIS', tris)
     assert tris < 5000
-    # UV unwrap into UVMap
-    me = horse.data
+    # Baking now happens in the rig stage, after visibility culling and the split into three
+    # Roblox MeshParts (each gets its own full 1024 texture). Keep bake materials + attributes.
+    bpy.ops.wm.save_as_mainfile(filepath=os.environ.get('STAGE1_OUT') or os.path.join(ROOT, 'src', 'LavaHorse_stage1.blend'))
+    print('STAGE1_OK')
+
+
+def bake_mesh(obj, fname, res=RES, out_res=1024):
+    """UV-unwrap `obj` (which still carries the BAKE_* materials, StudUV and bake attributes),
+    bake its colour and emissive mask, swap in the final Principled material, clean up.
+    Bakes at `res` and saves a supersampled `out_res` copy (Roblox shows textures at max 1024)."""
+    me = obj.data
+    mats = [m for m in me.materials if m and m.name.startswith('BAKE_')]
     me.uv_layers.active = me.uv_layers['UVMap']
+    bpy.ops.object.select_all(action='DESELECT')
+    obj.select_set(True)
+    bpy.context.view_layer.objects.active = obj
     bpy.ops.object.mode_set(mode='EDIT')
     bpy.ops.mesh.select_all(action='SELECT')
-    bpy.ops.uv.smart_project(angle_limit=math.radians(60), island_margin=0.003, area_weight=0.0,
+    bpy.ops.uv.smart_project(angle_limit=math.radians(60), island_margin=0.002, area_weight=0.0,
                              correct_aspect=True, scale_to_bounds=False)
-    bpy.ops.uv.pack_islands(margin=0.0025, rotate=True)
+    bpy.ops.uv.pack_islands(margin=0.002, rotate=True)
     bpy.ops.object.mode_set(mode='OBJECT')
-    # bake setup
     sc = bpy.context.scene
     sc.render.engine = 'CYCLES'
     sc.cycles.device = 'CPU'
@@ -243,51 +258,44 @@ def main():
     sc.render.bake.margin = 8
     sc.render.bake.use_clear = True
     results = {}
-    for key, fname, cs in (('color_node', 'LavaHorse_Color', 'sRGB'), ('mask_node', 'LavaHorse_Emissive', 'Non-Color')):
-        img = bpy.data.images.new(fname, RES, RES, alpha=False)
+    for key, suffix, cs in (('color_node', 'Color', 'sRGB'), ('mask_node', 'Emissive', 'Non-Color')):
+        name = f'{fname}_{suffix}'
+        img = bpy.data.images.new(name, res, res, alpha=False)
         img.colorspace_settings.name = cs
-        for m in mats.values():
+        for m in mats:
             nt = m.node_tree
             tn = nt.nodes.get('BAKE_TARGET') or nt.nodes.new('ShaderNodeTexImage')
             tn.name = 'BAKE_TARGET'; tn.image = img
             nt.nodes.active = tn
-        switch_output(mats.values(), key)
-        bpy.ops.object.select_all(action='DESELECT')
-        horse.select_set(True)
-        bpy.context.view_layer.objects.active = horse
+        switch_output(mats, key)
         bpy.ops.object.bake(type='EMIT', margin=8)
-        img.filepath_raw = os.path.join(TEX, fname + '.png')
-        img.file_format = 'PNG'
-        img.save()
-        results[key] = img
-        if key == 'color_node':
-            sm = img.copy(); sm.scale(1024, 1024)
-            sm.filepath_raw = os.path.join(TEX, fname + '_1024.png'); sm.file_format = 'PNG'; sm.save()
-            bpy.data.images.remove(sm)
-        print('BAKED', fname)
-    # final single material (Roblox: one mesh, one texture)
-    horse.data.materials.clear()
-    fm = bpy.data.materials.new('LavaHorse_Mat')
+        img.filepath_raw = os.path.join(TEX, name + '_2048.png'); img.file_format = 'PNG'; img.save()
+        sm = img.copy(); sm.scale(out_res, out_res); sm.name = name
+        sm.filepath_raw = os.path.join(TEX, name + '.png'); sm.file_format = 'PNG'; sm.save()
+        sm.colorspace_settings.name = cs
+        results[key] = (img, sm)
+        print('BAKED', name)
+    me.materials.clear()
+    fm = bpy.data.materials.new(fname + '_Mat')
     nt = fm.node_tree
     bsdf = nt.nodes['Principled BSDF']
-    ct = nt.nodes.new('ShaderNodeTexImage'); ct.image = results['color_node']; ct.location = (-500, 200)
-    mt = nt.nodes.new('ShaderNodeTexImage'); mt.image = results['mask_node']; mt.location = (-500, -200)
+    ct = nt.nodes.new('ShaderNodeTexImage'); ct.image = results['color_node'][1]; ct.location = (-500, 200)
+    mt = nt.nodes.new('ShaderNodeTexImage'); mt.image = results['mask_node'][1]; mt.location = (-500, -200)
     nt.links.new(ct.outputs['Color'], bsdf.inputs['Base Color'])
+    # glow = colour x emissive mask (the same mask goes into Roblox SurfaceAppearance.EmissiveMaskContent)
     mul = nt.nodes.new('ShaderNodeMix'); mul.data_type = 'RGBA'; mul.blend_type = 'MULTIPLY'
     mul.inputs['Factor'].default_value = 1.0
     nt.links.new(ct.outputs['Color'], mul.inputs[6]); nt.links.new(mt.outputs['Color'], mul.inputs[7])
     nt.links.new(mul.outputs[2], bsdf.inputs['Emission Color'])
     bsdf.inputs['Emission Strength'].default_value = 1.5
     bsdf.inputs['Roughness'].default_value = 0.55
-    horse.data.materials.append(fm)
+    me.materials.append(fm)
     me.uv_layers.remove(me.uv_layers['StudUV'])
     for a in ('grad', 'rest', 'axisid'):
         if a in me.attributes:
             me.attributes.remove(me.attributes[a])
-    for m in mats.values():
-        bpy.data.materials.remove(m)
-    bpy.ops.wm.save_as_mainfile(filepath=os.environ.get('STAGE1_OUT') or os.path.join(ROOT, 'src', 'LavaHorse_stage1.blend'))
-    print('STAGE1_OK')
+    return fm
 
 
-main()
+if __name__ == '__main__':
+    main()

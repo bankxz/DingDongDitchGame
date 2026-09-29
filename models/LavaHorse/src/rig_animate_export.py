@@ -196,13 +196,36 @@ walk = make_action('Walk', WALK_LEN, walk_pose)
 reset_pose()
 
 # ------------------------------------------------------------------ visibility culling
-# drop faces that are never visible: rendered from 32 directions in rest + idle/walk poses
+# drop faces that are never visible: rendered from 48 directions in rest + idle/walk poses
 from visibility_cull import cull_invisible_faces
 before = sum(len(p.vertices) - 2 for p in horse.data.polygons)
 POSES = [(None, 0), (walk, 0), (walk, 8), (walk, 16), (walk, 24), (idle, 30), (idle, 72), (idle, 100)]
 removed = cull_invisible_faces(horse, rig, POSES)
 print('VISCULL removed tris', removed, 'of', before)
 reset_pose()
+
+# ------------------------------------------------------------------ split + bake
+# Three skinned MeshParts, each with its own full-resolution texture + emissive mask:
+#   Body (lava skin, nose/jaw, eyes) / Armor (rocks, ears, hooves) / Flames (mane + tail, glowing)
+import bake_texture
+GROUPS = [('LavaHorse_Body', {'lava', 'muzzle', 'eye_white', 'eye_black'}),
+          ('LavaHorse_Armor', {'rock', 'hoof'}),
+          ('LavaHorse_Flames', {'flame'})]
+meshes = []
+for gname, cats in GROUPS:
+    ob = horse.copy(); ob.data = horse.data.copy(); ob.name = gname; ob.data.name = gname + 'Mesh'
+    sc.collection.objects.link(ob)
+    import bmesh
+    bm = bmesh.new(); bm.from_mesh(ob.data)
+    keep = {i for i, m in enumerate(ob.data.materials) if m and m.name[len('BAKE_'):] in cats}
+    bmesh.ops.delete(bm, geom=[f for f in bm.faces if f.material_index not in keep], context='FACES')
+    bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context='VERTS')
+    bm.to_mesh(ob.data); bm.free()
+    meshes.append(ob)
+bpy.data.objects.remove(horse)
+for ob in meshes:
+    bake_texture.bake_mesh(ob, ob.name)
+    print('PART', ob.name, 'tris', sum(len(p.vertices) - 2 for p in ob.data.polygons))
 
 # NLA: one muted track per clip so the .blend shows both; active action = Idle
 ad = rig.animation_data
@@ -215,21 +238,11 @@ sc.frame_start, sc.frame_end = 0, IDLE_LEN
 
 # ------------------------------------------------------------------ exports
 os.makedirs(os.path.join(ROOT, 'export'), exist_ok=True)
-# Roblox reads one diffuse texture per MeshPart; embed the 1024 atlas (Roblox's in-game max)
-col_img = [n for n in horse.data.materials[0].node_tree.nodes if n.type == 'TEX_IMAGE' and 'Color' in n.image.name][0].image
-small = bpy.data.images.load(os.path.join(ROOT, 'textures', 'LavaHorse_Color_1024.png'))
-small.name = 'LavaHorse_Color_1024'
-
-
-def use_texture(img):
-    for n in horse.data.materials[0].node_tree.nodes:
-        if n.type == 'TEX_IMAGE' and 'Color' in n.image.name:
-            n.image = img
 
 
 def select_export_objs():
     bpy.ops.object.select_all(action='DESELECT')
-    for o in (rig, horse):
+    for o in [rig] + meshes:
         o.select_set(True)
     bpy.context.view_layer.objects.active = rig
 
@@ -254,7 +267,6 @@ def export_fbx(path, action):
     print('EXPORTED', path, os.path.getsize(path))
 
 
-use_texture(small)
 reset_pose(); ad.action = None
 export_fbx(os.path.join(ROOT, 'export', 'LavaHorse.fbx'), None)
 export_fbx(os.path.join(ROOT, 'export', 'LavaHorse_Idle.fbx'), idle)
@@ -271,11 +283,10 @@ bpy.ops.export_scene.gltf(filepath=os.path.join(ROOT, 'export', 'LavaHorse.glb')
                           export_image_format='AUTO')
 print('EXPORTED glb')
 
-use_texture(col_img)
 for tr in ad.nla_tracks:
     tr.mute = True
 ad.action = idle
 sc.frame_start, sc.frame_end = 0, IDLE_LEN
 bpy.ops.wm.save_as_mainfile(filepath=os.path.join(ROOT, 'LavaHorse.blend'), relative_remap=True)
-print('TRIS', sum(len(p.vertices) - 2 for p in horse.data.polygons), 'BONES', len(rig.data.bones))
+print('TRIS', sum(len(p.vertices) - 2 for o in meshes for p in o.data.polygons), 'BONES', len(rig.data.bones))
 print('STAGE2_OK')

@@ -1,7 +1,8 @@
 # Render-based visibility culling: delete only faces that are never seen.
 # Every face gets a unique ID colour; the posed, rigged mesh is rendered (flat emission, no AA,
 # raw float EXR) from a sphere of orthographic viewpoints in several animation poses. Faces that
-# never cover a single pixel are removed. Faces that only show mid-animation are kept.
+# never cover a single pixel (and don't border a face that does) are removed. Faces that only
+# show mid-animation are kept.
 import bpy, math, os, tempfile
 from mathutils import Vector
 
@@ -16,7 +17,7 @@ def _fib_sphere(n):
     return pts
 
 
-def cull_invisible_faces(horse, rig, poses, n_views=32, res=1024):
+def cull_invisible_faces(horse, rig, poses, n_views=48, res=1024):
     """poses: list of (action or None, frame). Returns number of triangles removed."""
     sc = bpy.context.scene
     me = horse.data
@@ -32,8 +33,10 @@ def cull_invisible_faces(horse, rig, poses, n_views=32, res=1024):
     em = nt.nodes.new('ShaderNodeEmission')
     out = nt.nodes.new('ShaderNodeOutputMaterial')
     nt.links.new(a.outputs['Color'], em.inputs['Color']); nt.links.new(em.outputs[0], out.inputs['Surface'])
+    # swap slot by slot (materials.clear() would reset every face's material_index to 0)
     saved_mats = list(me.materials)
-    me.materials.clear(); me.materials.append(idmat)
+    for i in range(len(me.materials)):
+        me.materials[i] = idmat
     hidden = []
     for o in sc.objects:
         if o not in (horse, rig) and o.type in ('MESH', 'LIGHT') and not o.hide_render:
@@ -76,9 +79,8 @@ def cull_invisible_faces(horse, rig, poses, n_views=32, res=1024):
                     seen.add(i - 1)
             bpy.data.images.remove(img)
     # restore scene
-    me.materials.clear()
-    for m in saved_mats:
-        me.materials.append(m)
+    for i, m in enumerate(saved_mats):
+        me.materials[i] = m
     bpy.data.materials.remove(idmat)
     me.attributes.remove(me.attributes['face_id'])
     bpy.data.objects.remove(cam); bpy.data.cameras.remove(cd)
@@ -92,7 +94,11 @@ def cull_invisible_faces(horse, rig, poses, n_views=32, res=1024):
     import bmesh
     bm = bmesh.new(); bm.from_mesh(me)
     bm.faces.ensure_lookup_table()
-    doomed = [f for f in bm.faces if f.index not in seen]
+    # Conservative: a face that borders a visible face is kept even if no pixel of it was seen.
+    # Holes can only open where a deleted face meets a visible one, and close-up perspective views
+    # (e.g. peeking between mane plates in Studio) can reach slits the orthographic sweep missed.
+    doomed = [f for f in bm.faces if f.index not in seen
+              and not any(g.index in seen for e in f.edges for g in e.link_faces)]
     tris = sum(len(f.verts) - 2 for f in doomed)
     bmesh.ops.delete(bm, geom=doomed, context='FACES')
     bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context='VERTS')
