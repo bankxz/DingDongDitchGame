@@ -6,7 +6,8 @@ Layout (pixels, origin top-left):
   crystal      x 640..1024, y 576..832 (6 facet columns, gradient base->tip)
   glow         x 640..768,  y 832..1024
   bone/teeth   x 768..896,  y 832..1024
-  mouth        x 896..1024, y 832..1024  (dark interior, no glow)
+  gums/palate  x 896..960,  y 832..1024  (no glow)
+  tongue       x 960..1024, y 832..1024
 
 Every block cell carries a Roblox-style raised stud. The stud contact shadow
 is taken from the MIT-licensed "Roblox-HD-Studs" set by dudeax
@@ -115,10 +116,14 @@ bone = (np.array([200, 165, 128]) / 255.0) * (1 - tt) + (np.array([238, 214, 180
 col[832:1024, 768:896] = np.repeat(bone, 128, axis=1)
 height[832:1024, 768:896] = 0.5
 rough[832:1024, 768:896] = 0.6
-# mouth interior (dark back of throat -> red gums)
-tt = np.linspace(0, 1, 128)[None, :, None]
-mg = (np.array([70, 18, 30]) / 255.0) * (1 - tt) + (np.array([150, 40, 55]) / 255.0) * tt
-col[832:1024, 896:1024] = np.repeat(mg, 192, axis=0)   # mouth interior: dark gums, no glow
+# mouth interior: gums / palate (x 896..960) and tongue (x 960..1024), no glow
+yy = np.linspace(0, 1, 192)[:, None, None]
+col[832:1024, 896:960] = (np.array([80, 18, 32]) / 255.0) * (1 - yy) + (np.array([130, 34, 50]) / 255.0) * yy
+xx = np.abs(np.linspace(-1, 1, 64))[None, :, None]
+tongue = (np.array([200, 78, 92]) / 255.0) * (1 - 0.25 * xx ** 2)
+tongue = tongue * (0.92 + 0.08 * np.clip(xx / 0.08, 0, 1))   # faint centre groove
+col[832:1024, 960:1024] = np.repeat(tongue, 192, axis=0)
+rough[832:1024, 896:1024] = 0.45
 height[832:1024, 896:1024] = 0.5
 
 # normal map from height (OpenGL / +Y up, as Roblox expects)

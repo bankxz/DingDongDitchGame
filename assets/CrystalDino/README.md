@@ -3,10 +3,11 @@
 A low-poly, rigged and animated model of the blue crystal dinosaur from the reference sheet.
 The body, neck, tail, head, jaw and legs are smooth lofted forms. Studded navy and tan armour blocks are laid over them, tilted to follow the surface.
 The eyes sit in almond-shaped sockets carved into the head (boolean cut into the head mesh), with a faceted glowing gem eyeball and a white-hot slit pupil. See `previews/eye/eye_closeup.png`.
+The brow ridges are boolean-unioned into the skull, and the nose bridge has a slight concave curve. The mouth is open, with a gum-red palate and throat, a rounded tongue on the jaw floor, and packed rows of teeth seated in the gums (see `previews/head/`).
 
 | | |
 |---|---|
-| Triangles | **4,870**, under the 5k budget |
+| Triangles | **4,934**, under the 5k budget |
 | Size | 1 block = 1 stud: about 34 studs long, 15 wide, 15.6 tall (including crystals) |
 | Rig | 22 deform bones: Root, Hips, Chest, Neck, Head, Jaw, Tail1-4, and for each side UpperArm, Forearm, Hand, Thigh, Shin, Foot |
 | Skinning | Up to 2 bones per vertex. Blends at the neck, hips, tail and knee rings so joints bend smoothly; armour blocks and crystals stay rigid. |

@@ -25,7 +25,7 @@ ROOT = os.path.dirname(HERE)
 TEX = os.path.join(ROOT, "textures")
 S_OFF = 14.0
 Z_SCALE = 0.92  # measured reference back-height / length ratio
-DENSITY = float(os.environ.get("DINO_DENSITY", "0.5"))
+DENSITY = float(os.environ.get("DINO_DENSITY", "0.44"))
 TRI_BUDGET = 4990
 
 rng = random.Random(11)
@@ -34,7 +34,7 @@ rng = random.Random(11)
 # UV atlas helpers (see make_textures.py for the layout)
 # --------------------------------------------------------------------------
 CELL = 64
-REG = {"navy": (0, 0, 10, 16), "tan": (640, 0, 6, 9)}
+REG = {"navy": (0, 0, 10, 16), "tan": (640, 0, 6, 9), "gum": (896, 832, 1, 3), "tongue": (960, 832, 1, 3)}
 
 
 def px(x, y):
@@ -413,7 +413,7 @@ H = "Head"
 HEAD = Loft([
     # measured from the reference side view: ~5 studs long, ~4 tall, blunt squared snout
     (V(0, 1.05, 10.12), 0.88, 0.95, w1(H)),     # smaller squared nose
-    (V(0, 1.95, 10.45), 1.1, 1.3, w1(H)),
+    (V(0, 1.95, 10.35), 1.1, 1.2, w1(H)),         # dip -> small concave curve along the nose bridge
     (V(0, 3.2, 10.9), 1.6, 1.68, w1(H)),
     (V(0, 4.6, 11.05), 2.2, 1.92, w1(H)),
     (V(0, 5.8, 10.9), 2.25, 1.85, w1(H)),
@@ -459,7 +459,13 @@ def almond_prism(c, e1, e2, n, d0, d1, s0, s1, shift0=Vector()):
     return verts, out
 
 
-def carve(prim, cutters, bone):
+def fuse(prim, others, bone):
+    """Boolean-union other closed prims into prim, in place, keeping every part's UVs."""
+    carve(prim, [(o["verts"], [f for f, _ in o["faces"]], [u for _, u in o["faces"]]) for o in others], bone,
+          op="UNION")
+
+
+def carve(prim, cutters, bone, op="DIFFERENCE"):
     """Boolean-subtract closed cutter meshes from a closed prim, in place (socket walls stay flat)."""
     sc = bpy.context.scene
     me = bpy.data.meshes.new("carve_src")
@@ -472,23 +478,29 @@ def carve(prim, cutters, bone):
     src = bpy.data.objects.new("carve_src", me)
     sc.collection.objects.link(src)
     cv, cf = [], []
-    for verts, faces in cutters:
+    cu = []
+    for cutter in cutters:
+        verts, faces = cutter[0], cutter[1]
+        uvs = cutter[2] if len(cutter) > 2 else [None] * len(faces)
         o = len(cv)
         cv += verts
         cf += [tuple(o + i for i in f) for f in faces]
+        cu += uvs
     cme = bpy.data.meshes.new("carve_cut")
     cme.from_pydata([tuple(v) for v in cv], [], cf)
     cuv = cme.uv_layers.new(name="UVMap")
-    for poly in cme.polygons:
-        poly.use_smooth = False
-        q = cell_uvs("navy", 1, 1)
-        for li, uv in zip(poly.loop_indices, (q * 3)[: len(poly.loop_indices)]):
+    for poly, fuv in zip(cme.polygons, cu):
+        poly.use_smooth = fuv is not None
+        if fuv is None:
+            q = cell_uvs("navy", 1, 1)
+            fuv = (q * 3)[: len(poly.loop_indices)]
+        for li, uv in zip(poly.loop_indices, fuv):
             cuv.data[li].uv = uv
     cut = bpy.data.objects.new("carve_cut", cme)
     sc.collection.objects.link(cut)
     cut.hide_render = True
     mod = src.modifiers.new("Socket", "BOOLEAN")
-    mod.operation, mod.solver, mod.object = "DIFFERENCE", "EXACT", cut
+    mod.operation, mod.solver, mod.object = op, "EXACT", cut
     ev = src.evaluated_get(bpy.context.evaluated_depsgraph_get())
     m2 = ev.to_mesh()
     uv2 = m2.uv_layers["UVMap"]
@@ -510,6 +522,39 @@ for sgn in (1, -1):
     # outer rim skewed forward: the socket flares open toward the snout so the eye reads from the front
     sockets.append(almond_prism(c, e1, e2, n, 0.9, -0.95, 1.05, 0.8, shift0=Vector((0, -0.15, 0))))
 carve(head_prim, sockets, H)
+
+
+def head_surface(x, s_):
+    """Point + outward normal on the upper head surface at lateral offset x, distance s_."""
+    ys = [r[0].y for r in HEAD.rings]
+    k = max(i for i in range(len(ys) - 1) if ys[i] <= s_) if s_ >= ys[0] else 0
+    kf = min(k + (s_ - ys[k]) / (ys[k + 1] - ys[k]), len(ys) - 1.001)
+    best = min((abs(HEAD.point(kf, a)[0].x - x), a) for a in [i * math.pi / 200 for i in range(-20, 101)])
+    p, n, _ = HEAD.point(kf, best[1])
+    return p, n
+
+
+# Brow ridge (reference): one heavy, smooth ridge per side, low at the inner front corner just over the
+# eye and sweeping up and back to the top outer corner of the skull (angry V from the front). Each
+# ring is seated on the skull surface (60% buried) and the ridge is boolean-unioned into the head
+# mesh, so it grows out of the skull with no seam or gap.
+BROW_SPEC = [  # x, s, half-width, half-height, lift above the skull surface
+    (0.9, 2.85, 0.3, 0.26, 0.3),
+    (1.35, 3.5, 0.6, 0.45, 0.45),
+    (1.75, 4.45, 0.72, 0.52, 0.38),
+    (1.95, 5.45, 0.62, 0.45, 0.2),
+    (1.9, 6.3, 0.2, 0.2, -0.05),
+]
+rings = []
+for x, s_, rx, rw, lift in BROW_SPEC:
+    p, n = head_surface(x, s_)
+    rings.append((p + n * (lift - rw * 0.6), rx, rw, w1(H)))
+BROW = Loft(rings, 8, sq=2.6)
+brow_r = loft(BROW, "tan", cap0=True, cap1=True)
+PRIMS.remove(brow_r)
+brow_l = dict(brow_r, verts=[mir_v(v) for v in brow_r["verts"]],
+              faces=[(tuple(reversed(f)), list(reversed(u))) for f, u in brow_r["faces"]])
+fuse(head_prim, [brow_r, brow_l], H)
 
 # eyeball: faceted gem sitting deep in the socket, deep blue rim -> bright centre
 rim = [EYE_C + EYE_N * -0.5 + (EYE_E1 * a + EYE_E2 * b) * 0.88 for a, b in ALMOND]
@@ -537,25 +582,16 @@ loft_blocks(HEAD, 6, (0.2, 2.0), (0.1 * math.pi, 0.5 * math.pi), tan_p=0.9, half
 box(-1.2, 1.2, 3.2, 5.6, 12.45, 13.05, "tan", H, skip=("-z",))          # forehead plate
 box(-1.55, 1.55, 1.15, 5.8, 9.1, 9.5, "tan", H)                          # upper lip rail
 
-
-# Brow ridge (reference): one heavy, smooth ridge per side that starts low at the inner front
-# corner just over the eye and sweeps up and back to the top outer corner of the skull, so the
-# brows read as an angry V from the front and as a thick overhang from the side.
-BROW = Loft([
-    (V(1.1, 2.95, 12.6), 0.32, 0.24, w1(H)),
-    (V(1.7, 3.6, 13.0), 0.62, 0.42, w1(H)),
-    (V(2.2, 4.55, 13.3), 0.72, 0.5, w1(H)),
-    (V(2.35, 5.55, 13.45), 0.6, 0.45, w1(H)),
-    (V(2.25, 6.4, 13.35), 0.12, 0.12, w1(H)),
-], 8, sq=2.6)
-loft(BROW, "tan", mirror=True, cap0=True)
-# mouth interior + throat
-box(-1.45, 1.45, 1.3, 6.2, 8.2, 9.3, bone=H, uv="mouth")   # dark mouth interior (no glow)
-# upper teeth (hang down)
-for x in (-1.1, -0.37, 0.37, 1.1):
-    pyramid(V(x * 0.9, 1.3, 9.15), (0, 0, -1), 0.75 if abs(x) > 1 else 0.5, 0.2, H)
-for s, L in ((1.9, 0.6), (2.9, 0.5), (3.9, 0.55), (4.9, 0.45)):
-    pyramid(V(1.5, s, 9.15), (0.15, 0, -1), L, 0.2, H, mirror=True)
+# mouth interior: roof of the mouth and back of the throat (gum red, open mouth - no solid block)
+box(-1.45, 1.45, 1.2, 6.3, 9.0, 9.2, "gum", H, skip=("+z",))            # palate
+box(-1.45, 1.45, 5.95, 6.35, 7.6, 9.1, "gum", H, skip=("+y",))          # throat wall
+# upper teeth: a packed row seated in the lip rail (bases buried 0.2 so there are no gaps)
+for i in range(6):
+    x = -1.1 + i * 0.44
+    pyramid(V(x, 1.4, 9.3), (0, 0, -1), (0.85 if abs(x) > 0.8 else 0.6) + 0.2, 0.27, H)
+for i in range(8):
+    s_ = 1.85 + i * 0.5
+    pyramid(V(1.35, s_, 9.3), (0.1, 0, -1), (0.75 if i % 2 == 0 else 0.55) + 0.2, 0.27, H, mirror=True)
 
 # ---------------- JAW (bone Jaw), modelled open like the reference -------
 J = "Jaw"
@@ -568,13 +604,38 @@ JAW = Loft([
     (V(0, 4.1, 7.7), 1.95, 0.98, w1(J)),
     (V(0, 6.2, 7.8), 2.0, 1.05, w1(J)),
 ], 8, sq=3.6)
-loft(JAW, "tan", cap0=True, frame=jf, matfn=lambda k, j: "navy" if j in (3, 4) else "tan")
+loft(JAW, "tan", cap0=True, frame=jf, matfn=lambda k, j: "navy" if j in (3, 4) else "gum" if j == 7 else "tan")
 loft_blocks(JAW, 5, (0.3, 2.6), (-0.2 * math.pi, 0.2 * math.pi), tan_p=1.0, half=True, size=(0.6, 0.9),
             out=(0.05, 0.2), frame=jf, thick=(0.4, 0.55))
-for x in (-1.0, -0.33, 0.33, 1.0):
-    pyramid(jf(V(x * 1.15, 1.2, 8.5)), (0, 0, 1), 0.75 if abs(x) > 0.5 else 0.55, 0.22, J)
-for s in (2.2, 3.2, 4.2, 5.1):
-    pyramid(jf(V(1.6, s, 8.55)), (0.1, 0, 1), 0.5, 0.2, J, mirror=True)
+
+
+def jaw_top(s_):
+    """(half width, top z) of the lower jaw loft at distance s_ (jaw local space)."""
+    for (c0, rx0, rw0, _), (c1, rx1, rw1, _) in zip(JAW.rings, JAW.rings[1:]):
+        if s_ <= c1.y:
+            f = max(0.0, (s_ - c0.y) / (c1.y - c0.y))
+            return rx0 + (rx1 - rx0) * f, c0.z + rw0 + (c1.z + rw1 - c0.z - rw0) * f
+    return JAW.rings[-1][1], JAW.rings[-1][0].z + JAW.rings[-1][2]
+
+
+# lower teeth: packed rows seated in the gums along the jaw rim (bases buried so there are no gaps)
+for i in range(5):
+    x = -0.9 + i * 0.45
+    hw, tz = jaw_top(1.25)
+    pyramid(jf(V(x, 1.25, tz - 0.2)), (0, 0, 1), (0.7 if abs(x) > 0.5 else 0.5) + 0.2, 0.26, J)
+for i in range(8):
+    s_ = 1.75 + i * 0.5
+    hw, tz = jaw_top(s_)
+    pyramid(jf(V(hw * 0.78, s_, tz - 0.2)), (0.1, 0, 1), (0.6 if i % 2 else 0.45) + 0.2, 0.26, J, mirror=True)
+# tongue: rounded, tapering to a tip, lying on the floor of the lower jaw
+TONGUE = Loft([(V(0, s_, jaw_top(s_)[1] + dz), rx, rw, w1(J)) for s_, dz, rx, rw in (
+    (1.75, 0.02, 0.45, 0.14),
+    (2.5, 0.08, 0.8, 0.22),
+    (3.7, 0.12, 0.98, 0.26),
+    (5.0, 0.1, 0.95, 0.26),
+    (6.1, 0.02, 0.85, 0.22),
+)], 8, sq=2.4)
+loft(TONGUE, "tongue", cap0=True, frame=jf)
 for s, L in ((1.9, 0.8), (3.2, 0.95), (4.6, 0.8)):                      # jaw-side horn spikes
     pyramid(jf(V(1.9, s, 8.0)), (0.75, 0.35, 0.6), L, 0.3, J, mat="tan", mirror=True)
 pyramid(jf(V(0.0, 0.8, 7.2)), (0, -0.6, -0.8), 0.7, 0.34, J, mat="tan")  # chin spike
