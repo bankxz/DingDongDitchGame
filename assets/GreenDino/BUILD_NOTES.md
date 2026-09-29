@@ -15,7 +15,7 @@ A green crocodile-dinosaur rebuilt from the reference sheet as smooth, rounded l
 | `source/` | Scripts that rebuild everything: `make_atlas.py` → `build_dino.py` → `export_roblox.py` (`render_views.py` renders the validation images) |
 
 ## Stats
-- **3,278 triangles** (budget: 5,000), 1 mesh, 1 material, 1 texture.
+- **3,926 triangles** (budget: 5,000), 1 mesh, 1 material, 1 texture.
 - 22 bones: Root, Hips, Spine, Chest, Neck, Head, Jaw, Tail1-3, UpperArm/LowerArm/Hand and Thigh/Shin/Foot for each side (L = +X).
 - At most 2 bone influences per vertex; every vertex is weighted.
 - The body, head and tail are one continuous smooth loft (welded vertices, smooth shading), with weights blending along the spine. The lower jaw and each limb segment are rounded tapered tubes bound rigidly to one bone.
@@ -25,7 +25,13 @@ The texture is **painted, not pixel-style**, and the studs are **in the texture,
 - Each region (camo green, leg green, cream, tan, red mouth, tongue, throat, stone spikes, teeth) has **one continuous base colour**, so no coloured squares show.
 - On top of that: fine even grain everywhere, plus soft organic camo blotches and moss tufts. These are kept inside each stud cell and fade out before its edge, so neighbouring cells always join without seams.
 - Every cell has a Roblox "inlet" stud: a recessed square with a shadowed top wall and a lit bottom wall, shaded over whatever colour is underneath. UVs orient each cell so its "up" points up the surface, so all studs are lit from the same side.
-- Atlas: 1024² (Roblox's limit), 4×4 patches of 4×4 cells, 64 px per cell, drawn at 2× and Lanczos-downsampled. Teeth and claws are plain. Eyes are a soft round glow.
+- Atlas: 1024² (Roblox's limit), 4×4 patches of 4×4 cells, 64 px per cell, drawn at 2× and Lanczos-downsampled. Teeth and claws are plain.
+
+## Eyes
+- **Socket:** each eye sits in a real hollow pressed into the head mesh (up to 0.8 cells deep), framed by a rounded rim that thickens on top into a brow ridge.
+- **Eyeball:** a low-poly sphere (12×7) sunk into the socket.
+- **Texture:** projected straight along the eye's axis, with a glowing orange iris, a vertical black reptile slit pupil and a small highlight. The emissive mask makes the iris glow but not the pupil.
+- Eyes, rim and socket all move with the Head bone.
 
 ## Teeth
 Each tooth's root is placed from the actual jaw surface height under all four of its base corners, then sunk 0.55 cells into the gum, so no gap shows. A check that ray-tests all 30 tooth roots against the jaw meshes passes (0 roots outside). Upper teeth use the same bone blend as the gum they sit in, so they stay seated while animating.

@@ -89,11 +89,19 @@ def inlet(img):
   img *= sh[..., None]
 
 def eye_cell():
-  d = np.hypot(xx - C / 2, yy - C / 2) / (C / 2)                          # round glow
-  core, mid, rim = hx('#fff0a0'), hx('#ffa21e'), hx('#b8400e')
-  t = np.clip(d, 0, 1)[..., None]
-  img = np.where(t < 0.45, core * (1 - t / 0.45) + mid * (t / 0.45), mid * (1 - (t - 0.45) / 0.55) + rim * ((t - 0.45) / 0.55))
-  return img
+  """eyeball front (planar-projected onto the sphere): glowing orange iris, vertical reptile slit pupil, highlight"""
+  X, Y = (xx - C / 2) / (C / 2), (yy - C / 2) / (C / 2)                 # -1..1, Y down
+  t = np.clip(np.hypot(X, Y), 0, 1)[..., None]
+  core, mid, rim = hx('#ffe68a'), hx('#ff9a1c'), hx('#a8360c')
+  img = np.where(t < 0.4, core * (1 - t / 0.4) + mid * (t / 0.4), mid * (1 - (t - 0.4) / 0.6) + rim * ((t - 0.4) / 0.6))
+  pupil = np.clip((1 - np.hypot(X / 0.15, Y / 0.66)) / 0.12, 0, 1)      # soft-edged vertical slit
+  img = img * (1 - pupil[..., None]) + hx('#120806') * pupil[..., None]
+  hl = np.clip((1 - np.hypot((X + 0.34) / 0.13, (Y + 0.38) / 0.13)) / 0.25, 0, 1)
+  img = img * (1 - hl[..., None]) + hx('#fff8e8') * hl[..., None]
+  return img, np.clip(1 - pupil, 0, 1) * (t[..., 0] < 1)
+
+def plain_cell(col):
+  return np.ones((C, C, 3)) * hx(col) * grain(0.03, 0.9)[..., None]
 
 # ---------------------------------------------------------------- layout (explicit so caps get seamless strips)
 LAYOUT = {'camo': [0, 1, 2], 'legcamo': [3, 11], 'cream': [4, 5], 'tan': [6, 7], 'red': [8], 'tongue': [9],
@@ -106,8 +114,13 @@ for cat in DRAWN:
     for by in range(P):
       for bx in range(P):
         y0, x0 = (py * P + by) * C, (px * P + bx) * C
-        atlas[y0:y0 + C, x0:x0 + C] = eye_cell() if cat == 'eye' else paint_cell(cat)
-        if cat == 'eye': emi[y0:y0 + C, x0:x0 + C] = 1
+        if cat == 'eye':   # misc patch: row 0 eyeball, row 1 socket rim green, row 2 socket hollow, row 3 eyeball
+          if by in (0, 3):
+            img, m = eye_cell(); atlas[y0:y0 + C, x0:x0 + C] = img; emi[y0:y0 + C, x0:x0 + C] = m
+          else:
+            atlas[y0:y0 + C, x0:x0 + C] = plain_cell('#34502a' if by == 1 else '#1e2c19')
+        else:
+          atlas[y0:y0 + C, x0:x0 + C] = paint_cell(cat)
 LAYOUT.update({'claw': LAYOUT['tooth'], 'dark': LAYOUT['darkred'], 'camomoss': LAYOUT['camo']})   # shared patches
 
 def save(a, path, mode):
@@ -115,5 +128,6 @@ def save(a, path, mode):
   im.resize((S // SS, S // SS), Image.LANCZOS).save(path)
 save(atlas, os.path.join(OUT, '..', 'GreenDino_Color.png'), 'RGB')
 save(emi, os.path.join(OUT, '..', 'GreenDino_Emissive.png'), 'L')
+LAYOUT['cells'] = {'eyeball': [14, 0, 0], 'socket': [14, 0, 1], 'socketdark': [14, 0, 2]}   # fixed single cells
 json.dump(LAYOUT, open(os.path.join(OUT, 'atlas_regions.json'), 'w'), indent=1)
 print('atlas ok', {k: len(v) for k, v in LAYOUT.items()})

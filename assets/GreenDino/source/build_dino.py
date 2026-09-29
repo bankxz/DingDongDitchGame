@@ -16,6 +16,14 @@ JOFF = 24.0          # grid j of world y=0
 NP = 4               # patches per atlas side (4x4 cells each)
 ATL = NP * 4.0       # stud cells per atlas side
 LAYOUT = json.load(open(os.path.join(HERE, 'atlas_regions.json')))
+CELLS = LAYOUT.pop('cells')
+
+def cell_rect(cat, inset=0.08):
+  """UV corners (bl, br, tr, tl) of one fixed atlas cell"""
+  patch, cx, cy = CELLS[cat]; px, py = patch % 4, patch // 4
+  bx, by = px * 4 + cx, (3 - py) * 4 + (3 - cy)
+  a, b = bx + inset, by + inset; c, d = bx + 1 - inset, by + 1 - inset
+  return [(a / 16, b / 16), (c / 16, b / 16), (c / 16, d / 16), (a / 16, d / 16)]
 rng = random.Random(11)
 
 def W(x, y, z):      # grid -> world
@@ -58,6 +66,8 @@ class MeshAcc:
     pts = [self.v[i] for i in idx]
     if uvs is not None:
       self.uv.append(uvs)
+    elif cat in CELLS:
+      self.uv.append(cell_rect(cat)[:len(pts)])
     elif len(pts) == 4:
       # loft quad: lay whole stud cells along the quad's own edges so rows follow the body.
       # Pick which corner is the cell's bottom-left so the cell's "up" points up the surface
@@ -235,7 +245,7 @@ def z_surf(j, x):
   return (zb + zt) / 2 + (zt - zb) / 2 * (1 - u ** e) ** (1 / e)
 
 NB = 18
-JS = [0, 0.9, 2.0, 3.2, 4.4, 5.6, 6.8, 8.0, 9.2, 10.4, 11.6, 13.0] + [13.0 + 1.6 * i for i in range(1, 23)] + [49.5, 51.0, 52.0]
+JS = [0, 0.9, 2.0, 3.2, 4.4, 5.0, 5.6, 6.2, 6.8, 8.0, 9.2, 10.4, 11.6, 13.0] + [13.0 + 1.6 * i for i in range(1, 23)] + [49.5, 51.0, 52.0]
 JS = sorted(set(round(j, 2) for j in JS if j <= L))
 noise = {}
 def jit_for(ri):
@@ -250,8 +260,27 @@ for ri, j in enumerate(JS):
   hw, zb, zt, e = ring_params(j)
   rings.append(ring_pts(0, j, (zb + zt) / 2, hw, (zt - zb) / 2, NB, e, jitter=jit_for(ri)))
 
+# ---- eye sockets: press a hollow into the head loft around each eye
+EYE_J = 5.6
+def eye_frame(s):
+  hw, zb, zt, e = ring_params(EYE_J); zc, hh = (zb + zt) / 2, (zt - zb) / 2
+  v = 0.5                                                   # upper half of the head side
+  u = (1 - v ** e) ** (1 / e)
+  c = Vector((s * hw * u, EYE_J, zc + hh * v))
+  n = Vector((s * u ** (e - 1) / hw, -0.12, v ** (e - 1) / hh)).normalized()   # superellipse normal, slight forward
+  up = (Vector((0, 0, 1)) - n * n.z).normalized(); rt = up.cross(n)
+  return c, n, up, rt
+SOCK_R, SOCK_D = 1.9, 0.8
+for s in (1, -1):
+  c, n, _, _ = eye_frame(s)
+  for ring in rings:
+    for p in ring:
+      d = (p - c).length
+      if d < SOCK_R: p -= n * SOCK_D * (1 - (d / SOCK_R) ** 2) ** 1.5
+
 def body_cat(r, k, g):
   j, x, z = g.y, g.x, g.z
+  if r >= 0 and min((g - eye_frame(s)[0]).length for s in (1, -1)) < 1.25: return "socketdark"
   hw, zb, zt, e = ring_params(j)
   v = (z - zb) / max(0.1, zt - zb)
   if r == -1: return 'camo'                                   # caps: snout tip / tail tip
@@ -274,18 +303,53 @@ def jaw_cat(r, k, g):
 loft(jrings, jaw_cat, lambda p: {'Jaw': 1.0})
 print('T jaw', ACC.tris())
 
-# ---- glowing eyes under a brow block (DETAIL (HEAD))
-def box(c, size, cat, bw):
-  ACC.begin()
-  cx, cy, cz = c; hx, hy, hz = [s / 2 for s in size]
-  P = [W(cx + a * hx, cy + b * hy, cz + d * hz) for d in (-1, 1) for b in (-1, 1) for a in (-1, 1)]
-  for q in ((0, 1, 3, 2), (4, 6, 7, 5), (0, 4, 5, 1), (2, 3, 7, 6), (0, 2, 6, 4), (1, 5, 7, 3)):
-    ACC.quad([P[i] for i in q], cat, bw, fit=(1, 1))
-  ACC.end()
+# ---- eyes: rounded eyeball (painted slit pupil) sitting in the socket, framed by a rim that thickens into a brow
+def eyeball(c, n, up, rt, r, bw, seg=12, rows=7):
+  pole = lambda z: ACC.addv(W(*(c + n * (r * z))), bw)
+  rings_ = []
+  for i in range(1, rows):
+    ph = math.pi * i / rows
+    rings_.append([ACC.addv(W(*(c + (rt * math.cos(2 * math.pi * k / seg) + up * math.sin(2 * math.pi * k / seg)) * (r * math.sin(ph))
+                                + n * (r * math.cos(ph)))), bw) for k in range(seg)])
+  front, back = pole(1), pole(-1)
+  rect = cell_rect('eyeball'); (u0, v0), (u1, _), (_, v1) = rect[0], rect[1], rect[2]
+  cw = W(*c)
+  def uv(vi):   # planar projection along the eye axis -> pupil faces straight out
+    q = (ACC.v[vi] - cw) / U
+    return (u0 + (u1 - u0) * (0.5 + 0.5 * q.dot(rt) / r), v0 + (v1 - v0) * (0.5 + 0.5 * q.dot(up) / r))
+  def f(ids):
+    pts = [ACC.v[i] for i in ids]; cen = sum(pts, Vector()) / len(pts)
+    if newell(pts).dot(cen - cw) < 0: ids = ids[::-1]
+    ACC.face(ids, None, uvs=[uv(i) for i in ids])
+  for k in range(seg):
+    k2 = (k + 1) % seg
+    f([front, rings_[0][k], rings_[0][k2]])
+    f([back, rings_[-1][k2], rings_[-1][k]])
+    for a in range(len(rings_) - 1):
+      f([rings_[a][k], rings_[a + 1][k], rings_[a + 1][k2], rings_[a][k2]])
+
+def socket_rim(c, n, up, rt, R, bw, seg=14, sides=6):
+  ids = []
+  for k in range(seg):
+    th = 2 * math.pi * k / seg
+    d = rt * math.cos(th) + up * math.sin(th)
+    rm = 0.32 + 0.3 * max(0.0, math.sin(th)) ** 1.5          # thicker on top = brow ridge
+    ids.append([ACC.addv(W(*(c + d * (R + rm * math.cos(2 * math.pi * m / sides)) + n * (rm * math.sin(2 * math.pi * m / sides)))), bw)
+                for m in range(sides)])
+  for k in range(seg):
+    for m in range(sides):
+      q = [ids[k][m], ids[(k + 1) % seg][m], ids[(k + 1) % seg][(m + 1) % sides], ids[k][(m + 1) % sides]]
+      tube_c = sum((ACC.v[i] for i in q), Vector()) / 4
+      th = 2 * math.pi * (k + .5) / seg
+      ring_c = W(*(c + (rt * math.cos(th) + up * math.sin(th)) * R))
+      if newell([ACC.v[i] for i in q]).dot(tube_c - ring_c) < 0: q = q[::-1]
+      ACC.face(q, 'socket')
+
 for s in (1, -1):
-  ez = upj_top(5.0) - 2.0
-  box((s * (head_hw(5.0) - 0.15), 5.4, ez), (1.0, 1.3, 1.2), 'eye', {'Head': 1.0})
-  box((s * (head_hw(5.0) - 0.55), 5.4, ez + 1.25), (1.8, 2.6, 1.0), 'camo', {'Head': 1.0})
+  c, n, up, rt = eye_frame(s)
+  eyeball(c - n * 0.3, n, up, rt, 0.85, {'Head': 1.0})
+  socket_rim(c - n * 0.12, n, up, rt, 1.12, {'Head': 1.0})
+print('T eyes', ACC.tris())
 
 # ----------------------------------------------------------------------------- legs: rounded tapered limbs + big flat feet
 def claw(x0, x1, y_back, z0, length, height, bone):
