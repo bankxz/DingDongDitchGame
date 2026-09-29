@@ -10,6 +10,7 @@ rng = np.random.default_rng(7)
 col = np.zeros((ATLAS, ATLAS, 3), np.float32)
 hgt = np.zeros((ATLAS, ATLAS), np.float32)
 emi = np.zeros((ATLAS, ATLAS), np.float32)
+flat = np.zeros((ATLAS, ATLAS, 3), np.float32)
 
 def stud_cell(x, y, c, var=0.07, emissive=0.0, cp=CELL_PX):
     """Paint one cube cell with a raised square stud (engraved/embossed look)."""
@@ -34,6 +35,7 @@ def stud_cell(x, y, c, var=0.07, emissive=0.0, cp=CELL_PX):
     h[s0:s1, s0:s1] = 1.0
     h[s0:s1, s0] = h[s0:s1, s1 - 1] = h[s0, s0:s1] = h[s1 - 1, s0:s1] = 0.75
     col[y:y + cp, x:x + cp] = np.clip(base[None, None, :] * blk[..., None], 0, 255)
+    flat[y:y + cp, x:x + cp] = np.clip(base, 0, 255)
     hgt[y:y + cp, x:x + cp] = h
     emi[y:y + cp, x:x + cp] = emissive
 
@@ -122,14 +124,14 @@ def chest_fn(i, j):
 paint_grid('rune_chest', chest_fn)
 
 DISC = """
-..CCCC..
-.C....C.
-.C.CC.C.
-.C.CC.C.
-.C.CC.C.
-.C....C.
-..CCCC..
-...CC...
+........
+.CCCCCC.
+.CC..CC.
+.CC..CC.
+.CC..CC.
+.CC..CC.
+.CCCCCC.
+........
 """
 def disc_fn(i, j):
     d = ((i + 0.5 - CELLS / 2) ** 2 + (j + 0.5 - CELLS / 2) ** 2) ** 0.5
@@ -142,14 +144,14 @@ def disc_fn(i, j):
 paint_grid('rune_disc', disc_fn)
 
 TAIL = """
-CCCCCCCC
-C......C
-C.C..C.C
-C.C..C.C
-C.C..C.C
-C.C..C.C
-C......C
-CCCCCCCC
+........
+.CCCCCC.
+.CCCCCC.
+.CC..CC.
+.CC..CC.
+.CCCCCC.
+.CCCCCC.
+........
 """
 def tail_fn(i, j):
     rows = glyph_rows(TAIL); r, c_ = j - 4, i - 4
@@ -240,10 +242,53 @@ for j in range(ny):
             base, e = np.array(C), 1.0
         stud_cell(wx + i * cellpx, wy + j * cellpx, base, 0.08, e, cp=int(round(cellpx)))
 
-# glow halo around emissive cyan cells
-em_img = Image.fromarray((emi * 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(10))
-halo = np.asarray(em_img, np.float32)[..., None] / 255.0
-col = np.clip(col + halo * np.array((10, 90, 90), np.float32), 0, 255)
+# ---- the painted sculpt atlas is only used to colour voxels (runes / wing glyphs) ----
+CACHE = os.path.join(os.path.dirname(__file__), '_cache'); os.makedirs(CACHE, exist_ok=True)
+Image.fromarray(flat.astype(np.uint8)).save(os.path.join(CACHE, 'source_flat.png'))
+Image.fromarray(col.astype(np.uint8)).save(os.path.join(CACHE, 'source_color.png'))
+
+# ---------------- final voxel atlas: one studded swatch per palette colour ----------------
+col[:] = 0; hgt[:] = 0; emi[:] = 0
+for key, rgb, e, var in VOX:
+    cx, cy = VOX_SWATCH[key]
+    ox, oy = cx * SW, cy * SW
+    for j in range(-1, CELLS + 1):
+        for i in range(-1, CELLS + 1):
+            x = ox + MARGIN + i * CELL_PX; y = oy + MARGIN + j * CELL_PX
+            stud_cell(min(max(x, ox), ox + SW - CELL_PX), min(max(y, oy), oy + SW - CELL_PX), rgb, var, e)
+halo = np.zeros((ATLAS, ATLAS, 1), np.float32)
+
+# ---------------- stepped wing membrane painting (row 3), one cube per wing cell ----------------
+VC = {k: (rgb, e) for k, rgb, e, _ in VOX}
+wa0, wb0, NA, NB, wc = wing_grid()
+cells = wing_cells()
+wglow = set()
+for (ga, gb), g in [(anch[2], G_BIG), (anch[1], G_MED), (anch[0], G_SML), (anch[3], G_TINY)]:
+    rows = glyph_rows(g)
+    ci0 = int((ga - wa0) / wc) - len(rows[0]) // 2
+    cj0 = int((gb - wb0) / wc) + len(rows) // 2      # row 0 of the glyph is its top (highest b)
+    for r, row in enumerate(rows):
+        for c_, ch in enumerate(row):
+            if ch == 'C':
+                wglow.add((ci0 + c_, cj0 - r))
+for (i, j) in cells:
+    a = wa0 + (i + 0.5) * wc; b = wb0 + (j + 0.5) * wc
+    d = b - _interp(trail, a); u = _interp(lead, a) - b
+    k = 'teal'
+    if d < 2.4: k = 'teal_mid'
+    if d < 1.3: k = 'teal_light'
+    if (i, j - 1) not in cells or d < 0.5: k = 'glow_edge'
+    if u < 1.1: k = 'dark'
+    if (i, j) in wglow: k = 'glow'
+    rgb, e = VC[k]
+    stud_cell(i * CELL_PX, WING_ROW_Y + (NB - 1 - j) * CELL_PX, rgb, 0.08, e)
+for name, art in RUNE_ART.items():
+    ox_, oy_ = RUNE_ORIGIN[name]
+    for r, row in enumerate(art):
+        for q, ch in enumerate(row):
+            k = ART_COLORS.get(ch, 'gold')          # '.' cells: gold (geometry crops them)
+            rgb, e = VC[k]
+            stud_cell(ox_ + q * CELL_PX, oy_ + r * CELL_PX, rgb, 0.06, e)
 
 os.makedirs(OUT, exist_ok=True)
 Image.fromarray(col.astype(np.uint8)).save(os.path.join(OUT, 'AncientDragon_Color_2048.png'))

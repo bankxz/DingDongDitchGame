@@ -27,3 +27,19 @@ The evidence is in `validation/v1_rejected/reference_vs_model.png`.
   - spread and enlarged the wings
   - gave the tail thicker segments with a single rune per side
 - Remaining known conflict: the reference TOP/BOTTOM panels show the wings flat, while the other panels show them upright. The model follows the 3/4, front, back and side views.
+
+## v2 rejected → v3
+**User feedback:** "doesn't look like the reference, clone the style down to the last detail".
+
+**Diagnosis:** the problem was style. v2's smooth lofted tubes were the wrong construction language. Every surface in the reference is small uniform cubes, each with one square stud. The reference also has stepped silhouettes, spars made of cube chunks, horns and spikes built as tapered cube chains, and runes made of individual glowing cubes.
+
+**v3 pipeline:**
+1. Keep the v2 landmark sculpt as a hidden source shape.
+2. Voxelize it at the reference cube size (0.6u), using per-part ray parity so the smallest containing part owns each cube (armour, horns and claws keep their own colours).
+3. Colour each exposed cube face from its owning part, then apply a 3×3 majority filter to remove speckle.
+4. Greedy-merge coplanar same-colour faces, each at most 16 cells, blending bone weights per corner.
+5. Build the wings as a stepped studded membrane painted cell by cell, with gold cube-chain spars.
+6. Build horns, spikes, claws and fangs as tapered cube chains.
+7. Build the runes (chest shield, rune discs, knee plates, tail glyphs) as pixel-art plates with cell-exact UVs.
+
+The result is 4,956 tris. Walk and idle deformation were checked on contact sheets.

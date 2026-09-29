@@ -150,3 +150,88 @@ def wing_glyph_anchors():
         out.append(wing2d(c))
     out.append(wing2d(lerp(W_WRIST, lerp(W_ROOT, W_TIPS[0], 0.5), 0.55)))
     return out
+
+
+# ---------------- final voxel palette (4x4 swatch grid of 512px, one stud cube per cell) ----------------
+VOX_CELL_U = 0.6          # voxel (cube) size in design units = one stud
+VOX = [  # key, rgb, emissive, per-cube brightness variation
+    ('charcoal', (56, 58, 72), 0.0, 0.12), ('dark', (38, 40, 52), 0.0, 0.10),
+    ('gold', (236, 164, 44), 0.0, 0.08), ('cream', (228, 200, 150), 0.0, 0.07),
+    ('horn', (240, 216, 166), 0.0, 0.06), ('belly', (214, 188, 140), 0.0, 0.07),
+    ('teal', (22, 80, 94), 0.0, 0.08), ('teal_mid', (28, 118, 130), 0.1, 0.08),
+    ('teal_light', (34, 160, 170), 0.3, 0.07), ('glow_edge', (66, 214, 214), 0.7, 0.05),
+    ('glow', (80, 252, 246), 1.0, 0.04), ('slate', (74, 80, 98), 0.0, 0.10),
+]
+VOX_SWATCH = {k: (i % 4, i // 4) for i, (k, *_) in enumerate(VOX)}
+
+
+# ---------------- stepped wing membrane grid (painted in atlas row 3) ----------------
+WING_ROW_Y = 3 * SW          # atlas pixel row where the membrane painting starts
+_N3 = (_EA[1] * _EB[2] - _EA[2] * _EB[1], _EA[2] * _EB[0] - _EA[0] * _EB[2], _EA[0] * _EB[1] - _EA[1] * _EB[0])
+
+
+def wing_plane_pt(a, b):
+    """3D point (left wing, design coords) on the wing plane."""
+    return _add(_add(W_ROOT, _mul(_EA, a)), _mul(_EB, b))
+
+
+def wing_plane_normal():
+    return _N3
+
+
+def wing_grid():
+    """cell grid of the membrane in the wing plane: (a0, b0, NA, NB, cell)."""
+    c = VOX_CELL_U
+    pts = wing_outline_2d()
+    a0 = min(p[0] for p in pts) - c; b0 = min(p[1] for p in pts) - c
+    NA = int((max(p[0] for p in pts) - a0) / c) + 2
+    NB = int((max(p[1] for p in pts) - b0) / c) + 2
+    return a0, b0, NA, NB, c
+
+
+def point_in_poly(poly, x, y):
+    inside = False
+    for (x0, y0), (x1, y1) in zip(poly, poly[1:] + poly[:1]):
+        if (y0 > y) != (y1 > y) and x < x0 + (y - y0) * (x1 - x0) / (y1 - y0):
+            inside = not inside
+    return inside
+
+
+def wing_cells():
+    """set of (ia, ib) membrane cells inside the outline."""
+    a0, b0, NA, NB, c = wing_grid()
+    poly = wing_outline_2d()
+    return {(i, j) for i in range(NA) for j in range(NB)
+            if point_in_poly(poly, a0 + (i + 0.5) * c, b0 + (j + 0.5) * c)}
+
+
+# ---------------- pixel-art rune plates (painted cell-exact in atlas row 3, right of the wing) ----------------
+# G gold, D dark, C glow, T teal, S slate, K charcoal
+RUNE_ART = {
+    'disc': ["..GGGG..",
+             ".GGDDGG.",
+             "GGDCCDGG",
+             "GDCDDCDG",
+             "GDCDDCDG",
+             "GGDCCDGG",
+             ".GGDDGG.",
+             "..GGGG.."],
+    'chest': ["GGGGGGG",
+              "GTTCTTG",
+              "GTCTCTG",
+              "GCTTTCG",
+              "GTCTCTG",
+              "GGTCTGG",
+              ".GGTGG.",
+              "..GGG.."],
+    'tail': ["CCCC",
+             "CTTC",
+             "CCCC"],
+    'knee': ["GGGG",
+             "GCTG",
+             "GTCG",
+             "GGGG"],
+}
+RUNE_ORIGIN = {'disc': (1290, WING_ROW_Y + 16), 'chest': (1560, WING_ROW_Y + 16),
+               'tail': (1800, WING_ROW_Y + 16), 'knee': (1800, WING_ROW_Y + 150)}
+ART_COLORS = {'G': 'gold', 'D': 'dark', 'C': 'glow', 'T': 'teal', 'S': 'slate', 'K': 'charcoal'}
