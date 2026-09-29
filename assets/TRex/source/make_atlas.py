@@ -18,18 +18,18 @@ GRID = TILE // CELL
 
 # name: (base colour, per-cell jitter, stud strength, cracks, seams)
 TILES = {
-    'BONE':       ((230, 180, 130), 10, 1.0, False, True),
-    'BONE_LIGHT': ((240, 200, 150), 8, 1.0, False, True),
-    'CHARCOAL':   ((80, 56, 64), 8, 1.0, True, True),
-    'MAROON':     ((118, 36, 38), 8, 1.0, True, True),
-    'MIX':        (None, 0, 1.0, True, True),
-    'DARK':       ((64, 34, 38), 6, 1.0, True, True),
-    'MOUTH':      ((132, 22, 34), 8, 0.6, False, True),
+    'BONE':       ((230, 180, 130), 10, 1.0, False, False),
+    'BONE_LIGHT': ((240, 200, 150), 8, 1.0, False, False),
+    'CHARCOAL':   ((80, 56, 64), 8, 1.0, True, False),
+    'MAROON':     ((118, 36, 38), 8, 1.0, True, False),
+    'MIX':        (None, 0, 1.0, True, False),
+    'DARK':       ((64, 34, 38), 6, 1.0, True, False),
+    'MOUTH':      ((132, 22, 34), 8, 0.6, False, False),
     'TONGUE':     ((168, 36, 48), 6, 0.4, False, False),
     'TEETH':      ((240, 212, 170), 0, 0.0, False, False),
     'EYE':        ((255, 60, 40), 0, 0.0, False, False),
     'LAVA':       ((235, 40, 24), 0, 0.0, False, False),
-    'BONE_DARK':  ((200, 146, 102), 8, 1.0, False, True),
+    'BONE_DARK':  ((200, 146, 102), 8, 1.0, False, False),
 }
 ORDER = list(TILES)
 MIX_COLOURS = [(128, 40, 42), (92, 50, 58), (70, 34, 40), (140, 48, 46), (100, 34, 36), (76, 52, 60)]
@@ -54,38 +54,40 @@ def stud_shading(normal_png, ao_png):
     return shade * ao
 
 
+def mottle(colours, rng, cells=4):
+    """Smooth low-frequency colour variation (no per-block checkerboard)."""
+    grid = np.array([[rng.choice(colours) for _ in range(cells)] for _ in range(cells)], np.float32)
+    small = Image.fromarray(np.clip(grid, 0, 255).astype(np.uint8))
+    return np.asarray(small.resize((TILE, TILE), Image.BICUBIC), np.float32)
+
+
 def make_tile(name, shade, rng):
     base, jitter, stud_k, cracks, seams = TILES[name]
-    img = np.zeros((TILE, TILE, 3), np.float32)
-    for gy in range(GRID):
-        for gx in range(GRID):
-            if base is None:
-                col = np.array(rng.choice(MIX_COLOURS), np.float32)
-            else:
-                col = np.array(base, np.float32) + rng.uniform(-jitter, jitter)
-            s = 1.0 + stud_k * (shade - 1.0)
-            img[gy*CELL:(gy+1)*CELL, gx*CELL:(gx+1)*CELL] = col * s[..., None]
+    if base is None:
+        colour = mottle(MIX_COLOURS, rng)
+    else:
+        shades = [tuple(np.array(base) + rng.uniform(-jitter, jitter)) for _ in range(6)]
+        colour = mottle(shades, rng)
+    s = 1.0 + stud_k * (np.tile(shade, (GRID, GRID)) - 1.0)
+    img = colour * s[..., None]
     if seams:
         for i in range(GRID + 1):
             p = min(i * CELL, TILE - 1)
             img[p, :] *= 0.72
             img[:, p] *= 0.72
-            if i * CELL + 1 < TILE:
-                img[i * CELL + 1, :] *= 1.08      # soft bevel highlight on each block
-                img[:, i * CELL + 1] *= 1.08
     img = np.clip(img, 0, 255).astype(np.uint8)
     pil = Image.fromarray(img)
     if cracks:
         d = ImageDraw.Draw(pil)
         for _ in range(4 if name in ('MIX', 'MAROON') else 2):
-            x, y = rng.randrange(GRID + 1), rng.randrange(GRID + 1)
-            pts = [(x * CELL, y * CELL)]
-            for _ in range(rng.randrange(3, 7)):
-                if rng.random() < 0.5:
-                    x = max(0, min(GRID, x + rng.choice((-1, 1))))
-                else:
-                    y = max(0, min(GRID, y + rng.choice((-1, 1))))
-                pts.append((x * CELL, y * CELL))
+            x, y = rng.uniform(0, TILE), rng.uniform(0, TILE)
+            ang = rng.uniform(0, 2 * np.pi)
+            pts = [(x, y)]
+            for _ in range(rng.randrange(4, 8)):
+                ang += rng.uniform(-0.9, 0.9)
+                ln = rng.uniform(10, 26)
+                x, y = x + ln * np.cos(ang), y + ln * np.sin(ang)
+                pts.append((x, y))
             d.line(pts, fill=(140, 20, 16), width=5)
             d.line(pts, fill=CRACK, width=2)
     return pil

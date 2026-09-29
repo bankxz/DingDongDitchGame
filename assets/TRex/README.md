@@ -1,6 +1,6 @@
 # Red stud T-rex (Roblox)
 
-Blocky voxel T-rex with the Roblox stud texture, rigged, with Idle and Walk animations.
+Low-poly T-rex with the Roblox stud texture, rigged, with Idle and Walk animations. Body, neck and tail are one smooth tapered tube; the bone plates, ribs, horns and toes are tapered rounded shapes.
 
 | File | What it is |
 |---|---|
@@ -12,9 +12,9 @@ Blocky voxel T-rex with the Roblox stud texture, rigged, with Idle and Walk anim
 | `textures/` | 1024² stud atlas: albedo, normal, emissive |
 | `source/` | Scripts that rebuild everything from scratch |
 
-- 3,954 triangles, one mesh, one material, one 1024×1024 texture atlas
+- 3,236 triangles, one mesh, one material, one 1024×1024 texture atlas
 - 23 bones: Root, Hips, Spine, Chest, Neck, Head, Jaw, Tail1–6, Thigh/Shin/Foot .L/.R, UpperArm/Forearm .L/.R
-- Rigid 1-bone skin weights. The bind pose is neutral, with the legs straight under the hips and the arms relaxed forward. The jaw is open in the bind pose to match the reference; the Jaw bone opens and closes it.
+- Skin weights blend at the joints (neck, spine, tail, knees, elbows), so the body and tail bend smoothly. The bind pose is neutral, with the legs straight under the hips and the arms relaxed forward. The jaw is open in the bind pose to match the reference; the Jaw bone opens and closes it.
 - Real size is about 15 m, which is roughly 53 studs long. The model is exported in metres, so Roblox's importer sizes it correctly. If it comes in too big or too small, change the scale in the importer.
 
 ## Import into Roblox Studio
