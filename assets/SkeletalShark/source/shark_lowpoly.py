@@ -135,16 +135,21 @@ JAW_HW = ([2.6, 4, 6, 9.6], [2.9, 3.6, 4.1, 4.4])
 
 
 def build_jaw(m):
-    secs = []
+    """Solid lower jaw (bevelled top) with a raised blue tongue plate; the teeth are embedded in its rim."""
+    secs, tongue = [], []
     for i in JAW_I:
         top = float(np.interp(i, *JAW_TOP))
         hw = float(np.interp(i, *JAW_HW))
         bot = 1.2 if i < 3.0 else 1.0
-        fl = top - 0.9
-        rim = hw - 0.8
-        secs.append(np.array([(i, -hw, top), (i, -0.9 * hw, bot), (i, 0.9 * hw, bot), (i, hw, top),
-                              (i, rim, top), (i, rim, fl), (i, -rim, fl), (i, -rim, top)]))
-    loft(m, secs, lambda k: BLUE if k == 5 else BONE, "Jaw", "jaw")
+        secs.append(np.array([(i, -(hw - 0.25), top), (i, -hw, top - 0.2), (i, -0.9 * hw, bot),
+                              (i, 0.9 * hw, bot), (i, hw, top - 0.2), (i, hw - 0.25, top)]))
+        if i >= 3.4:
+            ti = max(i, 3.9)
+            tw = hw - 1.0
+            tongue.append(np.array([(ti, -tw, top - 0.1), (ti, tw, top - 0.1), (ti, tw, top + 0.12),
+                                    (ti, -tw, top + 0.12)]))
+    loft(m, secs, BONE, "Jaw", "jaw")
+    loft(m, tongue, BLUE, "Jaw", "jaw")
     box(m, (9.3, -2.6, 0.5), (10.9, 2.6, 1.9), BONE, "Jaw", "jaw")
     box(m, (3.0, -1.6, 0.7), (6.0, 1.6, 1.25), BONE, "Jaw", "jaw")  # chin block
 
@@ -157,18 +162,18 @@ def build_teeth(m):
         for i, L in zip(up_i, up_L):
             zb = float(np.interp(i, *SNOUT_BOT))
             w = sd * (0.85 * hw_at(i) - 0.4)
-            pyramid(m, (i, w, zb + 0.1), 0.75, (i, w, zb - L), "Head", "teeth")
+            pyramid(m, (i, w, zb + 0.3), 0.75, (i, w, zb - L), "Head", "teeth")
     for w in (-1.3, -0.45, 0.45, 1.3):
-        pyramid(m, (0.55, w, 7.2), 0.7, (0.55, w, 7.2 - 1.6), "Head", "teeth")
+        pyramid(m, (0.55, w, 7.4), 0.7, (0.55, w, 7.2 - 1.6), "Head", "teeth")
     lo_i = [3.6, 4.4, 5.2, 6.0, 6.8, 7.6]
     lo_L = [1.25, 1.35, 1.35, 1.25, 1.1, 1.0]
     for sd in (1, -1):
         for i, L in zip(lo_i, lo_L):
             zb = float(np.interp(i, *JAW_TOP))
             w = sd * (float(np.interp(i, *JAW_HW)) - 0.4)
-            pyramid(m, (i, w, zb - 0.1), 0.68, (i, w, zb + L), "Jaw", "teeth")
+            pyramid(m, (i, w, zb - 0.3), 0.68, (i, w, zb + L), "Jaw", "teeth")
     for w in (-1.3, -0.45, 0.45, 1.3):
-        pyramid(m, (3.0, w, 2.85), 0.64, (3.0, w, 2.85 + 1.2), "Jaw", "teeth")
+        pyramid(m, (3.0, w, 2.6), 0.64, (3.0, w, 2.9 + 1.1), "Jaw", "teeth")
 
 
 # ----------------------------------------------------------------------------- body
@@ -310,21 +315,30 @@ def disc(m, ci, cz, rx, rz, w0, w1, dome, sd, mat, bone, part, n=16):
 
 
 def eye_canal_cutter(n=16):
-    """Two closed cylinders (shark coords) used as boolean cutters for the eye canals."""
+    """Boolean cutters for the eye canals: a tapered, slightly almond-shaped funnel tilted down toward the
+    snout - wide bevelled mouth at the skull surface, narrowing into the canal that holds the eye."""
     ci, cz = EYE_C
     hw = hw_at(ci)
+    tilt = 0.22
+    # (lateral depth offset from the skull side, horizontal radius, vertical radius)
+    rings = [(1.6, 1.55, 1.25), (0.0, 1.22, 0.98), (-0.35, 0.98, 0.86), (-0.75, 0.86, 0.8),
+             (-CANAL_DEPTH, 0.8, 0.78)]
     verts, faces = [], []
     for sd in (1, -1):
         base = len(verts)
-        for w in (hw - CANAL_DEPTH, hw + 1.5):
+        for off, rx, rz in rings:
             for k in range(n):
                 t = 2 * math.pi * k / n
-                verts.append((ci + CANAL_R * math.cos(t), sd * w, cz + CANAL_R * math.sin(t)))
+                di, dz = rx * math.cos(t), rz * math.sin(t)
+                verts.append((ci + di * math.cos(tilt) - dz * math.sin(tilt), sd * (hw + off),
+                              cz + di * math.sin(tilt) + dz * math.cos(tilt)))
+        nr = len(rings)
         faces.append([base + k for k in range(n)][::-1])
-        faces.append([base + n + k for k in range(n)])
-        for k in range(n):
-            k2 = (k + 1) % n
-            faces.append([base + k, base + k2, base + n + k2, base + n + k])
+        faces.append([base + (nr - 1) * n + k for k in range(n)])
+        for r in range(nr - 1):
+            for k in range(n):
+                k2 = (k + 1) % n
+                faces.append([base + r * n + k, base + r * n + k2, base + (r + 1) * n + k2, base + (r + 1) * n + k])
     return verts, faces
 
 

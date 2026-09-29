@@ -77,6 +77,7 @@ VIEWS = {
     "back": (Vector((0, 1, 0.45)), False, 40),
     "top": (Vector((0, 0, 1)), True, 15.6),
     "three_quarter": (Vector((0.75, -0.75, 0.32)), False, 50),
+    "mouth": (Vector((0.35, -1, 0.55)), False, 70),
 }
 cam_data = bpy.data.cameras.new("Cam")
 cam = bpy.data.objects.new("Cam", cam_data)
@@ -97,7 +98,7 @@ def place(view):
     if ortho:
         cam_data.ortho_scale = s
     else:
-        cam.location = CENTER + d * (26 if view == "three_quarter" else 15)
+        cam.location = (CENTER if view != "mouth" else Vector((0, -6.2, 1.2))) + d * (26 if view == "three_quarter" else 15 if view != "mouth" else 7)
         cam_data.lens = s
 
 

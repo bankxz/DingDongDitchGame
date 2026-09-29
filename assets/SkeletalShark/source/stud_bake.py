@@ -48,25 +48,20 @@ def _hash(a, b, seed):
     return ((h ^ (h >> 16)) & 0xFFFF) / 65535.0
 
 
-def stud_pattern(a, b, spacing=1.8, size=0.95, lw=0.11, density=0.62, seed=3):
-    """World-space stud grid (cube units) -> (dark, light, inner) masks.
-    Every stud has the same size everywhere on the model; ~28% are partial corner marks."""
+def stud_pattern(a, b, spacing=1.5, size=0.9, lw=0.11, seed=3):
+    """Regular world-space stud grid (cube units): one identical engraved square in every cell.
+    Returns (dark, light, inner, cell_a, cell_b)."""
     ca, cb = np.floor(a / spacing), np.floor(b / spacing)
-    present = _hash(ca, cb, seed) < density
-    ja = (_hash(ca, cb, seed + 1) - 0.5) * 0.35 * spacing
-    jb = (_hash(ca, cb, seed + 2) - 0.5) * 0.35 * spacing
-    s = 0.5 * size * (0.85 + 0.3 * _hash(ca, cb, seed + 3))
-    la = a - (ca + 0.5) * spacing - ja
-    lb = b - (cb + 0.5) * spacing - jb
-    ins = present & (np.abs(la) < s) & (np.abs(lb) < s)
-    partial = _hash(ca, cb, seed + 4) < 0.28
+    s = 0.5 * size
+    la = a - (ca + 0.5) * spacing
+    lb = b - (cb + 0.5) * spacing
+    ins = (np.abs(la) < s) & (np.abs(lb) < s)
     top, left = lb > s - lw, la < -s + lw
     bot, right = lb < -s + lw, la > s - lw
     dark = ins & (top | left)
-    dark &= ~partial | (((top) & (la < 0.2 * s)) | ((left) & (lb > -0.2 * s)))
-    light = ins & (bot | right) & ~dark & ~partial
-    inner = ins & ~dark & ~light & ~partial
-    return dark, light, inner
+    light = ins & (bot | right) & ~dark
+    inner = ins & ~dark & ~light
+    return dark, light, inner, ca, cb
 
 
 def bake(uv, pos, nrm, mat, isl, zrange, frames=None, eyes=(), size=1024, seed=5):
@@ -75,6 +70,8 @@ def bake(uv, pos, nrm, mat, isl, zrange, frames=None, eyes=(), size=1024, seed=5
     emis = np.zeros((size, size))
     islmap = np.full((size, size), -1, np.int32)
     matmap = np.full((size, size), -1, np.int32)
+    base_img = np.zeros((size, size, 3))
+    studmap = np.full((size, size), -1, np.int64)
     P = np.stack([uv[..., 0] * size, (1 - uv[..., 1]) * size], -1)  # pixel coords
     a_uv = 0.5 * np.abs(np.cross(P[:, 1] - P[:, 0], P[:, 2] - P[:, 0]))
     a_w = 0.5 * np.linalg.norm(np.cross(pos[:, 1] - pos[:, 0], pos[:, 2] - pos[:, 0]), axis=1)
@@ -127,16 +124,34 @@ def bake(uv, pos, nrm, mat, isl, zrange, frames=None, eyes=(), size=1024, seed=5
                 sa, sb = -wl[:, 0] * np.sign(nl[1]), wl[:, 2]
             else:
                 sa, sb = wl[:, 1], -wl[:, 0]
-            dk, lt, inn = stud_pattern(sa, sb, seed=seed + 17 * ax)
+            dk, lt, inn, ca, cb = stud_pattern(sa, sb)
+            base_col = col.copy()
             col[inn] *= 1.03
-            col[dk] *= 0.62
+            col[dk] *= 0.66
             col[lt] += (255 - col[lt]) * 0.33
+            ins = dk | lt | inn
+            sid = np.full(len(col), -1, np.int64)
+            sid[ins] = ((ax * 100003 + (ca[ins].astype(np.int64) + 5000)) * 100003 + (cb[ins].astype(np.int64) + 5000))
         px = q[inside].astype(int)
         img[px[:, 1], px[:, 0]] = col
+        if mat[t] in STUDDED:
+            base_img[px[:, 1], px[:, 0]] = base_col
+            studmap[px[:, 1], px[:, 0]] = sid
+        else:
+            base_img[px[:, 1], px[:, 0]] = col
+            studmap[px[:, 1], px[:, 0]] = -1
         islmap[px[:, 1], px[:, 0]] = isl[t]
         matmap[px[:, 1], px[:, 0]] = mat[t]
         if mat[t] in (2, 5):
             emis[px[:, 1], px[:, 0]] = 1.0 if mat[t] == 2 else 0.8
+
+    # remove studs that a face edge would cut off: a stud must be (nearly) fully painted on one island
+    full_px = (0.9 * k) ** 2
+    key = np.where(studmap >= 0, studmap * 4099 + islmap, -1)
+    ks, inv, cnt = np.unique(key.ravel(), return_inverse=True, return_counts=True)
+    cut = (ks >= 0) & (cnt < 0.85 * full_px)
+    bad = cut[inv].reshape(key.shape)
+    img[bad] = base_img[bad]
 
     filled = islmap >= 0
     # bevel-style highlight along island borders (real geometric edges on a low-poly mesh)

@@ -4,7 +4,7 @@ A skeletal shark built in Blender 4.2 from the "Skeletal Shark – Rare Aquatic 
 
 | | |
 |---|---|
-| Triangles | **3,538**, under the 5k budget. One mesh and one material. |
+| Triangles | **3,742**, under the 5k budget. One mesh and one material. |
 | Texture | `textures/SkeletalShark_Color.png` (1024², baked colour, gradient and studs), `textures/SkeletalShark_Emissive.png` (glow mask) |
 | Rig | 11 bones. Max 2 influences per vertex. Every vertex is weighted. |
 | Animations | `Idle` (90 f, loop), `Walk` (40 f, loop, swim cycle), `Run` (24 f, loop, fast swim), `Attack` (41 f, lunge + bite). All at 30 fps. |
@@ -59,12 +59,9 @@ The body and rib vertices are blended along the spine chain, so the swim wave be
 
 ## Stud texture
 
-The stud is painted into the colour texture, not modelled. It follows the example meshes: engraved squares with a dark inner shadow on two sides and a light lip on the other two. About 28% of them are partial corner marks.
+The stud is painted into the colour texture, not modelled. It follows the example meshes: engraved squares with a dark inner shadow on two sides and a light lip on the other two.
 
-**Uniform coverage:** studs are laid out on a grid in the model's own space, not in texture space. Every face uses the grid plane it faces most (the pectoral fins use their own tilted axes). As a result:
-- every stud is the same size (about 0.95 blocks) on every surface;
-- they are spaced evenly (1.8 blocks, about 62% of grid cells filled);
-- they line up with the model regardless of how the texture is laid out.
+**Uniform grid:** the studs sit on a regular grid in the model's own space, not in texture space. Every grid cell has a stud, all the same size (0.9 blocks) and spacing (1.5 blocks), with no random gaps or jitter. Each face uses the grid plane it faces most (the pectoral fins use their own tilted axes), so studs line up with the model regardless of how the texture is laid out. A stud that a face edge would cut off is left out, so there are no half-studs at the edges.
 
 **Anti-aliasing:** the texture is baked at 2048² and downsampled to the 1024² file Roblox uses, so the stud lines stay clean.
 
@@ -74,9 +71,13 @@ The texture also has two finishing touches:
 
 The teeth, glow cores and eyes are plain colours without studs.
 
+## Jaw
+
+The lower jaw is solid, with a bevelled top edge and a raised dark-blue tongue plate inside the tooth line. Every tooth, upper and lower, is sunk into the bone, so no tooth bases are visible.
+
 ## Eyes
 
-Each eye sits in a round canal that is cut into the skull with a boolean, framed by a brow ridge above and a cheekbone below. The canal walls are dark blue, with a cyan glow painted around the eye. Inside the canal:
+Each eye sits in a canal cut into the skull with a boolean, framed by a brow ridge above and a cheekbone below. The canal is a tapered funnel rather than a straight tube: its opening is a wide, slightly almond-shaped bevel, angled down toward the snout, and it narrows as it goes into the skull. The canal walls are dark blue, with a cyan glow painted around the eye. Inside the canal:
 - a round, domed neon iris (deep blue centre fading to bright cyan, with a white-hot rim);
 - a vertical slit pupil, modelled as its own raised disc, with a small catch-light.
 
