@@ -142,12 +142,13 @@ def cap_uv(tile, pts2d):
 
 
 def loft(path, sizes, tile, weights, sides=8, p=2.6, up=(0, 0, 1), caps=(True, True),
-         pivot=None, pivot_rot=None, smooth=True, cap_tile=None):
+         pivot=None, pivot_rot=None, smooth=True, cap_tile=None, seg_tiles=None):
     """Sweep a rounded cross-section along a polyline.
 
     path    : list of centre points
     sizes   : list of (width, height) per ring; width runs along the 'side' axis
     weights : list of {bone: weight} per ring (blends at joints = smooth bending)
+    seg_tiles: optional tile per segment between rings (one mesh, several materials-in-atlas)
     up      : hint for the section's height axis
     """
     path = [Vector(c) for c in path]
@@ -175,7 +176,7 @@ def loft(path, sizes, tile, weights, sides=8, p=2.6, up=(0, 0, 1), caps=(True, T
             ea = (verts[b] - verts[a]).length
             eb = ((verts[d] - verts[a]).length + (verts[c] - verts[b]).length) / 2
             faces.append((a, b, c, d))
-            uvs.append(quad_uv(tile, ea, eb))
+            uvs.append(quad_uv(seg_tiles[i] if seg_tiles else tile, ea, eb))
     for end, on in ((0, caps[0]), (len(rings) - 1, caps[1])):
         if not on:
             continue
@@ -212,23 +213,27 @@ def mhorn(base, top, bw, bd, tw, td, tile, bone, **kw):
         horn((base[0] * sgn, base[1], base[2]), (top[0] * sgn, top[1], top[2]), bw, bd, tw, td, tile, b, **kw)
 
 
-def talon(root, direction, length, hook, width, height, bone, up=(0, 0, 1), tile='TEETH'):
-    """Curved, tapering claw: arcs from `root` along `direction` and hooks down by `hook`,
-    narrowing to a sharp tip. Laterally flattened like a real talon."""
-    r, d, u = Vector(root), Vector(direction).normalized(), Vector(up).normalized()
-    p0, p1 = r, r + d * (length * 0.55) + u * (length * 0.12)
-    p2 = r + d * length - u * hook
-    ts = (0.0, 0.34, 0.68, 1.0)
-    path = [(1 - t) ** 2 * p0 + 2 * (1 - t) * t * p1 + t * t * p2 for t in ts]
-    taper = (1.0, 0.78, 0.45, 0.06)
-    loft(path, [(width * k, height * k) for k in taper], tile, [{bone: 1}] * 4, sides=5, p=2.2,
-         up=tuple(u), caps=(False, True))
+def digit(root, end, root_size, end_size, claw_dir, claw_len, hook, claw_w, claw_h, bone, tile,
+          up=(0, 0, 1)):
+    """A toe/finger and its claw as ONE continuous mesh: the digit runs root -> end, then the
+    same tube carries on as a curved talon that hooks down (-up) and tapers to a sharp tip."""
+    r, e = Vector(root), Vector(end)
+    d, u = Vector(claw_dir).normalized(), Vector(up).normalized()
+    p0, p1, p2 = e, e + d * (claw_len * 0.55) + u * (claw_len * 0.1), e + d * claw_len - u * hook
+    bez = lambda t: (1 - t) ** 2 * p0 + 2 * (1 - t) * t * p1 + t * t * p2  # noqa: E731
+    path = [r, e] + [bez(t) for t in (0.12, 0.45, 0.78, 1.0)]
+    sizes = [root_size, end_size, (claw_w, claw_h), (claw_w * 0.72, claw_h * 0.72),
+             (claw_w * 0.4, claw_h * 0.4), (claw_w * 0.05, claw_h * 0.05)]
+    seg = [tile, 'TEETH', 'TEETH', 'TEETH', 'TEETH']
+    loft(path, sizes, tile, [{bone: 1}] * len(path), sides=5, p=2.4, up=tuple(u), seg_tiles=seg,
+         cap_tile=tile)
 
 
-def mtalon(root, direction, length, hook, width, height, bone, up=(0, 0, 1), **kw):
+def mdigit(root, end, root_size, end_size, claw_dir, claw_len, hook, claw_w, claw_h, bone, tile, up=(0, 0, 1)):
     for sgn, suf in ((1, '.L'), (-1, '.R')):
-        talon((root[0] * sgn, root[1], root[2]), (direction[0] * sgn, direction[1], direction[2]), length, hook,
-              width, height, bone + suf, up=(up[0] * sgn, up[1], up[2]), **kw)
+        m = lambda c: (c[0] * sgn, c[1], c[2])  # noqa: E731
+        digit(m(root), m(end), root_size, end_size, m(claw_dir), claw_len, hook, claw_w, claw_h, bone + suf,
+              tile, up=m(up))
 
 
 def W(**kw):
@@ -477,11 +482,11 @@ def build_leg():
     mloft([(6.4, -0.3, 0.75), (6.4, -2.6, 0.8), (6.4, -4.9, 0.7)], [(2.6, 1.3), (3.8, 1.6), (3.9, 1.3)],
           'DARK', [F] * 3, sides=8, p=3.0)
     # three big bone toes with claws + dew claw
-    for dx in (-1.3, 0.0, 1.3):
-        mloft([(6.4 + dx, -4.6, 0.8), (6.4 + dx, -6.4, 0.7)], [(1.2, 1.6), (0.9, 1.1)], 'BONE', [F] * 2,
-              sides=6, p=3.0)
-        mtalon((6.4 + dx, -5.7, 0.8), (dx * 0.12, -1, -0.05), 2.0, 0.75, 0.62, 0.95, 'Foot')
-    mtalon((6.4, -0.7, 0.75), (0, 1, -0.1), 1.2, 0.45, 0.5, 0.7, 'Foot')             # dew claw
+    for dx in (-1.3, 0.0, 1.3):                         # toe and claw are one fused mesh
+        mdigit((6.4 + dx, -4.4, 0.8), (6.4 + dx * 1.05, -6.3, 0.75), (1.25, 1.6), (0.95, 1.15),
+               (dx * 0.1, -1, -0.1), 1.9, 0.7, 0.72, 0.95, 'Foot', 'BONE')
+    mdigit((6.4, -1.2, 0.8), (6.4, -0.2, 0.7), (0.9, 1.0), (0.75, 0.85), (0, 1, -0.15), 1.1, 0.4,
+           0.55, 0.7, 'Foot', 'BONE')                                                  # dew claw
 
 
 SHOULDER, ELBOW, WRIST, KNUCKLE = (5.0, -13.7, 8.9), (5.9, -14.0, 5.9), (5.9, -16.5, 4.8), (5.9, -17.7, 4.0)
@@ -515,11 +520,9 @@ def build_arm():
     mloft([_off(WRIST, -0.9), _off(WRIST, 0.9)], [(1.9, 1.9), (1.9, 1.9)], 'CHARCOAL', [FH] * 2, sides=8, p=2.0)
     mloft([WRIST, _off(KNUCKLE, 0, 0.5, 0.3), KNUCKLE], [(1.6, 1.6), (2.4, 1.5), (2.3, 1.3)], 'CHARCOAL',
           [FH, Ha, Ha], sides=8, p=2.8)
-    for dx in (-0.75, 0.0, 0.75):
-        mloft([_off(KNUCKLE, dx * 0.85, 0.8, 0.15), _off(HAND_TIP, dx * 1.1, 0.2, 0.3)], [(0.8, 0.8), (0.7, 0.7)],
-              'DARK', [Ha] * 2, sides=6, p=2.4)
-        mtalon(_off(HAND_TIP, dx * 1.1, 0.75, 0.3), (dx * 0.1, -0.75, -0.65), 1.75, 0.55, 0.42, 0.62, 'Hand',
-               up=(0, 0.65, -0.75))
+    for dx in (-0.75, 0.0, 0.75):                       # finger and claw are one fused mesh
+        mdigit(_off(KNUCKLE, dx * 0.85, 0.8, 0.15), _off(HAND_TIP, dx * 1.1, 0.25, 0.3), (0.85, 0.85),
+               (0.68, 0.68), (dx * 0.1, -1, -0.35), 1.5, 0.75, 0.52, 0.66, 'Hand', 'DARK')
 
 
 # --------------------------------------------------------------------------- armature
