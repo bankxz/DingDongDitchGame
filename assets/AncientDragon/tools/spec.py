@@ -153,7 +153,7 @@ def wing_glyph_anchors():
 
 
 # ---------------- final voxel palette (4x4 swatch grid of 512px, one stud cube per cell) ----------------
-VOX_CELL_U = 0.6          # voxel (cube) size in design units = one stud
+VOX_CELL_U = 0.62          # voxel (cube) size in design units = one stud
 VOX = [  # key, rgb, emissive, per-cube brightness variation
     ('charcoal', (56, 58, 72), 0.0, 0.12), ('dark', (38, 40, 52), 0.0, 0.10),
     ('gold', (236, 164, 44), 0.0, 0.08), ('cream', (228, 200, 150), 0.0, 0.07),

@@ -43,3 +43,13 @@ The evidence is in `validation/v1_rejected/reference_vs_model.png`.
 7. Build the runes (chest shield, rune discs, knee plates, tail glyphs) as pixel-art plates with cell-exact UVs.
 
 The result is 4,956 tris. Walk and idle deformation were checked on contact sheets.
+
+## v3 feedback → v3.1 (torso + head)
+**User feedback:** "the torso needs to be bigger and the head looks nothing like the reference".
+- The torso is now about 25% wider and 15% taller, and the leg stance is wider to match.
+- The head was rebuilt as direct studded blocks instead of voxelized tubes:
+  - blunt dark snout with a slate top plate, a mid head and a rear skull
+  - gold brow and crest strip, gold cheek band, cream cheek plate and a teal accent cube
+  - glowing eye and snout slit, a cream tooth line, a small dark lower jaw, and big hanging cream fangs
+  - a crown of stepped cube-chain horns: big cream crescents, two gold horns per side, a cream horn swept back, a gold cheek frill and a tall gold forehead crest
+- The head is enlarged 1.32× and raised onto a taller neck.

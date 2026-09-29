@@ -217,7 +217,7 @@ def vblock(p0, p1, w, h, key, bone, up=None, taper=1.0, skip_start=False):
         mb.faces.append((f, tile_uv_vox(pts, key, u, v), False)); mb.fkey.append(key); mb.fpart.append(mb.part)
 
 
-def cube_chain(pts, w0, w1, key, bone, seg=0.85):
+def cube_chain(pts, w0, w1, key, bone, seg=1.0):
     """stepped chain of studded cubes along a curve, tapering w0 -> w1 (reference horn/spike style)."""
     mb.new_part(direct=True)
     pts = [Vector(p) for p in pts]
@@ -262,7 +262,7 @@ def art_plate(center, normal, up, name, cell, thick, bone, shape=None):
     ids = outward(front[:], ctr)
     uvs = uvf if ids == front else uvf[::-1]
     mb.faces.append((ids, uvs, False)); mb.fkey.append('rune'); mb.fpart.append(mb.part)
-    for ring in (back,):
+    for ring in ():
         f = outward(ring[:], ctr); pts = [mb.co[i] for i in f]; nn, uu, vv = face_basis(pts)
         mb.faces.append((f, tile_uv_vox(pts, 'gold', uu, vv), False)); mb.fkey.append('gold'); mb.fpart.append(mb.part)
     m = len(poly)
@@ -332,15 +332,15 @@ def side_of(nn):
 def build():
     # ================= neck + torso (one rounded loft) =================
     body = [  # L, Z, rx, rz, weights
-        (6.1, 9.45, 1.2, 1.3, {'Neck2': 1}),
-        (6.9, 8.45, 1.35, 1.45, blend('Neck2', 'Neck1', 0.5)),
+        (5.9, 10.3, 1.35, 1.4, {'Neck2': 1}),
+        (6.8, 9.0, 1.5, 1.6, blend('Neck2', 'Neck1', 0.5)),
         (7.8, 7.25, 1.55, 1.65, {'Neck1': 1}),
-        (8.7, 6.55, 1.95, 2.05, blend('Neck1', 'Chest', 0.6)),
-        (9.8, 5.95, 2.35, 2.45, {'Chest': 1}),
-        (11.1, 5.75, 2.5, 2.5, blend('Chest', 'Spine', 0.5)),
-        (12.5, 5.65, 2.4, 2.4, {'Spine': 1}),
-        (13.9, 5.45, 2.35, 2.3, blend('Spine', 'Hips', 0.5)),
-        (15.2, 5.25, 2.3, 2.2, {'Hips': 1}),
+        (8.7, 6.5, 2.3, 2.35, blend('Neck1', 'Chest', 0.6)),
+        (9.8, 5.9, 2.95, 2.8, {'Chest': 1}),
+        (11.1, 5.75, 3.1, 2.9, blend('Chest', 'Spine', 0.5)),
+        (12.5, 5.65, 3.0, 2.8, {'Spine': 1}),
+        (13.9, 5.45, 2.9, 2.65, blend('Spine', 'Hips', 0.5)),
+        (15.2, 5.25, 2.75, 2.5, {'Hips': 1}),
         (16.4, 4.75, 2.05, 2.05, blend('Hips', 'Tail1', 0.35)),
     ]
 
@@ -399,58 +399,67 @@ def build():
             if s == 1:
                 cone(P(0, lc - 0.2, zc + rc * 0.8), P(0, lc + 0.9, zc + rc + hgt), 0.45 * max(rc, 0.9), H if i % 2 else G, bn)
     lt, zt, _ = tpath[-1]
-    for dl, dz, dx in ((2.2, 0.2, 0.0), (1.6, 1.0, 0.45), (1.6, 1.0, -0.45), (1.5, -0.6, 0.0), (1.2, 0.3, 0.7), (1.2, 0.3, -0.7)):
+    for dl, dz, dx in ((2.2, 0.2, 0.0), (1.6, 1.0, 0.55), (1.6, 1.0, -0.55)):
         cone(P(0, lt - 0.2, zt), P(dx, lt + dl, zt + dz), 0.36, H, 'Tail9')
 
-    # ================= head =================
-    hb = 'Head'
-    head = [(6.3, 8.75, 1.2, 1.3), (5.4, 8.95, 1.45, 1.45), (4.2, 8.85, 1.4, 1.3),
-            (3.0, 8.55, 1.18, 1.08), (2.0, 8.3, 1.02, 0.92), (1.3, 8.15, 0.92, 0.82)]
+    # ================= head: studded blocks + stepped horn crown (built directly, not voxelized) =================
+    hb, jb = 'Head', 'Jaw'
+    mb.new_part(direct=True)
 
-    def head_col(seg, k, nn, c):
-        s = side_of(nn)
-        if seg == -2:
-            return D
-        if s == 'top' and seg <= 1:
-            return G
-        if s == 'bottom':
-            return CR
-        return C
-    loft([P(0, l, z) for l, z, _, _ in head], [(rx, rz) for _, _, rx, rz in head], [hb] * len(head),
-         head_col, n=8, p=2.6, up_hint=(0, 0, 1))
-    jaw = [(5.2, 7.3, 1.1, 0.6), (3.4, 7.05, 1.0, 0.55), (1.5, 6.85, 0.8, 0.45)]
-    loft([P(0, l, z) for l, z, _, _ in jaw], [(rx, rz) for _, _, rx, rz in jaw], ['Jaw'] * 3,
-         lambda s, k, nn, c: CR if nn.z > 0.5 else C, n=8, p=2.6)
+    def blk(x0, x1, l0, l1, z0, z1, key, bone=hb):
+        vblock(P((x0 + x1) / 2, (l0 + l1) / 2, z0), P((x0 + x1) / 2, (l0 + l1) / 2, z1), x1 - x0, l1 - l0, key, bone)
+
+    def sblk(x0, x1, l0, l1, z0, z1, key, bone=hb):
+        for s in (1, -1):
+            blk(min(s * x0, s * x1), max(s * x0, s * x1), l0, l1, z0, z1, key, bone)
+    SL = 'slate'
+    # skull: blunt dark snout tip -> mid head -> rear skull
+    blk(-0.85, 0.85, 0.7, 3.0, 7.75, 8.95, D)             # snout
+    blk(-0.75, 0.75, 1.0, 3.2, 8.95, 9.35, SL)            # snout top plate
+    blk(-0.55, 0.55, 0.55, 1.1, 8.3, 9.05, D)             # nose tip
+    blk(-1.1, 1.1, 2.8, 4.8, 7.7, 9.8, C)                 # mid head
+    blk(-1.2, 1.2, 4.6, 6.4, 7.8, 10.1, C)                # rear skull
+    # gold brow, crest strip and cheek band
+    sblk(0.55, 1.28, 3.0, 4.7, 9.6, 10.1, G)
+    blk(-0.38, 0.38, 1.6, 3.4, 9.3, 9.7, G)
+    blk(-0.4, 0.4, 3.3, 5.9, 9.75, 10.35, G)
+    sblk(1.05, 1.35, 3.3, 5.6, 8.35, 8.85, G)
+    sblk(1.05, 1.4, 4.9, 6.3, 7.85, 8.4, CR)              # cream cheek plate
+    sblk(0.8, 0.98, 2.1, 2.8, 8.25, 8.7, 'teal')          # teal accent cube on the snout side
+    sblk(1.05, 1.2, 2.9, 3.5, 8.9, 9.3, SL)
+    # glowing eyes + glow slit low on the snout
+    sblk(1.08, 1.32, 3.55, 4.35, 9.1, 9.5, GL)
+    sblk(0.83, 0.95, 1.25, 1.6, 7.8, 8.55, GL)
+    # cream tooth line under the upper jaw
+    sblk(0.55, 0.95, 1.0, 3.6, 7.35, 7.78, CR)
+    # lower jaw (small, dark) with cream inner teeth
+    blk(-0.8, 0.8, 1.5, 4.8, 6.75, 7.35, C, jb)
+    sblk(0.45, 0.78, 1.6, 3.0, 7.35, 7.6, CR, jb)
+    # big fangs hanging at the front + side teeth
     for s in (1, -1):
-        # fangs & teeth (cream)
-        cone(P(s * 0.6, 1.25, 7.95), P(s * 0.62, 1.1, 5.9), 0.22, H, hb)
-        cone(P(s * 0.8, 2.3, 7.75), P(s * 0.82, 2.25, 6.95), 0.17, H, hb)
-        cone(P(s * 0.85, 3.2, 7.75), P(s * 0.86, 3.15, 7.15), 0.15, H, hb)
-        cone(P(s * 0.5, 1.6, 7.2), P(s * 0.5, 1.65, 7.75), 0.14, H, 'Jaw')
-        # gold brow ridge + cheek stripe, glowing eye and cheek slit
-        loft([P(s * 0.95, 2.7, 9.35), P(s * 1.25, 4.0, 9.7), P(s * 1.2, 5.4, 9.85)], [(0.28, 0.2)] * 3, [hb] * 3,
-             solid(G), n=4, p=2.0, smooth=False)
-        loft([P(s * 1.08, 1.4, 8.25), P(s * 1.38, 3.6, 8.3), P(s * 1.42, 5.6, 8.5)], [(0.12, 0.2)] * 3, [hb] * 3,
-             solid(G), n=4, p=2.0, smooth=False)
-        mb.new_part(direct=True); vblock(P(s * 1.3, 3.6, 9.12), P(s * 1.32, 4.25, 9.12), 0.25, 0.32, GL, hb)
-        loft([P(s * 1.36, 4.6, 9.05), P(s * 1.38, 5.6, 8.95)], [(0.06, 0.1)] * 2, [hb] * 2, solid(GL), n=4, p=2.0, smooth=False)
-        # great crescent horns (cream)
-        curved_cone([P(s * 0.85, 5.0, 9.6), P(s * 1.3, 5.5, 10.9), P(s * 1.8, 6.3, 11.7), P(s * 2.1, 7.2, 12.3),
-                     P(s * 2.1, 8.2, 12.6), P(s * 1.95, 9.3, 12.35), P(s * 1.7, 10.2, 11.9)], 0.72, H, hb, n=6)
-        # swept-back lower horn (cream)
-        curved_cone([P(s * 1.15, 5.7, 8.7), P(s * 1.9, 6.9, 9.3), P(s * 2.5, 8.2, 10.1), P(s * 2.8, 9.4, 11.2)],
-                    0.55, H, hb, n=6)
-        # gold crown horns fanning back
-        curved_cone([P(s * 0.6, 5.6, 9.9), P(s * 0.95, 6.5, 11.1), P(s * 1.1, 7.6, 11.9), P(s * 1.05, 8.4, 12.2)],
-                    0.45, G, hb, n=4)
-    cone(P(0, 4.6, 9.9), P(0, 5.4, 12.2), 0.34, G, hb)                                # central crest
-    cone(P(0, 3.2, 9.4), P(0, 3.9, 10.4), 0.26, G, hb)
+        cube_chain([P(s * 0.58, 1.1, 7.75), P(s * 0.6, 1.05, 6.8), P(s * 0.62, 1.0, 5.8)], 0.42, 0.24, H, hb, seg=0.7)
+        cube_chain([P(s * 0.82, 2.6, 7.6), P(s * 0.84, 2.6, 6.95)], 0.3, 0.2, H, hb, seg=0.7)
+        # crown: big cream crescent horn sweeping back then curling up
+        cube_chain([P(s * 1.0, 5.3, 9.9), P(s * 1.6, 6.4, 10.5), P(s * 2.1, 7.6, 11.1), P(s * 2.3, 8.8, 11.8),
+                    P(s * 2.1, 9.8, 12.8), P(s * 1.7, 10.4, 13.8)], 0.85, 0.3, H, hb, seg=1.05)
+        # two gold horns above it
+        cube_chain([P(s * 0.65, 4.9, 10.2), P(s * 0.95, 6.2, 10.8), P(s * 1.1, 7.5, 11.2), P(s * 1.15, 8.6, 11.7)],
+                   0.6, 0.25, G, hb, seg=1.35)
+        cube_chain([P(s * 0.95, 5.8, 10.0), P(s * 1.4, 7.2, 10.3), P(s * 1.65, 8.5, 10.7), P(s * 1.7, 9.5, 11.2)],
+                   0.55, 0.22, G, hb, seg=1.35)
+        # lower cream horn pointing straight back
+        cube_chain([P(s * 1.15, 5.9, 8.95), P(s * 1.65, 7.2, 9.1), P(s * 2.05, 8.6, 9.6), P(s * 2.2, 9.7, 10.4)],
+                   0.62, 0.24, H, hb, seg=1.35)
+        # gold cheek frill
+        cube_chain([P(s * 1.3, 6.0, 8.2), P(s * 1.95, 7.2, 7.95), P(s * 2.35, 8.2, 8.4)], 0.5, 0.22, G, hb, seg=0.8)
+    # tall gold forehead crest (front view)
+    cube_chain([P(0, 4.9, 10.2), P(0, 5.4, 11.1), P(0, 5.9, 11.8)], 0.55, 0.28, G, hb, seg=0.8)
 
     # enlarge + lift the head cluster about the neck joint (reference head reads bigger)
     piv = P(0, 6.4, 8.6)
     for i, wd in enumerate(mb.w):
         if set(wd) <= {'Head', 'Jaw'}:
-            mb.co[i] = piv + (mb.co[i] - piv) * 1.12 + Vector((0, -0.2, 1.5))
+            mb.co[i] = piv + (mb.co[i] - piv) * 1.32 + Vector((0, -0.4, 2.2))
 
     # ================= neck / back spikes =================
     for l, z, bn, hgt in ((7.0, 9.35, 'Neck2', 1.1), (8.1, 8.8, 'Neck1', 1.3), (9.6, 8.3, 'Chest', 1.6),
@@ -520,14 +529,14 @@ def build():
         mb.new_part(direct=True)
         chain([root2, wr2], 1.0, 0.9, G, w1b, seg=3.0)
         lead2 = [proj(p) for p in W_LEAD]
-        chain(lead2, 1.0, 0.85, G, w2b, seg=2.4, stagger=0.08)
+        chain(lead2, 1.0, 0.85, G, w2b, seg=3.0, stagger=0.08)
         ridge = []
         for k, p in enumerate(lead2):
             q = lead2[min(k + 1, len(lead2) - 1)]; o = lead2[max(k - 1, 0)]
             d = Vector((q[0] - o[0], q[1] - o[1])).normalized(); perp = Vector((-d.y, d.x))
             if perp.y < 0: perp = -perp
             ridge.append((p[0] + perp.x * 0.75, p[1] + perp.y * 0.75))
-        chain(ridge[:-1], 0.6, 0.7, C, w2b, seg=3.2)
+        chain(ridge[:-1], 0.6, 0.7, C, w2b, seg=4.5)
         tips2 = [proj(p) for p in W_TIPS]
         for i in range(3):
             sp = [proj(p) for p in spar_path(i, 7)]
@@ -584,9 +593,9 @@ BONES = {
     'Spine': ((0, 13.2, 5.5), (0, 10.8, 5.75), 'Hips'),
     'Chest': ((0, 10.8, 5.75), (0, 8.4, 6.8), 'Spine'),
     'Neck1': ((0, 8.4, 6.8), (0, 7.2, 7.8), 'Chest'),
-    'Neck2': ((0, 7.2, 7.8), (0, 6.2, 9.4), 'Neck1'),
-    'Head': ((0, 6.2, 9.4), (0, 1.0, 9.6), 'Neck2'),
-    'Jaw': ((0, 5.2, 8.6), (0, 1.3, 8.3), 'Head'),
+    'Neck2': ((0, 7.2, 7.8), (0, 6.0, 10.3), 'Neck1'),
+    'Head': ((0, 6.0, 10.3), (0, 0.5, 10.6), 'Neck2'),
+    'Jaw': ((0, 5.0, 9.4), (0, 1.0, 9.1), 'Head'),
 }
 for s, sf in ((1, '_L'), (-1, '_R')):
     BONES.update({
@@ -613,6 +622,21 @@ def lift_z(z):
     return z + LIFT * min(1.0, max(0.0, (z - 0.9) / 2.4))
 
 
+LEG_SHIFT = 0.55
+LEG_BONES = {'UpperArm', 'Forearm', 'Hand', 'Thigh', 'Shin', 'Foot'}
+
+
+def is_leg(name):
+    return name.rsplit('_', 1)[0] in LEG_BONES
+
+
+def widen_legs():
+    for i, wd in enumerate(mb.w):
+        lw = sum(x for bn, x in wd.items() if is_leg(bn))
+        if lw > 0 and abs(mb.co[i].x) > 0.3:
+            mb.co[i].x += math.copysign(LEG_SHIFT * lw, mb.co[i].x)
+
+
 def lift_all():
     for i, wd in enumerate(mb.w):
         if NOLIFT & set(wd):
@@ -633,7 +657,8 @@ def make_armature():
     for name, (h, t, par) in BONES.items():
         eb = arm.edit_bones.new(name)
         lf = (lambda z: z) if name in NOLIFT else lift_z
-        eb.head = P(h[0], h[1], lf(h[2])); eb.tail = P(t[0], t[1], lf(t[2])); eb.roll = 0.0
+        sx = (lambda x: x + math.copysign(LEG_SHIFT, x)) if is_leg(name) else (lambda x: x)
+        eb.head = P(sx(h[0]), h[1], lf(h[2])); eb.tail = P(sx(t[0]), t[1], lf(t[2])); eb.roll = 0.0
     for name, (h, t, par) in BONES.items():
         if par:
             arm.edit_bones[name].parent = arm.edit_bones[par]
@@ -694,6 +719,7 @@ def assemble():
 def main():
     bpy.ops.wm.read_factory_settings(use_empty=True)
     build()
+    widen_legs()
     lift_all()
     import voxel
     keep = [i for i, p in enumerate(mb.fpart) if p not in mb.direct]
