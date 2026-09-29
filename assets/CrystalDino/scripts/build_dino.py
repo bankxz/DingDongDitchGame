@@ -25,7 +25,7 @@ ROOT = os.path.dirname(HERE)
 TEX = os.path.join(ROOT, "textures")
 S_OFF = 14.0
 Z_SCALE = 0.92  # measured reference back-height / length ratio
-DENSITY = float(os.environ.get("DINO_DENSITY", "0.38"))
+DENSITY = float(os.environ.get("DINO_DENSITY", "0.26"))
 TRI_BUDGET = 4990
 
 rng = random.Random(11)
@@ -177,6 +177,7 @@ def box(x0, x1, y0, y1, z0, z1, mat="navy", bone="Chest", frame=IDENT, skip=(), 
 
 def crystal(base, d, length, radius, bone, sides=None, sink=0.5, mirror=False, lean_twist=None):
     sides = sides or (5 if length > 1.6 else 4 if length > 0.95 else 3)   # tiny tail crystals: 3 facets
+    gem = length >= 1.8   # big crystals keep the straight gem band; small ones are single pointed spikes
     d = Vector(d).normalized()
     t = d.orthogonal().normalized()
     b = d.cross(t)
@@ -193,6 +194,9 @@ def crystal(base, d, length, radius, bone, sides=None, sink=0.5, mirror=False, l
         k1 = (k + 1) % sides
         c = (k + rng.randint(0, 5)) % 6
         u0, u1 = 640 + c * 64 + 3, 640 + c * 64 + 61
+        if not gem:
+            faces.append(((k, k1, 2 * sides), [px(u0, 830), px(u1, 830), px((u0 + u1) / 2, 579)]))
+            continue
         faces.append(((k, k1, sides + k1, sides + k),
                       [px(u0, 830), px(u1, 830), px(u1, 690), px(u0, 690)]))
         faces.append(((sides + k, sides + k1, 2 * sides),
@@ -200,7 +204,7 @@ def crystal(base, d, length, radius, bone, sides=None, sink=0.5, mirror=False, l
     add_prim(verts, faces, "glow", bone, mirror)
 
 
-def pyramid(base, d, length, half, bone, mat="bone", mirror=False, sides=4, group="body"):
+def pyramid(base, d, length, half, bone, mat="bone", mirror=False, sides=3, group="body"):
     """Tooth / claw / horn: open-based pyramid (no hidden base face)."""
     d = Vector(d).normalized()
     t = d.orthogonal().normalized()
@@ -435,7 +439,7 @@ BODY = Loft([
     (V(0, 30.8, 3.6), 0.85, 0.9, w2("Tail3", "Tail4")),
     (V(0, 32.6, 2.9), 0.55, 0.6, w1("Tail4")),
     (V(0, 34.4, 2.2), 0.12, 0.14, w1("Tail4")),
-], 12)
+], 10)
 loft(BODY, "navy", cap1=True)
 NB = len(BODY.rings) - 1
 up_side = (-0.35 * math.pi, 0.5 * math.pi)
@@ -693,10 +697,10 @@ def skull_plate(L, k0, k1, a0, a1, nk, na, out, inn, mat, bone):
 # forehead plate: a curved tan slab hugging the top of the skull (follows its shape, not a flat box)
 skull_plate(HEAD, 2.05, 3.7, math.pi / 2 - 0.62, math.pi / 2 + 0.62, 3, 4, 0.26, -0.12, "tan", H)
 # upper lip rim: a rounded U-shaped band that follows the mouth opening (not a flat plank)
-LIP_PATH = [(1.5, 5.8), (1.52, 4.6), (1.48, 3.4), (1.38, 2.4), (1.15, 1.6), (0.7, 1.12), (0.0, 0.98)]
+LIP_PATH = [(1.5, 5.8), (1.48, 3.4), (1.2, 1.7), (0.6, 1.08), (0.0, 0.98)]
 LIP_PATH = LIP_PATH + [(-x, s_) for x, s_ in reversed(LIP_PATH[:-1])]
 LIP_Z = 9.3
-LIP = Loft([(V(x, s_, LIP_Z), 0.3, 0.2, w1(H)) for x, s_ in LIP_PATH], 6, sq=3.0, ref=(0, 0, 1))
+LIP = Loft([(V(x, s_, LIP_Z), 0.3 / 0.7071, 0.2 / 0.7071, w1(H)) for x, s_ in LIP_PATH], 4, ref=(0, 0, 1))   # square band
 loft(LIP, "tan", cap0=True, cap1=True)
 
 
@@ -771,7 +775,7 @@ TONGUE = Loft([(V(0, s_, jaw_top(s_)[1] + dz), rx, rw, w1(J)) for s_, dz, rx, rw
 loft(TONGUE, "tongue", cap0=True, frame=jf)
 for s, L in ((1.9, 0.8), (3.2, 0.95), (4.6, 0.8)):                      # jaw-side horn spikes
     pyramid(jf(V(jaw_top(s)[0] - 0.12, s, 7.95)), (0.75, 0.35, 0.6), L, 0.3, J, mat="tan", mirror=True)
-pyramid(jf(V(0.0, 0.8, 7.2)), (0, -0.6, -0.8), 0.7, 0.34, J, mat="tan")  # chin spike
+pyramid(jf(V(0.0, 1.15, 7.3)), (0, -0.6, -0.8), 0.7, 0.34, J, mat="tan")  # chin spike
 
 
 # ---------------- LEGS: tapered rounded limbs, claw toes --------------------
@@ -791,7 +795,7 @@ def leg(x, rings, foot, toes, bones, tan_cells):
     for dx, L in toes:
         claw(V(x + dx, foot[-1][0] + 0.4, 0.6), (dx * 0.15, -1, -0.28), L, 1.0, 0.95, Hd)
     loft_blocks(LEG, 14, (0.3, 2.0), (-0.9 * math.pi, 0.9 * math.pi), tan_p=0.2, mirror=True)
-    loft_blocks(LEG, 9, (2.0, 4.6), (-0.9 * math.pi, 0.9 * math.pi), tan_p=0.25, mirror=True,
+    loft_blocks(LEG, 9, (2.0, 3.6), (-0.9 * math.pi, 0.9 * math.pi), tan_p=0.25, mirror=True,
                 size=(0.75, 1.15))
     loft_blocks(LEG, tan_cells, (0.4, 2.2), (-0.35 * math.pi, 0.25 * math.pi), tan_p=1.0, mirror=True,
                 size=(1.0, 1.3), out=(0.2, 0.45))
@@ -803,7 +807,6 @@ FRONT = leg(4.3, [
     (0.1, 10.3, 8.2, 2.45, 2.85, w1("UpperArm.L")),
     (0.1, 10.15, 5.8, 2.1, 2.35, w2("UpperArm.L", "Forearm.L", 0.2)),
     (0.0, 10.05, 4.0, 1.75, 2.0, w2("UpperArm.L", "Forearm.L", 0.6)),
-    (0.0, 9.75, 2.3, 1.55, 1.75, w1("Forearm.L")),
     (0.0, 9.6, 1.1, 1.6, 1.85, w2("Forearm.L", "Hand.L", 0.6)),
 ], [(11.3, 0.75, 1.7, 0.75), (9.5, 0.82, 1.95, 0.82), (7.7, 0.7, 1.85, 0.65)],
     [(-1.25, 1.4), (0.0, 1.55), (1.25, 1.4)], ("UpperArm.L", "Forearm.L", "Hand.L"), 6)
@@ -812,7 +815,6 @@ REAR = leg(4.25, [
     (0.1, 18.0, 8.0, 2.5, 3.1, w1("Thigh.L")),
     (0.1, 17.6, 5.6, 2.1, 2.45, w2("Thigh.L", "Shin.L", 0.2)),
     (0.0, 17.45, 4.0, 1.75, 2.0, w2("Thigh.L", "Shin.L", 0.6)),
-    (0.0, 17.8, 2.3, 1.55, 1.75, w1("Shin.L")),
     (0.0, 17.9, 1.1, 1.6, 1.85, w2("Shin.L", "Foot.L", 0.6)),
 ], [(19.6, 0.75, 1.7, 0.75), (17.7, 0.82, 1.95, 0.82), (15.9, 0.7, 1.85, 0.65)],
     [(-1.2, 1.3), (0.0, 1.45), (1.2, 1.3)], ("Thigh.L", "Shin.L", "Foot.L"), 7)
