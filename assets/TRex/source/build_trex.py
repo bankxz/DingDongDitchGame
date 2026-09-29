@@ -99,7 +99,7 @@ def mirror_x(fn, center, *a, bone='', rot=(0, 0, 0), **kw):
     for sgn, suf in ((1, '.L'), (-1, '.R')):
         c = (center[0] * sgn, center[1], center[2])
         r = (rot[0], rot[1] * sgn, rot[2] * sgn)
-        b = bone + suf if bone.endswith(('Thigh', 'Shin', 'Foot', 'UpperArm', 'Forearm')) else bone
+        b = bone + suf if bone.endswith(('Thigh', 'Shin', 'Foot', 'UpperArm', 'Forearm', 'Hand')) else bone
         extra = dict(kw)
         if 'tip' in extra:
             t = extra['tip']
@@ -208,7 +208,7 @@ def horn(base, top, bw, bd, tw, td, tile, bone, sides=4, p=6.0, **kw):
 
 def mhorn(base, top, bw, bd, tw, td, tile, bone, **kw):
     for sgn, suf in ((1, '.L'), (-1, '.R')):
-        b = bone + suf if bone.endswith(('Thigh', 'Shin', 'Foot', 'UpperArm', 'Forearm')) else bone
+        b = bone + suf if bone.endswith(('Thigh', 'Shin', 'Foot', 'UpperArm', 'Forearm', 'Hand')) else bone
         horn((base[0] * sgn, base[1], base[2]), (top[0] * sgn, top[1], top[2]), bw, bd, tw, td, tile, b, **kw)
 
 
@@ -369,14 +369,41 @@ def build_leg():
     mhorn((6.4, -0.3, 0.6), (6.4, 0.6, 0.35), 0.9, 0.9, 0.4, 0.4, 'BONE', 'Foot')
 
 
+SHOULDER, ELBOW, WRIST, KNUCKLE = (5.0, -13.7, 8.9), (5.9, -14.0, 5.9), (5.9, -16.5, 4.8), (5.9, -17.7, 4.0)
+HAND_TIP = (5.9, -18.5, 3.1)
+
+
+def _off(p, dx=0.0, dy=0.0, dz=0.0):
+    return (p[0] + dx, p[1] + dy, p[2] + dz)
+
+
 def build_arm():
-    U, Fo = W(**{'UpperArm.': 1}), W(**{'Forearm.': 1})
-    mloft([(4.7, -12.0, 8.9), (5.0, -13.6, 6.6), (5.05, -15.0, 4.3), (5.05, -15.5, 3.5)],
-          [(1.8, 1.9), (1.5, 1.6), (1.4, 1.5), (1.6, 1.4)], 'DARK',
-          [U, W(**{'UpperArm.': 0.5, 'Forearm.': 0.5}), Fo, Fo], sides=8, p=2.6)
-    mhorn((5.1, -13.4, 7.0), (5.6, -12.8, 7.6), 0.8, 0.8, 0.3, 0.3, 'BONE', 'UpperArm')        # elbow spur
-    for dx in (-0.5, 0.0, 0.5):
-        mspike((5.05 + dx, -15.8, 3.4), (0.45, 0.55), (0, -0.5, -1.1), 'TEETH', 'Forearm')
+    """Muscular two-part arm hanging in front of the ribs: bicep, a visible elbow joint cap,
+    forearm angled forward, wrist, and a clawed three-fingered hand."""
+    U, Fo, Ha = W(**{'UpperArm.': 1}), W(**{'Forearm.': 1}), W(**{'Hand.': 1})
+    UF, FH = W(**{'UpperArm.': 0.5, 'Forearm.': 0.5}), W(**{'Forearm.': 0.5, 'Hand.': 0.5})
+    # upper arm: thick shoulder, bulging bicep, narrowing into the elbow
+    mloft([SHOULDER, _off(SHOULDER, 0.4, -0.1, -1.1), _off(ELBOW, -0.1, 0.1, 1.0), ELBOW],
+          [(2.9, 3.1), (3.0, 3.2), (2.5, 2.6), (2.0, 2.1)], 'DARK', [U, U, U, UF], sides=10, p=2.4,
+          up=(0, -1, 0), caps=(False, False))
+    # elbow joint: rounded cap across the bend + a bone spur pointing back
+    ex, ey, ez = ELBOW
+    mloft([(ex - 1.3, ey, ez), (ex - 0.8, ey, ez), (ex + 0.8, ey, ez), (ex + 1.3, ey, ez)],
+          [(1.4, 1.4), (2.5, 2.5), (2.5, 2.5), (1.4, 1.4)], 'MAROON', [UF] * 4, sides=10, p=2.0)
+    mhorn(_off(ELBOW, 0, 0.8, 0.1), _off(ELBOW, 0, 2.0, 0.5), 1.0, 1.0, 0.25, 0.3, 'BONE', 'Forearm', sides=6, p=3.0)
+    # forearm: angles forward from the elbow to the wrist, with a bone guard plate on top
+    mloft([ELBOW, _off(WRIST, 0, 1.2, 0.5), WRIST], [(2.0, 2.1), (1.9, 2.0), (1.6, 1.6)], 'DARK',
+          [UF, Fo, FH], sides=10, p=2.4, caps=(False, False))
+    mloft([_off(ELBOW, 0, -0.6, 0.9), _off(WRIST, 0, 0.4, 0.8)], [(1.3, 0.45), (1.0, 0.4)], 'BONE',
+          [Fo] * 2, sides=6, p=4.0)
+    # wrist joint ring + hand
+    mloft([_off(WRIST, -0.9), _off(WRIST, 0.9)], [(1.9, 1.9), (1.9, 1.9)], 'CHARCOAL', [FH] * 2, sides=8, p=2.0)
+    mloft([WRIST, _off(KNUCKLE, 0, 0.5, 0.3), KNUCKLE], [(1.6, 1.6), (2.4, 1.5), (2.3, 1.3)], 'CHARCOAL',
+          [FH, Ha, Ha], sides=8, p=2.8)
+    for dx in (-0.75, 0.0, 0.75):
+        mloft([_off(KNUCKLE, dx, 0.1, 0.1), _off(HAND_TIP, dx * 1.1, 0.2, 0.3)], [(0.75, 0.75), (0.6, 0.6)],
+              'DARK', [Ha] * 2, sides=6, p=2.4)
+        mspike(_off(HAND_TIP, dx * 1.1, 0.1, 0.3), (0.55, 0.6), (0, -0.5, -1.2), 'TEETH', 'Hand')
 
 
 # --------------------------------------------------------------------------- armature
@@ -397,8 +424,10 @@ for s, sgn in (('L', 1), ('R', -1)):
     BONES[f'Thigh.{s}'] = ((6.2 * sgn, -2.2, 10.2), (6.4 * sgn, -2.6, 5.4), 'Hips')
     BONES[f'Shin.{s}'] = ((6.4 * sgn, -2.6, 5.4), (6.4 * sgn, -1.6, 1.2), f'Thigh.{s}')
     BONES[f'Foot.{s}'] = ((6.4 * sgn, -1.6, 1.2), (6.4 * sgn, -6.6, 0.6), f'Shin.{s}')
-    BONES[f'UpperArm.{s}'] = ((4.8 * sgn, -12.2, 8.6), (5.0 * sgn, -13.8, 6.4), 'Chest')
-    BONES[f'Forearm.{s}'] = ((5.0 * sgn, -13.8, 6.4), (5.0 * sgn, -15.6, 3.4), f'UpperArm.{s}')
+    mx = lambda c: (c[0] * sgn, c[1], c[2])  # noqa: E731
+    BONES[f'UpperArm.{s}'] = (mx(SHOULDER), mx(ELBOW), 'Chest')
+    BONES[f'Forearm.{s}'] = (mx(ELBOW), mx(WRIST), f'UpperArm.{s}')
+    BONES[f'Hand.{s}'] = (mx(WRIST), mx(HAND_TIP), f'Forearm.{s}')
 
 
 XSCALE = {'Head': 1.05, 'Jaw': 1.05, 'Neck': 1.2, 'Chest': 1.25, 'Spine': 1.25, 'Hips': 1.25,
@@ -563,6 +592,7 @@ def make_idle(arm):
             'Jaw': (-4.0 - 4.0 * c, 0, 0),
             'UpperArm.L': (5 * s, 0, 0), 'UpperArm.R': (5 * s, 0, 0),
             'Forearm.L': (-6 * c, 0, 0), 'Forearm.R': (-6 * c, 0, 0),
+            'Hand.L': (8 * math.sin(ph - 0.8), 0, 0), 'Hand.R': (8 * math.sin(ph - 0.8), 0, 0),
         }
         for i in range(6):
             rots[f'Tail{i + 1}'] = (1.2 * math.sin(ph - i * 0.5), 0, 3.0 * math.sin(ph - i * 0.6))
@@ -586,6 +616,7 @@ def make_walk(arm):
             swing = math.sin(p)                         # + = leg forward
             rots[f'UpperArm.{side}'] = (-10 * swing, 0, 0)
             rots[f'Forearm.{side}'] = (8 * math.cos(p), 0, 0)
+            rots[f'Hand.{side}'] = (10 * math.cos(p - 0.6), 0, 0)
         locs['Root'] = (0, 0, -0.14 - 0.06 * math.cos(2 * ph))       # dips at each footfall
         rots['Hips'] = (1.5 * math.cos(2 * ph), 0, 5 * math.sin(ph))
         rots['Spine'] = (-1.0 * math.cos(2 * ph), 0, -2.5 * math.sin(ph))

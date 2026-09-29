@@ -12,8 +12,9 @@ Low-poly T-rex with the Roblox stud texture, rigged, with Idle and Walk animatio
 | `textures/` | 1024² stud atlas: albedo, normal, emissive |
 | `source/` | Scripts that rebuild everything from scratch |
 
-- 3,236 triangles, one mesh, one material, one 1024×1024 texture atlas
-- 23 bones: Root, Hips, Spine, Chest, Neck, Head, Jaw, Tail1–6, Thigh/Shin/Foot .L/.R, UpperArm/Forearm .L/.R
+- 3,788 triangles, one mesh, one material, one 1024×1024 texture atlas
+- 25 bones: Root, Hips, Spine, Chest, Neck, Head, Jaw, Tail1–6, Thigh/Shin/Foot .L/.R, UpperArm/Forearm/Hand .L/.R
+- Arms: a thick upper arm, a visible elbow joint with a bone spur, a forearm angled forward, a wrist, and a three-fingered clawed hand
 - Skin weights blend at the joints (neck, spine, tail, knees, elbows), so the body and tail bend smoothly. The bind pose is neutral, with the legs straight under the hips and the arms relaxed forward. The jaw is open in the bind pose to match the reference; the Jaw bone opens and closes it.
 - Real size is about 15 m, which is roughly 53 studs long. The model is exported in metres, so Roblox's importer sizes it correctly. If it comes in too big or too small, change the scale in the importer.
 
