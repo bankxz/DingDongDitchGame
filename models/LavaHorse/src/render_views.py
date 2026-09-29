@@ -4,11 +4,11 @@ from mathutils import Vector
 
 LENS = {'front': 68, 'back': 68, 'left': 72, 'right': 72, 'three_quarter': 62, 'top': 62}
 VIEWS = {   # name: (camera location, look-at, ortho?)
-    'front':  ((0, -26, 4.0), (0, 0, 3.2), False),
-    'back':   ((0, 26, 4.5), (0, 0, 3.2), False),
-    'left':   ((26, 0.0, 4.2), (0, 0.3, 3.0), False),
-    'right':  ((-26, 0.0, 4.2), (0, 0.3, 3.0), False),
-    'three_quarter': ((17, -18, 7.5), (0, 0.4, 2.9), False),
+    'front':  ((0, -28, 4.5), (0, 0, 3.7), False),
+    'back':   ((0, 28, 5.0), (0, 0, 3.7), False),
+    'left':   ((28, 0.0, 4.7), (0, 0.3, 3.5), False),
+    'right':  ((-28, 0.0, 4.7), (0, 0.3, 3.5), False),
+    'three_quarter': ((18, -19, 8.0), (0, 0.4, 3.4), False),
     'top':    ((0, 0.3, 30), (0, 0.3, 0), False),
 }
 

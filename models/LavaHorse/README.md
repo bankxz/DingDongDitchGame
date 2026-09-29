@@ -6,7 +6,7 @@ plates, dark stud hooves, black/white block eyes, dark ears.
 
 | | |
 |---|---|
-| Triangles | **4,276** (< 5k) |
+| Triangles | **4,452** (< 5k) |
 | Meshes / materials | 1 skinned mesh, 1 material, 1 texture (Roblox MeshPart friendly) |
 | Bones | 22 (`Root`, `Torso`, `Chest`, `Hips`, `Neck`, `Head`, `Ear.L/R`, `Tail1/2`, 3 bones per leg) |
 | Skin | rigid/blended weights, max 2 influences per vertex (Roblox limit is 4) |
@@ -27,8 +27,8 @@ plates, dark stud hooves, black/white block eyes, dark ears.
 
 ## Import into Roblox Studio
 1. **File → Import 3D** → `export/LavaHorse.fbx`. Rig type is detected as a custom rig; keep
-   "Import only as a model" off so bones are created. Scale: the horse is ~7 units tall in Blender –
-   pick the importer's scale unit that gives you the size you want (Stud ≈ 7 studs tall).
+   "Import only as a model" off so bones are created. Scale: the horse is ~8 units tall in Blender –
+   pick the importer's scale unit that gives you the size you want (Stud ≈ 8 studs tall).
 2. The texture is embedded; if Studio doesn't apply it, set the MeshPart `TextureID` to
    `LavaHorse_Color_1024.png`.
 3. Animations: open the Animation Editor on the imported model → **… → Import → From FBX Animation**

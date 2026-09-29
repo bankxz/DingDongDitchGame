@@ -7,6 +7,24 @@ from mathutils import Vector, Matrix, Euler
 
 STUD_TILE = 2.0          # world units covered by one 4x4 stud tile (stud pitch 0.5)
 
+# Height: everything is authored at the original proportions, then legs are lengthened by LIFT.
+# Vertices above LEG_TOP move up by LIFT, the lower-leg band [HOOF_TOP, LEG_TOP] is stretched,
+# hooves stay on the ground. Rigid parts (rocks, head, mane, tail...) just translate.
+LIFT = 1.0
+HOOF_TOP, LEG_TOP = 0.9, 1.9
+
+
+HEAD_SCALE = 1.18                      # head scaled about the neck joint
+HEAD_PIVOT = Vector((0, -2.95, 5.0))
+
+
+def remap_z(z):
+    if z >= LEG_TOP:
+        return z + LIFT
+    if z <= HOOF_TOP:
+        return z
+    return HOOF_TOP + (z - HOOF_TOP) * (LEG_TOP - HOOF_TOP + LIFT) / (LEG_TOP - HOOF_TOP)
+
 PARTS = []               # (obj, category, bone)
 
 
@@ -37,7 +55,7 @@ def box_pts(sx, sy, sz, top_scale=(1, 1), top_off=(0, 0)):
 
 
 def finish_part(name, bm, matrix, category, bone, chamfer=0.0, cuts=None, grad_axis=None,
-                weights=None):
+                weights=None, rigid=True):
     """Chamfer, loop cuts, StudUV (local projection), rest/grad attributes, transform, link."""
     if cuts:
         # cuts: list of (axis_index, local_coordinate) planes
@@ -57,10 +75,12 @@ def finish_part(name, bm, matrix, category, bone, chamfer=0.0, cuts=None, grad_a
     bm.free()
     uv0 = me.uv_layers.new(name='UVMap')
     uvs = me.uv_layers.new(name='StudUV')
-    # local-axis projection per face
+    # local-axis projection per face; 'axisid' records which projection each face used
+    axid = me.attributes.new('axisid', 'FLOAT', 'FACE')
     for p in me.polygons:
         n = p.normal
         ax = max(range(3), key=lambda i: abs(n[i]))
+        axid.data[p.index].value = ax * 2 + (1 if n[ax] >= 0 else 0)
         a, b = [(1, 2), (0, 2), (0, 1)][ax]
         # keep studs upright on side faces
         sign = 1 if n[ax] >= 0 else -1
@@ -81,15 +101,25 @@ def finish_part(name, bm, matrix, category, bone, chamfer=0.0, cuts=None, grad_a
             ga.data[i].value = (v.co[grad_axis] - lo) / max(hi - lo, 1e-6)
     me.transform(matrix)
     me.update()
+    pre = [v.co.copy() for v in me.vertices]        # authored coords (weights are defined on these)
+    if rigid:
+        cz = sum(c.z for c in pre) / len(pre)
+        dz = remap_z(cz) - cz
+        for v in me.vertices:
+            v.co.z += dz
+    else:
+        for v in me.vertices:
+            v.co.z = remap_z(v.co.z)
+    me.update()
     rest = me.attributes.new('rest', 'FLOAT_VECTOR', 'POINT')
     for i, v in enumerate(me.vertices):
         rest.data[i].vector = v.co
     ob = bpy.data.objects.new(name, me)
     bpy.context.scene.collection.objects.link(ob)
-    # weights: rigid to bone, or callable(world_co) -> {bone: w}
+    # weights: rigid to bone, or callable(authored_co) -> {bone: w}
     groups = {}
     for i, v in enumerate(me.vertices):
-        w = weights(v.co) if weights else {bone: 1.0}
+        w = weights(pre[i]) if weights else {bone: 1.0}
         for bname, val in w.items():
             if val <= 0:
                 continue
@@ -107,10 +137,10 @@ def M(loc=(0, 0, 0), rot=(0, 0, 0), parent=None):
 
 
 def boxpart(name, center, size, category, bone, rot=(0, 0, 0), chamfer=0.06, parent=None,
-            top_scale=(1, 1), top_off=(0, 0), cuts=None, weights=None, grad_axis=None):
+            top_scale=(1, 1), top_off=(0, 0), cuts=None, weights=None, grad_axis=None, rigid=True):
     bm = _hexa_bm(box_pts(*size, top_scale=top_scale, top_off=top_off))
     return finish_part(name, bm, M(center, rot, parent), category, bone, chamfer, cuts,
-                       grad_axis=grad_axis, weights=weights)
+                       grad_axis=grad_axis, weights=weights, rigid=rigid)
 
 
 def lerp_w(a, b, t):
@@ -120,34 +150,79 @@ def lerp_w(a, b, t):
 
 # ---------------------------------------------------------------- body parts
 def build_body():
-    # torso: long block, loop cuts for chest/hips blend
-    boxpart('Body', (0, 0.15, 2.95), (2.8, 5.5, 1.8), 'lava', 'Torso', chamfer=0.14,
-            cuts=[(1, -1.3), (1, 1.3)],
-            weights=lambda c: lerp_w('Chest', 'Hips', (c.y + 1.4) / 2.8))
+    # torso: lofted rounded-box (superellipse) sections - deep ribcage, slimmer waist, round rump
+    #          y      half-width  half-height  centre-z
+    secs = [(-2.8, 1.02, 0.8, 3.12), (-2.2, 1.3, 1.0, 2.98), (-1.0, 1.46, 1.1, 2.88),
+            (0.2, 1.38, 0.98, 2.98), (1.1, 1.3, 0.86, 3.08), (2.2, 1.4, 0.97, 3.06),
+            (3.0, 1.16, 0.84, 3.16), (3.38, 0.7, 0.5, 3.2)]
+    N = 16
+    bm = bmesh.new()
+    rings = []
+    for y, hw, hh, zc in secs:
+        ring = []
+        for k in range(N):
+            a = 2 * math.pi * (k + 0.5) / N
+            ca, sa = math.cos(a), math.sin(a)
+            x = hw * math.copysign(abs(ca) ** 0.62, ca)         # rounded-box superellipse
+            z = hh * math.copysign(abs(sa) ** 0.62, sa)
+            if z < 0:
+                z *= 0.92                                          # slightly flatter belly curve
+            ring.append(bm.verts.new((x, y, zc + z)))
+        rings.append(ring)
+    for r0, r1 in zip(rings, rings[1:]):
+        for k in range(N):
+            j = (k + 1) % N
+            bm.faces.new([r0[k], r0[j], r1[j], r1[k]])
+    bm.faces.new(list(reversed(rings[0])))
+    bm.faces.new(rings[-1])
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    body = finish_part('Body', bm, Matrix(), 'lava', 'Torso', chamfer=0.0, rigid=False,
+                       weights=lambda c: lerp_w('Chest', 'Hips', (c.y + 1.4) / 2.8))
+    # smooth-shade the barrel (not the end caps) so it reads round instead of faceted
+    for p in body.data.polygons:
+        p.use_smooth = len(p.vertices) == 4
     # neck / chest: slanted frustum from chest up to head
     pts = [(-1.18, -2.95, 2.25), (1.18, -2.95, 2.25), (1.18, -1.05, 3.65), (-1.18, -1.05, 3.65),
            (-0.8, -3.2, 5.05), (0.8, -3.2, 5.05), (0.8, -2.05, 5.45), (-0.8, -2.05, 5.45)]
     bm = _hexa_bm(pts)
-    finish_part('Neck', bm, Matrix(), 'lava', 'Neck', chamfer=0.1, cuts=[(2, 4.0)],
+    finish_part('Neck', bm, Matrix(), 'lava', 'Neck', chamfer=0.18, cuts=[(2, 4.0)], rigid=False,
                 weights=lambda c: lerp_w('Chest', 'Neck', (c.z - 3.2) / 1.2))
 
 
 def build_head():
-    H = M((0, -3.25, 5.0), (-9, 0, 0))            # head frame (pivot near neck top), nose down 9deg
-    boxpart('Head', (0, -0.1, 0.05), (1.5, 2.15, 1.6), 'lava', 'Head', parent=H, chamfer=0.1)
-    boxpart('Snout', (0, -1.38, -0.25), (1.32, 1.15, 1.2), 'lava', 'Head', parent=H, chamfer=0.09)
-    boxpart('Muzzle', (0, -1.75, -0.55), (1.16, 0.6, 0.86), 'muzzle', 'Head', parent=H, chamfer=0.08)
-    boxpart('Jaw', (0, -0.85, -0.7), (1.1, 1.0, 0.45), 'muzzle', 'Head', parent=H, chamfer=0.06)
+    """Measured from the reference side/front/eye close-ups:
+    - flat-topped cranium with a brow ledge overhanging deep-set eyes at its front corners,
+    - long narrower snout sloping nose-down, dark maroon nose block on its front/bottom,
+    - separate dark lower jaw whose underside rises back toward the throat,
+    - tall dark pyramid ears on the back of the cranium."""
+    hs = HEAD_SCALE
+    Hs = Matrix.Translation(HEAD_PIVOT) @ Matrix.Diagonal((hs, hs, hs, 1)) @ Matrix.Translation(-HEAD_PIVOT)
+
+    def hbox(*a, **k):
+        return boxpart(*a, parent=Hs, **k)
+    # main head: one long tapered wedge, forehead flowing into the snout, nose-down like the reference
+    # (back section at the poll: 1.54 wide x 1.45 tall; nose section: 1.34 wide x 1.24 tall)
+    head_pts = [(-0.77, -2.45, 4.4), (0.77, -2.45, 4.4), (0.67, -4.62, 3.86), (-0.67, -4.62, 3.86),
+                (-0.77, -2.45, 5.85), (0.77, -2.45, 5.85), (0.67, -4.62, 5.1), (-0.67, -4.62, 5.1)]
+    # _hexa_bm expects bottom (-x-y,+x-y,+x+y,-x+y) then top; reorder to that winding
+    order = [3, 2, 1, 0, 7, 6, 5, 4]
+    finish_part('Head', _hexa_bm([head_pts[k] for k in order]), Hs, 'lava', 'Head', chamfer=0.08)
+    # brow ledge overhanging the deep-set eyes
+    hbox('Brow', (0, -3.74, 5.43), (1.58, 0.58, 0.17), 'lava', 'Head', rot=(-10, 0, 0), chamfer=0.05)
+    # dark nose block on the front/bottom of the snout
+    hbox('Muzzle', (0, -4.6, 4.24), (1.28, 0.64, 0.84), 'muzzle', 'Head', rot=(-10, 0, 0), chamfer=0.07)
+    # lower jaw, underside rising back toward the throat
+    hbox('Jaw', (0, -3.95, 3.98), (1.04, 1.3, 0.42), 'muzzle', 'Head', rot=(12, 0, 0), chamfer=0.05)
     for s in (1, -1):
-        # eye: white frame block wrapping the front/side corner, black pupil inset toward the back
-        boxpart('EyeWhite' + ('L' if s > 0 else 'R'), (s * 0.66, -0.95, 0.22), (0.2, 0.52, 0.5),
-                'eye_white', 'Head', parent=H, chamfer=0.0)
-        boxpart('EyeBlack' + ('L' if s > 0 else 'R'), (s * 0.69, -0.9, 0.22), (0.2, 0.48, 0.42),
-                'eye_black', 'Head', parent=H, chamfer=0.0)
-        # ears: dark tapered blocks leaning outward
-        boxpart('Ear' + ('L' if s > 0 else 'R'), (s * 0.47, -0.25, 1.2), (0.5, 0.5, 1.15),
-                'rock', 'Ear.' + ('L' if s > 0 else 'R'), parent=H, rot=(0, s * 12, 0), chamfer=0.03,
-                top_scale=(0.3, 0.35), top_off=(s * 0.03, 0.02))
+        sd = 'L' if s > 0 else 'R'
+        # deep-set eye: white shows along the front and lower edges, black pupil behind/above it
+        hbox('EyeWhite' + sd, (s * 0.67, -3.8, 5.0), (0.16, 0.56, 0.46), 'eye_white', 'Head',
+                rot=(-10, 0, 0), chamfer=0.0)
+        hbox('EyeBlack' + sd, (s * 0.69, -3.74, 5.04), (0.16, 0.46, 0.38), 'eye_black', 'Head',
+                rot=(-10, 0, 0), chamfer=0.0)
+        # ears: tall dark pyramids, leaning slightly back and out
+        hbox('Ear' + sd, (s * 0.47, -3.0, 6.02), (0.52, 0.55, 0.95), 'rock', 'Ear.' + sd,
+                rot=(8, s * 8, 0), chamfer=0.03, top_scale=(0.34, 0.36), top_off=(s * 0.02, 0.06))
 
 
 def build_legs():
@@ -155,16 +230,16 @@ def build_legs():
         x = s * 1.15
         # front leg
         boxpart('FUpper' + side, (x, -1.9, 2.55), (1.2, 1.42, 1.7), 'lava', 'FrontUpper.' + side,
-                chamfer=0.1, top_scale=(1.05, 1.08))
+                chamfer=0.1, top_scale=(1.05, 1.08), rigid=False)
         boxpart('FLower' + side, (x, -1.9, 1.3), (1.1, 1.25, 1.15), 'lava', 'FrontLower.' + side,
-                chamfer=0.09)
+                chamfer=0.09, rigid=False)
         boxpart('FHoof' + side, (x, -1.95, 0.43), (1.5, 1.72, 0.86), 'hoof', 'FrontHoof.' + side,
                 chamfer=0.06, top_scale=(0.82, 0.76))
         # hind leg: thigh, angled cannon, hoof
         boxpart('HThigh' + side, (x, 2.55, 2.55), (1.25, 1.7, 1.8), 'lava', 'HindUpper.' + side,
-                chamfer=0.12, rot=(-8, 0, 0), top_scale=(1.05, 1.1))
+                chamfer=0.12, rot=(-8, 0, 0), top_scale=(1.05, 1.1), rigid=False)
         boxpart('HLower' + side, (x, 2.8, 1.3), (1.1, 1.25, 1.2), 'lava', 'HindLower.' + side,
-                chamfer=0.09, rot=(6, 0, 0))
+                chamfer=0.09, rot=(6, 0, 0), rigid=False)
         boxpart('HHoof' + side, (x, 2.88, 0.43), (1.5, 1.72, 0.86), 'hoof', 'HindHoof.' + side,
                 chamfer=0.06, top_scale=(0.82, 0.76))
 

@@ -81,11 +81,10 @@ def crack_dist(b, scale=0.5):
     rest = b.n('ShaderNodeAttribute', _attribute_name='rest', _attribute_type='GEOMETRY')
     geo = b.n('ShaderNodeNewGeometry')
     uv = b.n('ShaderNodeUVMap', _uv_map='StudUV')
-    plane = b.n('ShaderNodeVectorMath', _operation='DOT_PRODUCT')
-    b.set(plane, 0, rest.outputs['Vector']); b.set(plane, 1, geo.outputs['Normal'])
-    nsum = b.n('ShaderNodeVectorMath', _operation='DOT_PRODUCT')
-    b.set(nsum, 0, geo.outputs['Normal']); nsum.inputs[1].default_value = (3.1, 5.7, 7.3)
-    w = b.math('ADD', b.math('MULTIPLY', plane.outputs['Value'], 1.7), nsum.outputs['Value'])
+    # offset keyed on the face's projection axis (face attribute from build_geo) so the pattern stays
+    # continuous across the many small faces of the rounded torso yet differs between sides
+    axid = b.n('ShaderNodeAttribute', _attribute_name='axisid', _attribute_type='GEOMETRY')
+    w = b.math('MULTIPLY', axid.outputs['Fac'], 3.37)
     comb = b.n('ShaderNodeCombineXYZ')
     b.set(comb, 0, w); b.set(comb, 1, b.math('MULTIPLY', w, 1.37))
     p2 = b.n('ShaderNodeVectorMath', _operation='MULTIPLY_ADD')
@@ -103,17 +102,19 @@ def crack_dist(b, scale=0.5):
     sep = b.n('ShaderNodeSeparateXYZ'); b.set(sep, 0, rest.outputs['Vector'])
     ax = b.math('ABSOLUTE', sep.outputs['X'])
     # chest "Y": centre line down to z=3.0, then splitting toward both front legs
-    zt = b.math('SUBTRACT', 3.0, sep.outputs['Z'])
+    zt = b.math('SUBTRACT', 3.0 + build_geo.LIFT, sep.outputs['Z'])
     below = b.math('GREATER_THAN', zt, 0.0)
     diag = b.math('MULTIPLY', b.math('ABSOLUTE', b.math('SUBTRACT', ax, b.math('MULTIPLY', b.math('MAXIMUM', zt, 0.0), 0.9))), 0.74)
     yline = b.math('ADD', ax, b.math('MULTIPLY', below, b.math('SUBTRACT', diag, ax)))
-    chest = b.math('ADD', yline, b.math('MULTIPLY', b.math('GREATER_THAN', sep.outputs['Y'], -2.6), 10.0))
+    chest = b.math('ADD', yline, b.math('MULTIPLY', b.math('ADD', b.math('GREATER_THAN', sep.outputs['Y'], -2.6),
+                                                             b.math('GREATER_THAN', sep.outputs['Z'], 4.4 + build_geo.LIFT)), 10.0))
     ring = b.math('ABSOLUTE', b.math('SUBTRACT', sep.outputs['Y'], 0.25))
-    outside = b.math('ADD', b.math('LESS_THAN', sep.outputs['Z'], 2.0), b.math('GREATER_THAN', sep.outputs['Z'], 3.95))
+    outside = b.math('ADD', b.math('LESS_THAN', sep.outputs['Z'], 2.0 + build_geo.LIFT),
+                     b.math('GREATER_THAN', sep.outputs['Z'], 4.05 + build_geo.LIFT))
     ring = b.math('ADD', ring, b.math('MULTIPLY', outside, 10.0))
     seams = b.math('MULTIPLY', b.math('MINIMUM', chest, ring), scale)
     # the reference head is mostly clean plates: suppress random cracks above/ahead of the throat
-    head = b.math('MULTIPLY', b.math('LESS_THAN', sep.outputs['Y'], -3.35), b.math('GREATER_THAN', sep.outputs['Z'], 4.0))
+    head = b.math('MULTIPLY', b.math('LESS_THAN', sep.outputs['Y'], -3.35), b.math('GREATER_THAN', sep.outputs['Z'], 4.0 + build_geo.LIFT))
     front = b.math('LESS_THAN', sep.outputs['Y'], -2.75)          # clean chest plate
     vd = b.math('ADD', vor.outputs['Distance'], b.math('MULTIPLY', b.math('MAXIMUM', head, front), 5.0))
     return b.math('MINIMUM', vd, seams), rest
@@ -254,7 +255,7 @@ def main():
     bsdf.inputs['Roughness'].default_value = 0.55
     horse.data.materials.append(fm)
     me.uv_layers.remove(me.uv_layers['StudUV'])
-    for a in ('grad', 'rest'):
+    for a in ('grad', 'rest', 'axisid'):
         if a in me.attributes:
             me.attributes.remove(me.attributes[a])
     for m in mats.values():

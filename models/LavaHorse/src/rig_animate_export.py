@@ -15,22 +15,25 @@ sc.render.fps = FPS
 horse = bpy.data.objects['LavaHorse']
 
 # ------------------------------------------------------------------ armature
-H = Matrix.Translation((0, -3.25, 5.0)) @ Euler((math.radians(-9), 0, 0)).to_matrix().to_4x4()
+sys.path.insert(0, os.path.dirname(__file__))
+from build_geo import remap_z, HEAD_SCALE, HEAD_PIVOT   # same transforms the mesh was built with
+HEAD_BONES = {'Head', 'Ear.L', 'Ear.R'}
+
 LX = 1.15
-BONES = [  # name, head, tail, parent
+BONES = [  # name, head, tail, parent   (authored coordinates; remapped below)
     ('Root', (0, 0, 0), (0, 0, 1.0), None),
     ('Torso', (0, 0.2, 3.0), (0, 0.2, 3.8), 'Root'),
     ('Chest', (0, -0.6, 3.0), (0, -2.2, 3.2), 'Torso'),
     ('Hips', (0, 0.8, 3.0), (0, 2.6, 3.2), 'Torso'),
-    ('Neck', (0, -2.3, 3.6), (0, -3.25, 5.0), 'Chest'),
-    ('Head', (0, -3.25, 5.0), tuple(H @ Vector((0, -1.6, -0.3))), 'Neck'),
+    ('Neck', (0, -2.3, 3.6), (0, -2.95, 5.0), 'Chest'),
+    ('Head', (0, -2.95, 5.0), (0, -4.8, 4.3), 'Neck'),
     ('Tail1', (0, 2.9, 3.85), (0, 4.2, 3.7), 'Hips'),
     ('Tail2', (0, 4.2, 3.7), (0, 5.4, 2.2), 'Tail1'),
 ]
 for s, side in ((1, 'L'), (-1, 'R')):
     x = s * LX
     BONES += [
-        ('Ear.' + side, tuple(H @ Vector((s * 0.46, -0.3, 0.7))), tuple(H @ Vector((s * 0.5, -0.3, 1.5))), 'Head'),
+        ('Ear.' + side, (s * 0.47, -3.0, 5.6), (s * 0.55, -2.9, 6.45), 'Head'),
         ('FrontUpper.' + side, (x, -1.9, 3.3), (x, -1.9, 1.87), 'Chest'),
         ('FrontLower.' + side, (x, -1.9, 1.87), (x, -1.9, 0.86), 'FrontUpper.' + side),
         ('FrontHoof.' + side, (x, -1.9, 0.86), (x, -1.9, 0.05), 'FrontLower.' + side),
@@ -38,6 +41,19 @@ for s, side in ((1, 'L'), (-1, 'R')):
         ('HindLower.' + side, (x, 2.72, 1.9), (x, 2.86, 0.86), 'HindUpper.' + side),
         ('HindHoof.' + side, (x, 2.86, 0.86), (x, 2.88, 0.05), 'HindLower.' + side),
     ]
+RIGID_BONES = {'Tail2'}   # the tail tip dips below the leg band but belongs to a rigid part
+
+
+def rz(p, name):
+    if name in HEAD_BONES:
+        p = tuple(HEAD_PIVOT + (Vector(p) - HEAD_PIVOT) * HEAD_SCALE)
+    x, y, z = p
+    if name in RIGID_BONES:
+        return (x, y, z + (remap_z(3.7) - 3.7))
+    return (x, y, remap_z(z))
+
+
+BONES = [(n, rz(h, n), rz(t, n), par) for n, h, t, par in BONES]
 
 arm_data = bpy.data.armatures.new('LavaHorseRig')
 rig = bpy.data.objects.new('LavaHorseRig', arm_data)
