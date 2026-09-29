@@ -4,7 +4,7 @@ A skeletal shark built in Blender 4.2 from the "Skeletal Shark – Rare Aquatic 
 
 | | |
 |---|---|
-| Triangles | **3,030**, under the 5k budget. One mesh and one material. |
+| Triangles | **3,538**, under the 5k budget. One mesh and one material. |
 | Texture | `textures/SkeletalShark_Color.png` (1024², baked colour, gradient and studs), `textures/SkeletalShark_Emissive.png` (glow mask) |
 | Rig | 11 bones. Max 2 influences per vertex. Every vertex is weighted. |
 | Animations | `Idle` (90 f, loop), `Walk` (40 f, loop, swim cycle), `Run` (24 f, loop, fast swim), `Attack` (41 f, lunge + bite). All at 30 fps. |
@@ -72,6 +72,14 @@ The texture also has two finishing touches:
 - a soft painted gradient on every part, lighter on top and darker below;
 - a light bevel highlight along every hard edge.
 
-The teeth, glow cores and eyes are plain colours without studs. The eye sockets carry a cyan glow that fades out from the eye.
+The teeth, glow cores and eyes are plain colours without studs.
+
+## Eyes
+
+Each eye sits in a round canal that is cut into the skull with a boolean, framed by a brow ridge above and a cheekbone below. The canal walls are dark blue, with a cyan glow painted around the eye. Inside the canal:
+- a round, domed neon iris (deep blue centre fading to bright cyan, with a white-hot rim);
+- a vertical slit pupil, modelled as its own raised disc, with a small catch-light.
+
+The iris and pupil are real geometry, not a cube, and both glow in the emissive map.
 
 The stud pattern is generated procedurally rather than downloaded. That keeps it licence-free and matched to the example look.

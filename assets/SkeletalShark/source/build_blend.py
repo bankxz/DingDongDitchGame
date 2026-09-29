@@ -47,18 +47,69 @@ emis_path = os.path.join(tex_dir, "SkeletalShark_Emissive.png")
 
 # ----------------------------------------------------------------------------- mesh (smooth low-poly)
 lp = L.build_all()
-vshark = [tuple(p) for p in lp.V]
-vbone = list(lp.VB)
-mesh = bpy.data.meshes.new("SkeletalShark")
-mesh.from_pydata([tuple(to_world(p)) for p in lp.V], [], [f[::-1] for f in lp.F])
-mesh.update()
 MAT_IDS = {n: k for k, n in enumerate(SB.MATS)}
 parts = sorted(set(lp.FP))
-fa_m = mesh.attributes.new("shark_mat", "INT", "FACE")
-fa_p = mesh.attributes.new("shark_part", "INT", "FACE")
-for k, (mt, pt) in enumerate(zip(lp.FM, lp.FP)):
-    fa_m.data[k].value = MAT_IDS[mt]
-    fa_p.data[k].value = parts.index(pt)
+BONE_LIST = ["SPINE", "Head", "Jaw", "Dorsal", "TailFin", "PectoralL", "PectoralR"]
+
+
+def make_obj(name, verts, faces, fmat, fpart, vbone_names):
+    """Mesh object in world space with face (material, part) and vertex (bone) attributes."""
+    me = bpy.data.meshes.new(name)
+    me.from_pydata([tuple(to_world(p)) for p in verts], [], [f[::-1] for f in faces])
+    me.update()
+    am = me.attributes.new("shark_mat", "INT", "FACE")
+    ap = me.attributes.new("shark_part", "INT", "FACE")
+    ab = me.attributes.new("shark_bone", "INT", "POINT")
+    for k in range(len(faces)):
+        am.data[k].value = fmat[k]
+        ap.data[k].value = fpart[k]
+    for k, bn in enumerate(vbone_names):
+        ab.data[k].value = BONE_LIST.index(bn)
+    bmx = bmesh.new()
+    bmx.from_mesh(me)
+    bmesh.ops.recalc_face_normals(bmx, faces=bmx.faces[:])  # outward normals: required by the boolean
+    bmx.to_mesh(me)
+    bmx.free()
+    ob = bpy.data.objects.new(name, me)
+    scene.collection.objects.link(ob)
+    return ob
+
+
+def subset(sel):
+    fids = [k for k in range(len(lp.F)) if sel(lp.FP[k])]
+    used = sorted({v for k in fids for v in lp.F[k]})
+    remap = {v: n for n, v in enumerate(used)}
+    return ([lp.V[v] for v in used], [[remap[v] for v in lp.F[k]] for k in fids],
+            [MAT_IDS[lp.FM[k]] for k in fids], [parts.index(lp.FP[k]) for k in fids], [lp.VB[v] for v in used])
+
+
+skull = make_obj("Skull", *subset(lambda p: p == "skull"))
+rest = make_obj("SkeletalShark", *subset(lambda p: p != "skull"))
+# eye canals: boolean-cut two round tunnels into the skull; the tunnel walls become dark socket faces
+cv, cf = L.eye_canal_cutter()
+cutter = make_obj("EyeCanalCutter", cv, cf, [MAT_IDS["socket"]] * len(cf), [parts.index("skull")] * len(cf),
+                  ["Head"] * len(cv))
+bmod = skull.modifiers.new("Canal", "BOOLEAN")
+bmod.operation = "DIFFERENCE"
+bmod.solver = "EXACT"
+bmod.object = cutter
+bmod.use_self = True
+bmod.use_hole_tolerant = True
+bpy.context.view_layer.objects.active = skull
+bpy.ops.object.modifier_apply(modifier=bmod.name)
+print("CANAL skull faces", len(skull.data.polygons), "socket faces",
+      sum(1 for d in skull.data.attributes["shark_mat"].data if d.value == MAT_IDS["socket"]))
+bpy.data.objects.remove(cutter, do_unlink=True)
+for d in skull.data.attributes["shark_bone"].data:
+    d.value = BONE_LIST.index("Head")
+bpy.ops.object.select_all(action="DESELECT")
+skull.select_set(True)
+rest.select_set(True)
+bpy.context.view_layer.objects.active = rest
+bpy.ops.object.join()
+obj = rest
+mesh = obj.data
+mesh.name = "SkeletalShark"
 bm = bmesh.new()
 bm.from_mesh(mesh)
 bmesh.ops.triangulate(bm, faces=bm.faces[:], quad_method="BEAUTY", ngon_method="BEAUTY")
@@ -67,8 +118,9 @@ bm.to_mesh(mesh)
 bm.free()
 for p in mesh.polygons:
     p.use_smooth = False
-obj = bpy.data.objects.new("SkeletalShark", mesh)
-scene.collection.objects.link(obj)
+# per-vertex shark coords + bone rule, read back after boolean/join/triangulate
+vshark = [((v.co.y / S) + I_CENTER, v.co.x / S, v.co.z / S - Z_OFF) for v in mesh.vertices]
+vbone = [BONE_LIST[d.value] for d in mesh.attributes["shark_bone"].data]
 
 # UVs: smart project (planar islands, uniform texel density) then bake the stud atlas
 bpy.context.view_layer.objects.active = obj
@@ -84,7 +136,7 @@ from bpy_extras import mesh_utils  # noqa: E402
 _uv = mesh.uv_layers.active
 _mat = mesh.attributes["shark_mat"]
 for isl in mesh_utils.mesh_linked_uv_islands(mesh):
-    if all(_mat.data[p].value in (0, 1) for p in isl):
+    if any(_mat.data[p].value in (0, 1) for p in isl):  # only shrink islands with no studded faces
         continue
     loops = [li for p in isl for li in mesh.polygons[p].loop_indices]
     c = sum((_uv.data[li].uv for li in loops), start=_uv.data[loops[0]].uv * 0) / len(loops)
@@ -128,7 +180,8 @@ for t, poly in enumerate(mesh.polygons):
     bn = vbone[mesh.loops[poly.loop_indices[0]].vertex_index]
     if bn in ("PectoralL", "PectoralR"):
         FR[t] = G.pec_xf(1 if bn == "PectoralL" else -1)[:3, :3].T
-EYES = [(5.95, 4.6, 8.2), (5.95, -4.6, 8.2)]
+_hw = L.hw_at(L.EYE_C[0])
+EYES = [(L.EYE_C[0], _hw - 0.7, L.EYE_C[1]), (L.EYE_C[0], -_hw + 0.7, L.EYE_C[1])]
 # bake at 2048 and downsample -> anti-aliased studs in the 1024 texture Roblox uses
 img_arr, emis_arr, PPC = SB.bake(UV, POS, NRM, MT, isl_of, ZR, FR, EYES, 2048)
 PPC /= 2

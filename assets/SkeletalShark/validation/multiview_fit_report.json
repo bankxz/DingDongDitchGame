@@ -1,13 +1,13 @@
 {
  "left": {
   "iou": 0.74,
-  "label_agreement": 0.7,
+  "label_agreement": 0.703,
   "ref_aspect": 3.232,
   "render_aspect": 3.074
  },
  "front": {
-  "iou": 0.576,
-  "label_agreement": 0.692,
+  "iou": 0.583,
+  "label_agreement": 0.689,
   "ref_aspect": 1.13,
   "render_aspect": 0.903
  },
@@ -18,8 +18,8 @@
   "render_aspect": 0.81
  },
  "top": {
-  "iou": 0.555,
-  "label_agreement": 0.708,
+  "iou": 0.554,
+  "label_agreement": 0.709,
   "ref_aspect": 3.274,
   "render_aspect": 2.261
  }

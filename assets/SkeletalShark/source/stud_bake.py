@@ -9,7 +9,7 @@ DARK_BLUE = np.array((30, 52, 103), float)
 BLUE_ACCENT = np.array((80, 129, 193), float)
 CYAN = np.array((80, 251, 254), float)
 SOCKET = np.array((20, 38, 92), float)
-MATS = ["bone", "blue", "cyan", "socket", "tooth", "eye"]
+MATS = ["bone", "blue", "cyan", "socket", "tooth", "eye", "pupil"]
 STUDDED = (0, 1)
 
 
@@ -30,8 +30,15 @@ def _shade(mat, h, nz, t_tip):
         col[:] = SOCKET[None] * (0.9 + 0.2 * h)[:, None]
     elif mat == 4:
         col[:] = IVORY[None] + (np.array((255, 250, 240.0)) - IVORY)[None] * t_tip[:, None]
-    else:  # eye: cyan with a hot centre (centre handled by t_tip = distance-to-edge proxy)
-        col[:] = CYAN[None] * 0.9 + (np.array((190, 255, 255.0)) - CYAN * 0.9)[None] * np.clip(t_tip * 1.8 - 0.8, 0, 1)[:, None]
+    elif mat == 5:  # neon iris: t_tip = radius 0..1 from the eye centre
+        r = t_tip
+        deep = np.array((25, 150, 255.0))
+        col[:] = deep[None] + (CYAN - deep)[None] * np.clip((r - 0.25) / 0.5, 0, 1)[:, None]
+        rim = np.clip((r - 0.78) / 0.12, 0, 1) * np.clip((1.02 - r) / 0.08, 0, 1)
+        col += (np.array((235, 255, 255.0))[None] - col) * (0.75 * rim)[:, None]
+    else:  # pupil: near-black navy with a small catch-light (t_tip = 1 inside the highlight)
+        col[:] = np.array((6, 12, 30.0))[None]
+        col += (np.array((230, 250, 255.0))[None] - col) * t_tip[:, None]
     return col
 
 
@@ -97,7 +104,13 @@ def bake(uv, pos, nrm, mat, isl, zrange, frames=None, eyes=(), size=1024, seed=5
         w = bc @ pos[t]
         z0, z1 = zrange[t]
         h = np.clip((w[:, 2] - z0) / max(z1 - z0, 1e-6), 0, 1)
-        tip = h if mat[t] != 5 else np.clip(1 - 2 * np.abs(h - 0.5), 0, 1)
+        tip = h
+        if mat[t] in (5, 6) and len(eyes):  # radial coordinates on the iris / pupil
+            e = min(eyes, key=lambda e: abs(e[1] - w[:, 1].mean()))
+            if mat[t] == 5:
+                tip = np.clip(np.hypot(w[:, 0] - e[0], w[:, 2] - e[2]) / 0.68, 0, 1)
+            else:
+                tip = (np.hypot((w[:, 0] - e[0] + 0.06) / 0.07, (w[:, 2] - e[2] - 0.17) / 0.09) < 1).astype(float)
         col = _shade(int(mat[t]), h, np.full(len(h), nrm[t][2]), tip)
         if mat[t] == 3 and len(eyes):  # socket: cyan glow bleeding around the eye cube
             dmin = np.min([np.linalg.norm(w - np.asarray(e)[None], axis=1) for e in eyes], axis=0)
@@ -123,7 +136,7 @@ def bake(uv, pos, nrm, mat, isl, zrange, frames=None, eyes=(), size=1024, seed=5
         islmap[px[:, 1], px[:, 0]] = isl[t]
         matmap[px[:, 1], px[:, 0]] = mat[t]
         if mat[t] in (2, 5):
-            emis[px[:, 1], px[:, 0]] = 1.0 if mat[t] == 2 else 0.55
+            emis[px[:, 1], px[:, 0]] = 1.0 if mat[t] == 2 else 0.8
 
     filled = islmap >= 0
     # bevel-style highlight along island borders (real geometric edges on a low-poly mesh)

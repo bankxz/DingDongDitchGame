@@ -10,7 +10,7 @@ import numpy as np
 
 import shark_geo as G
 
-BONE, BLUE, CYAN, SOCKET, TOOTH, EYE = "bone", "blue", "cyan", "socket", "tooth", "eye"
+BONE, BLUE, CYAN, SOCKET, TOOTH, EYE, PUPIL = "bone", "blue", "cyan", "socket", "tooth", "eye", "pupil"
 
 
 class Mesh:
@@ -103,25 +103,18 @@ def hw_at(i):
 def build_skull(m):
     secs = [skull_section(i, np.interp(i, *SNOUT_BOT), np.interp(i, *TOP), hw_at(i)) for i in SNOUT_I]
     # bottom face of the snout = palate (dark blue); everything else bone
-    loft(m, secs, lambda k: BLUE if k == 3 else BONE, "Head", "skull", cap1=False)
+    loft(m, secs, lambda k: BLUE if k == 3 else BONE, "Head", "skull")
     cran_i = [8.0, 9.4, 11.0, 12.4]
     secs = [skull_section(i, 1.8, np.interp(i, *TOP), 4.7, 0.25, 0.25, 0.55, 0.8) for i in cran_i]
     loft(m, secs, BONE, "Head", "skull", cap0=BLUE)  # front cap = back wall of the mouth
-    # eye socket (recessed dark panel framed by brow + cheekbone), glowing eye cube
-    sock = [(4.4, 7.4), (4.9, 6.95), (7.6, 6.95), (8.2, 7.5), (8.2, 8.9), (7.5, 9.35), (4.9, 9.35), (4.4, 8.8)]
-    side_prism(m, sock, lambda a, c: hw_at(a) - 0.6, lambda a, c: hw_at(a) + 0.04, SOCKET, "Head", "skull")
-    # thick bone frame around the socket so it reads as a deep recess (brow, cheekbone, front, back)
+    # eye canal is cut into the skull with a boolean in build_blend.py (see eye_canal_cutter);
+    # brow ridge above and cheekbone below frame the round canal like the reference
     frame = lambda a, c: hw_at(a) + 0.45  # noqa: E731
-    side_prism(m, [(3.9, 9.2), (8.7, 9.2), (8.5, 10.0), (4.4, 10.05)], lambda a, c: hw_at(a) - 0.6, frame,
+    side_prism(m, [(4.2, 9.25), (8.3, 9.25), (8.0, 10.0), (4.7, 10.05)], lambda a, c: hw_at(a) - 0.6, frame,
                BONE, "Head", "skull")
-    side_prism(m, [(4.2, 6.35), (8.7, 6.35), (8.7, 7.05), (4.2, 7.05)], lambda a, c: hw_at(a) - 0.6, frame,
-               BONE, "Head", "skull")
-    side_prism(m, [(3.7, 6.6), (4.45, 6.6), (4.45, 9.6), (3.9, 9.6)], lambda a, c: hw_at(a) - 0.6, frame,
-               BONE, "Head", "skull")
-    side_prism(m, [(8.15, 6.6), (8.9, 6.6), (8.9, 9.6), (8.15, 9.6)], lambda a, c: hw_at(a) - 0.6, frame,
+    side_prism(m, [(4.5, 6.45), (8.0, 6.45), (7.7, 7.1), (4.8, 7.1)], lambda a, c: hw_at(a) - 0.6, frame,
                BONE, "Head", "skull")
     for sd in (1, -1):
-        box(m, (5.45, 4.2 if sd > 0 else -4.95, 7.7), (6.45, 4.95 if sd > 0 else -4.2, 8.7), EYE, "Head", "skull")
         # nostril pit, cheek slot
         box(m, (1.8, 2.75 if sd > 0 else -3.15, 8.3), (2.7, 3.15 if sd > 0 else -2.75, 9.05), SOCKET, "Head", "skull")
         box(m, (10.4, 4.45 if sd > 0 else -4.9, 5.4), (11.3, 4.9 if sd > 0 else -4.45, 7.0), SOCKET, "Head", "skull")
@@ -295,9 +288,61 @@ def build_glow(m):
         box(m, (ic - half * 0.8, -hw, 3.6), (ic + half * 0.8, hw, 6.4), CYAN, "SPINE", "glow")
 
 
+# ----------------------------------------------------------------------------- eyes
+EYE_C = (6.1, 8.15)      # (i, z) centre of the eye canal
+CANAL_R = 0.92           # canal radius
+IRIS_R = 0.68            # neon iris radius
+CANAL_DEPTH = 1.35       # how far the canal goes into the skull (from the skull side)
+
+
+def disc(m, ci, cz, rx, rz, w0, w1, dome, sd, mat, bone, part, n=16):
+    """Circular/elliptical disc along the lateral axis, back at w0, front at w1, domed front."""
+    back = [m.v((ci + rx * math.cos(2 * math.pi * k / n), sd * w0, cz + rz * math.sin(2 * math.pi * k / n)), bone)
+            for k in range(n)]
+    front = [m.v((ci + rx * math.cos(2 * math.pi * k / n), sd * w1, cz + rz * math.sin(2 * math.pi * k / n)), bone)
+             for k in range(n)]
+    tip = m.v((ci, sd * (w1 + dome), cz), bone)
+    m.f(back[::-1], mat, part)
+    for k in range(n):
+        k2 = (k + 1) % n
+        m.f([back[k], back[k2], front[k2], front[k]], mat, part)
+        m.f([front[k], front[k2], tip], mat, part)
+
+
+def eye_canal_cutter(n=16):
+    """Two closed cylinders (shark coords) used as boolean cutters for the eye canals."""
+    ci, cz = EYE_C
+    hw = hw_at(ci)
+    verts, faces = [], []
+    for sd in (1, -1):
+        base = len(verts)
+        for w in (hw - CANAL_DEPTH, hw + 1.5):
+            for k in range(n):
+                t = 2 * math.pi * k / n
+                verts.append((ci + CANAL_R * math.cos(t), sd * w, cz + CANAL_R * math.sin(t)))
+        faces.append([base + k for k in range(n)][::-1])
+        faces.append([base + n + k for k in range(n)])
+        for k in range(n):
+            k2 = (k + 1) % n
+            faces.append([base + k, base + k2, base + n + k2, base + n + k])
+    return verts, faces
+
+
+def build_eyes(m):
+    ci, cz = EYE_C
+    hw = hw_at(ci)
+    back = hw - CANAL_DEPTH + 0.05
+    front = hw - 0.72
+    for sd in (1, -1):
+        disc(m, ci, cz, IRIS_R, IRIS_R, back, front, 0.14, sd, EYE, "Head", "eye")
+        # vertical pupil (shark-like), sitting proud of the domed iris
+        disc(m, ci, cz, 0.2, 0.4, front + 0.02, front + 0.13, 0.04, sd, PUPIL, "Head", "eye", n=12)
+
+
 def build_all():
     m = Mesh()
     build_skull(m)
+    build_eyes(m)
     build_jaw(m)
     build_teeth(m)
     build_core(m)
