@@ -1,0 +1,15 @@
+{
+  "source_files": ["reference sheet (image 1): hero, front/side head, front, back, left, right, top, bottom, idle/walk/attack poses, head/spike/foot details",
+                   "stud-texture examples (images 2-4)"],
+  "primary_view": "left side + hero (canonical)",
+  "source_conflicts": [
+    "Concept sheet is AI-painted perspective art, not orthographic: FRONT view shows head lowered below a tall shoulder hump, while LEFT/RIGHT/HERO show head raised with a wide-open jaw. Side/hero chosen as canonical.",
+    "TOP view tail is shorter than LEFT/RIGHT side views; tail length follows the side views."
+  ],
+  "expected_primary_parts": {"labels": ["upper head + snout", "lower jaw", "2 glowing eyes", "upper/lower teeth rows", "body", "tail",
+                                        "central mossy stone spike row", "flank spike rows", "4 sprawled legs", "3 cream claws per foot"]},
+  "palette_sampled": {"camo": ["#35502a", "#26381f", "#4e6630", "#262b2a", "#303d33", "#4d3d29", "#6d8a32"],
+                      "cream": ["#f2d19e", "#e8c28c"], "tan": ["#deae78", "#c99762"], "mouth": ["#b72d2a", "#cc4b46", "#5e1416"],
+                      "stone": ["#b39c80", "#a8977f"], "eye": ["#ffa21e", "#ffe07a"]},
+  "constraints": {"max_tris": 5000, "stud": "painted in texture, not modelled", "rest_pose": "neutral quadruped stance, bind pose"}
+}
