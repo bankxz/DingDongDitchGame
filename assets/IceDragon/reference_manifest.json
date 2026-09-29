@@ -1,0 +1,7 @@
+{
+ "source_files": ["concept sheet (front, back, 3/4, left, top, right, detail close-ups, palette)", "3 user stud-texture examples"],
+ "primary_view": "front",
+ "expected_primary_parts": {"count": 13, "labels": ["torso", "neck_C", "neck_L", "neck_R", "head_C", "head_L", "head_R", "wing_L", "wing_R", "legs_x4", "tail"]},
+ "decorative_parts": ["ice crystals", "gold chest frame + gem", "gold wing joints", "gold bands", "eyes"],
+ "constraints": {"max_tris": 5000, "studs": "texture only", "rest_pose": "limbs separated, wings spread"}
+}
