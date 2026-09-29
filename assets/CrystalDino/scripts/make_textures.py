@@ -140,6 +140,9 @@ col[832:1024, 640:768] = g
 emis[832:1024, 640:768] = g
 rough[832:1024, 640:768] = 0.3
 height[832:1024, 640:768] = 0.5
+# pupil: white-hot glowing core (strip under the glow region)
+col[1002:1024, 640:768] = np.array([225, 248, 255]) / 255.0
+emis[1002:1024, 640:768] = np.array([225, 248, 255]) / 255.0
 # bone / teeth / claws (tip = top lighter)
 tt = np.linspace(1, 0, 192)[:, None, None]
 bone = (np.array([200, 165, 128]) / 255.0) * (1 - tt) + (np.array([238, 214, 180]) / 255.0) * tt

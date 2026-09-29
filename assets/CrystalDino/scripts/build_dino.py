@@ -57,6 +57,8 @@ def cell_uvs(mat, w, h):
 
 GLOW_UV = [px(662, 1000), px(746, 1000), px(746, 852), px(662, 852)]
 MOUTH_UV = [px(900, 1016), px(1020, 1016), px(1020, 840), px(900, 840)]
+PUPIL_UV = [px(650, 1020), px(758, 1020), px(704, 1006)]
+IRIS_UV = [px(652, 862), px(756, 862), px(704, 928)]  # rim, rim, bright centre
 
 
 # --------------------------------------------------------------------------
@@ -284,6 +286,7 @@ def loft(L, mat, group="body", mirror=False, cap0=False, cap1=False, frame=IDENT
     verts = [frame(v) for v in verts]
     PRIMS.append(dict(verts=verts, faces=faces, group=group, bone=None, weights=weights,
                       mirror=mirror, smooth=True))
+    return PRIMS[-1]
 
 
 def oriented_box(p, n, t, sa, sb, sn, mat, bone, mirror, frame=IDENT, group="body", uv=None, roll=12, tilt=8):
@@ -303,7 +306,7 @@ def dominant(w):
 
 
 def loft_blocks(L, n, k_range, a_range, tan_p=0.15, size=(0.9, 1.45), out=(0.12, 0.45), half=False,
-                mirror=False, frame=IDENT, thick=(0.55, 0.8)):
+                mirror=False, frame=IDENT, thick=(0.55, 0.8), avoid=()):
     n = int(round(n * DENSITY))
     for _ in range(n):
         kf = rng.uniform(*k_range)
@@ -316,6 +319,8 @@ def loft_blocks(L, n, k_range, a_range, tan_p=0.15, size=(0.9, 1.45), out=(0.12,
                 mir = True
         o = rng.uniform(*out)
         p, nn, t = L.point(kf, a, out=o)
+        if any((Vector((abs(p.x), p.y, p.z)) - c).length < r for c, r in avoid):
+            continue
         sa, sb = rng.uniform(*size), rng.uniform(*size)
         if rng.random() < 0.15:
             sb *= 1.5
@@ -390,24 +395,131 @@ for s, a in ((10.8, -0.1), (12.9, 0.35), (13.6, -0.45), (16.2, 0.4), (19.0, -0.2
 # ---------------- HEAD (bone Head) -------------------------------------------
 H = "Head"
 HEAD = Loft([
-    (V(0, 0.6, 10.15), 1.0, 0.75, w1(H)),
-    (V(0, 1.6, 10.3), 1.6, 1.0, w1(H)),
-    (V(0, 3.2, 10.6), 2.0, 1.3, w1(H)),
+    (V(0, 0.6, 10.15), 1.2, 0.85, w1(H)),
+    (V(0, 1.6, 10.3), 1.35, 0.98, w1(H)),
+    (V(0, 3.2, 10.6), 1.85, 1.3, w1(H)),
     (V(0, 4.9, 10.7), 2.4, 1.45, w1(H)),
     (V(0, 6.6, 10.3), 2.5, 1.65, w1(H)),
     (V(0, 7.8, 9.9), 2.1, 1.6, w1(H)),
 ], 10)
-loft(HEAD, "navy", cap0=True,
-     matfn=lambda k, j: "tan" if (k <= 1 and j in (0, 1, 8, 9)) or k == 0 and j == -1 else "navy")
-loft_blocks(HEAD, 14, (2.3, 4.6), (-0.1 * math.pi, 0.5 * math.pi), tan_p=0.45, half=True, size=(0.8, 1.2))
+head_prim = loft(HEAD, "navy", cap0=True, cap1=True,
+                 matfn=lambda k, j: "tan" if (k <= 1 and j in (0, 1, 8, 9)) or k == 0 and j == -1 else "navy")
+
+
+# ---- eye: almond socket carved into the head, gem eyeball with a slit pupil ----
+def eye_frame():
+    """Socket centre on the head surface and its (e1 along, e2 up, n out) frame, +x side."""
+    kf = 2 + (4.0 - 3.2) / 1.7          # just behind the snout, where the head is widest
+    p, n0, t = HEAD.point(kf, 0.3)
+    n = (n0 + Vector((0, -1.35, 0.1))).normalized()   # socket faces forward-out (visible front and side)
+    e1 = (t - n * t.dot(n)).normalized()
+    e1 = Matrix.Rotation(math.radians(16), 3, n) @ e1      # slanted: back corner higher (fierce look)
+    e2 = n.cross(e1).normalized()
+    return p, e1, e2, n
+
+
+ALMOND = [(0.74, 0.0), (0.34, 0.31), (-0.36, 0.29), (-0.74, 0.02), (-0.34, -0.27), (0.36, -0.25)]
+
+
+def almond_prism(c, e1, e2, n, d0, d1, s0, s1, shift0=Vector()):
+    """closed almond prism from depth d0 (scale s0, offset shift0) to d1 (scale s1) along n."""
+    ring0 = [c + n * d0 + shift0 + (e1 * a + e2 * b) * s0 for a, b in ALMOND]
+    ring1 = [c + n * d1 + (e1 * a + e2 * b) * s1 for a, b in ALMOND]
+    verts = ring0 + ring1
+    k = len(ALMOND)
+    faces = [(i, (i + 1) % k, k + (i + 1) % k, k + i) for i in range(k)]
+    faces += [tuple(range(k - 1, -1, -1)), tuple(range(k, 2 * k))]
+    # make winding outward
+    ctr = sum(verts, Vector()) / len(verts)
+    out = []
+    for f in faces:
+        a, b, cc = verts[f[0]], verts[f[1]], verts[f[2]]
+        fn = (b - a).cross(cc - a)
+        fc = sum((verts[i] for i in f), Vector()) / len(f)
+        out.append(f if fn.dot(fc - ctr) > 0 else tuple(reversed(f)))
+    return verts, out
+
+
+def carve(prim, cutters, bone):
+    """Boolean-subtract closed cutter meshes from a closed prim, in place (socket walls stay flat)."""
+    sc = bpy.context.scene
+    me = bpy.data.meshes.new("carve_src")
+    me.from_pydata([tuple(v) for v in prim["verts"]], [], [f for f, _ in prim["faces"]])
+    uvl = me.uv_layers.new(name="UVMap")
+    for poly, (_, fuv) in zip(me.polygons, prim["faces"]):
+        poly.use_smooth = True
+        for li, uv in zip(poly.loop_indices, fuv):
+            uvl.data[li].uv = uv
+    src = bpy.data.objects.new("carve_src", me)
+    sc.collection.objects.link(src)
+    cv, cf = [], []
+    for verts, faces in cutters:
+        o = len(cv)
+        cv += verts
+        cf += [tuple(o + i for i in f) for f in faces]
+    cme = bpy.data.meshes.new("carve_cut")
+    cme.from_pydata([tuple(v) for v in cv], [], cf)
+    cuv = cme.uv_layers.new(name="UVMap")
+    for poly in cme.polygons:
+        poly.use_smooth = False
+        q = cell_uvs("navy", 1, 1)
+        for li, uv in zip(poly.loop_indices, (q * 3)[: len(poly.loop_indices)]):
+            cuv.data[li].uv = uv
+    cut = bpy.data.objects.new("carve_cut", cme)
+    sc.collection.objects.link(cut)
+    cut.hide_render = True
+    mod = src.modifiers.new("Socket", "BOOLEAN")
+    mod.operation, mod.solver, mod.object = "DIFFERENCE", "EXACT", cut
+    ev = src.evaluated_get(bpy.context.evaluated_depsgraph_get())
+    m2 = ev.to_mesh()
+    uv2 = m2.uv_layers["UVMap"]
+    prim["verts"] = [v.co.copy() for v in m2.vertices]
+    prim["faces"] = [(tuple(p.vertices), [tuple(uv2.data[li].uv) for li in p.loop_indices]) for p in m2.polygons]
+    prim["smooth"] = [p.use_smooth for p in m2.polygons]
+    prim["weights"] = [{bone: 1.0}] * len(prim["verts"])
+    ev.to_mesh_clear()
+    for ob in (src, cut):
+        bpy.data.objects.remove(ob)
+
+
+EYE_C, EYE_E1, EYE_E2, EYE_N = eye_frame()
+mir_v = lambda v: Vector((-v.x, v.y, v.z))
+sockets = []
+for sgn in (1, -1):
+    m = (lambda v: v) if sgn > 0 else mir_v
+    c, e1, e2, n = m(EYE_C), m(EYE_E1), m(EYE_E2), m(EYE_N)
+    # outer rim skewed forward: the socket flares open toward the snout so the eye reads from the front
+    sockets.append(almond_prism(c, e1, e2, n, 0.9, -0.95, 1.05, 0.8, shift0=Vector((0, -0.15, 0))))
+carve(head_prim, sockets, H)
+
+# eyeball: faceted gem sitting deep in the socket, deep blue rim -> bright centre
+rim = [EYE_C + EYE_N * -0.5 + (EYE_E1 * a + EYE_E2 * b) * 0.88 for a, b in ALMOND]
+apex = EYE_C + EYE_N * -0.22 + EYE_E1 * 0.04
+faces = [((i, (i + 1) % 6, 6), IRIS_UV) for i in range(6)]
+fn = (rim[1] - rim[0]).cross(apex - rim[0])
+if fn.dot(EYE_N) < 0:
+    faces = [((b, a, c), [u[1], u[0], u[2]]) for (a, b, c), u in faces]
+add_prim(rim + [apex], faces, "glow", H, True)
+# slit pupil: white-hot core, raised just in front of the eyeball
+pc = EYE_C + EYE_N * -0.23 + EYE_E1 * 0.04
+pv = [pc + EYE_E2 * 0.25, pc + EYE_E1 * 0.08, pc - EYE_E2 * 0.25, pc - EYE_E1 * 0.08]
+ptip = pc + EYE_N * 0.09
+faces = [((i, (i + 1) % 4, 4), PUPIL_UV) for i in range(4)]
+fn = (pv[1] - pv[0]).cross(ptip - pv[0])
+if fn.dot(EYE_N) < 0:
+    faces = [((b, a, c), [u[1], u[0], u[2]]) for (a, b, c), u in faces]
+add_prim(pv + [ptip], faces, "glow", H, True)
+
+EYE_AVOID = [(EYE_C, 1.25), (EYE_C + EYE_N * 1.1, 1.1), (EYE_C + Vector((0, -1.6, 0)), 1.0)]  # socket + sight lines
+loft_blocks(HEAD, 14, (2.3, 4.6), (-0.1 * math.pi, 0.5 * math.pi), tan_p=0.45, half=True, size=(0.8, 1.2),
+            avoid=EYE_AVOID)
 loft_blocks(HEAD, 6, (0.2, 2.0), (0.1 * math.pi, 0.5 * math.pi), tan_p=0.9, half=True, size=(0.7, 1.0),
-            out=(0.05, 0.25))
+            out=(0.05, 0.25), avoid=EYE_AVOID)
 box(-1.1, 1.1, 3.3, 5.5, 11.55, 12.15, "tan", H, skip=("-z",))          # forehead plate
 box(-1.7, 1.7, 0.9, 5.8, 9.1, 9.5, "tan", H)                            # upper lip rail
 for sx in (1,):
-    f = rot_frame((1.6, 3.5, 11.4), "Y", math.radians(-18))
-    box(0.95, 2.25, 2.85, 4.2, 11.0, 11.85, "tan", H, frame=f, skip=("-z",), mirror=True)  # brow ridge
-    box(1.45, 2.3, 2.55, 3.35, 10.35, 11.0, bone=H, group="glow", uv="glow", mirror=True)   # eye
+    f = rot_frame((1.6, 3.0, 11.5), "Y", math.radians(-12))
+    box(0.75, 1.95, 2.5, 3.95, 11.25, 11.95, "tan", H, frame=f, skip=("-z",), mirror=True)  # brow overhang
 # mouth glow + throat
 box(-1.45, 1.45, 1.3, 6.2, 8.2, 9.3, bone=H, group="glow", uv="mouth")
 # upper teeth (hang down)
@@ -603,7 +715,8 @@ def build_mesh(name, group):
         for ids, fuv in pr["faces"]:
             faces.append(tuple(o + i for i in ids))
             uvs.append(fuv)
-            smooth.append(pr.get("smooth", False))
+        sm = pr.get("smooth", False)
+        smooth += sm if isinstance(sm, list) else [sm] * len(pr["faces"])
     me = bpy.data.meshes.new(name)
     me.from_pydata(verts, [], faces)
     me.update()
