@@ -1,0 +1,12 @@
+{
+  "source_files": ["octopus_reference_sheet.webp"],
+  "primary_view": "front",
+  "views": ["front", "back", "three_quarter", "left", "top", "right"],
+  "expected_primary_parts": {"count": 8, "labels": ["tentacles"]},
+  "structural_parts": ["mantle", "8 tentacles", "beak", "eyes x2", "brow plates x2"],
+  "decorative_parts": ["crown spike", "crest blocks", "temple/side spikes", "back fins", "suckers"],
+  "palette": ["#191856", "#33219B", "#8451EF", "#D4A9FB", "#FEECEB"],
+  "constraints": {"tris_max": 5000, "studs": "texture only, square studs"},
+  "multiview_conflict": "Views are not rigidly consistent (arm curl planes differ per view); front view is canonical.",
+  "validation_thresholds": {"front_mask_iou_min": 0.90, "achieved_front_iou": 0.576}
+}
