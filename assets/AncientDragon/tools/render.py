@@ -12,12 +12,13 @@ rig = bpy.data.objects['DragonRig']
 rig.animation_data.action = bpy.data.actions[action]
 sc.render.engine = 'CYCLES'; sc.cycles.samples = 24; sc.cycles.use_denoising = True
 sc.cycles.device = 'CPU'
-sc.render.resolution_x, sc.render.resolution_y = 720, 540
+sc.render.resolution_x, sc.render.resolution_y = 900, 675
+sc.render.film_transparent = True
 sc.view_settings.view_transform = 'Standard'
 w = bpy.data.worlds.new('W'); sc.world = w; w.use_nodes = True
-bg = w.node_tree.nodes['Background']; bg.inputs[0].default_value = (0.35, 0.62, 0.95, 1); bg.inputs[1].default_value = 0.9
+bg = w.node_tree.nodes['Background']; bg.inputs[0].default_value = (0.42, 0.68, 1.0, 1); bg.inputs[1].default_value = 1.1
 sun = bpy.data.objects.new('Sun', bpy.data.lights.new('Sun', 'SUN')); sc.collection.objects.link(sun)
-sun.data.energy = 3.2; sun.rotation_euler = (math.radians(50), 0, math.radians(-35)); sun.data.angle = math.radians(8)
+sun.data.energy = 4.0; sun.rotation_euler = (math.radians(50), 0, math.radians(-35)); sun.data.angle = math.radians(8)
 bpy.ops.mesh.primitive_plane_add(size=60, location=(0, 0, 0))
 g = bpy.context.object; gm = bpy.data.materials.new('G'); gm.use_nodes = True
 gm.node_tree.nodes['Principled BSDF'].inputs['Base Color'].default_value = (0.05, 0.05, 0.08, 1)
@@ -36,7 +37,7 @@ for fr in frames:
     for name in views:
         d, ortho = V[name]
         d = d.normalized()
-        g.hide_render = name in ('bottom',)
+        g.hide_render = True
         cam.location = ctr + d * 30
         cam.rotation_euler = (-d).to_track_quat('-Z', 'Y' if name not in ('top', 'bottom') else 'Y').to_euler()
         if name in ('top', 'bottom'):

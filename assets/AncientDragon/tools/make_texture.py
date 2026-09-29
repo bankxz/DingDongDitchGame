@@ -84,19 +84,42 @@ def glyph_fn(glyph, gx, gy, inner, border=None, border_w=2, shape=None):
     return fn
 
 CHEST = """
-.....CC.....
-....C..C....
-.....CC.....
-............
-.....CC.....
-....C..C....
-...C.CC.C...
-..C.C..C.C..
-...C.CC.C...
-....C..C....
-.....CC.....
+....CC....
+...C..C...
+....CC....
+..........
+....CC....
+...C..C...
+..C....C..
+.C..CC..C.
+..C....C..
+...C..C...
+....CC....
 """
-paint_grid('rune_chest', glyph_fn(CHEST, 2, 3, T, G, 2))
+def _inside(poly, x, y):
+    c = False
+    for (x0, y0), (x1, y1) in zip(poly, poly[1:] + poly[:1]):
+        if (y0 > y) != (y1 > y) and x < x0 + (y - y0) * (x1 - x0) / (y1 - y0):
+            c = not c
+    return c
+_xs = [p[0] for p in SHIELD]; _zs = [p[1] for p in SHIELD]
+def _shield_cell(i, j):
+    """map cell centre -> shield design coords (x, z)."""
+    x = min(_xs) + (i + 0.5) / CELLS * (max(_xs) - min(_xs))
+    z = max(_zs) - (j + 0.5) / CELLS * (max(_zs) - min(_zs))
+    return x, z
+_cx = sum(_xs) / len(_xs); _cz = sum(_zs) / len(_zs)
+_inner = [(_cx + (x - _cx) * 0.68, _cz + (z - _cz) * 0.68) for x, z in SHIELD]
+_crow = glyph_rows(CHEST)
+def chest_fn(i, j):
+    x, z = _shield_cell(i, j)
+    if not _inside(_inner, x, z):
+        return G, 0.0
+    r, c_ = j - 2, i - 3
+    if 0 <= r < len(_crow) and 0 <= c_ < len(_crow[r]) and _crow[r][c_] == 'C':
+        return C, 1.0
+    return T, 0.0
+paint_grid('rune_chest', chest_fn)
 
 DISC = """
 ..CCCC..
@@ -147,83 +170,75 @@ paint_grid('rune_knee', glyph_fn(KNEE, 6, 6, T, G, 4))
 
 # ---------------- wing membrane region -----------------
 wx, wy, ww, wh = WING_REGION
-S = ww / (WING_A1 - WING_A0)          # px per design unit (uniform)
-def w2px(a, b):
-    return wx + (a - WING_A0) * S, wy + (WING_B1 - b) * S
-outline = membrane_outline()
-# trailing edge polyline from outer tip back to body (bottom part of outline)
-trail = [p for p in outline[len(LEADING) + 1:]] + []
-trail = sorted([TIPS[3]] + trail, key=lambda p: p[0])
-def trail_b(a):
-    for (a0, b0), (a1, b1) in zip(trail, trail[1:]):
-        if a0 <= a <= a1:
-            return b0 + (b1 - b0) * (a - a0) / max(a1 - a0, 1e-6)
-    return trail[0][1] if a < trail[0][0] else trail[-1][1]
-
-WGLYPHS = [  # (a, b, glyph)  cell-art placed centred at wing coords
-    (14.4, 1.2, """
-..CC..
-..CC..
-CCCCCC
-C....C
-C.CC.C
-C....C
-CCCCCC
-"""),
-    (10.0, 1.8, """
+a0, b1, S = wing_bounds()
+trail = sorted(wing_trailing_2d(), key=lambda p: p[0])
+lead = sorted([wing2d(p) for p in W_LEAD], key=lambda p: p[0])
+def _interp(poly, a):
+    if a <= poly[0][0]: return poly[0][1]
+    for (x0, y0), (x1, y1) in zip(poly, poly[1:]):
+        if x0 <= a <= x1:
+            return y0 + (y1 - y0) * (a - x0) / max(x1 - x0, 1e-6)
+    return poly[-1][1]
+WCELL = 0.42
+cellpx = WCELL * S
+G_BIG = """
+...CC...
+...CC...
+CCCCCCCC
+C......C
+C.CCCC.C
+C.C..C.C
+C.CCCC.C
+C......C
+CCCCCCCC
+"""
+G_MED = """
 ..C..
+.CCC.
 ..C..
-CCCCC
+C.C.C
+.CCC.
 ..C..
 .C.C.
-..C..
-"""),
-    (5.6, 2.8, """
+"""
+G_SML = """
+CC.
 .C.
-CCC
+.CC
 .C.
-.C.
-C.C
-"""),
-    (16.8, -0.6, """
+"""
+G_TINY = """
 C.
 .C
-C.
-"""),
-    (12.2, 0.2, """
-.C
-C.
-"""),
-]
-WCELL = 0.45
-cellpx = WCELL * S
-nx = int((WING_A1 - WING_A0) / WCELL) + 1
-ny = int((WING_B1 - WING_B0) / WCELL) + 1
+"""
+anch = wing_glyph_anchors()
+glyphs = [(anch[2], G_BIG), (anch[1], G_MED), (anch[0], G_SML), (anch[3], G_TINY)]
 glow_cells = set()
-for a, b, g in WGLYPHS:
+for (a, b), g in glyphs:
     rows = glyph_rows(g)
-    ci0 = int((a - WING_A0) / WCELL) - len(rows[0]) // 2
-    cj0 = int((WING_B1 - b) / WCELL) - len(rows) // 2
+    ci0 = int((a - a0) / WCELL) - len(rows[0]) // 2
+    cj0 = int((b1 - b) / WCELL) - len(rows) // 2
     for r, row in enumerate(rows):
         for c_, ch in enumerate(row):
             if ch == 'C':
                 glow_cells.add((ci0 + c_, cj0 + r))
+nx = int(ww / cellpx) + 1; ny = int(wh / cellpx) + 1
 for j in range(ny):
     for i in range(nx):
-        a = WING_A0 + (i + 0.5) * WCELL
-        b = WING_B1 - (j + 0.5) * WCELL
-        d = b - trail_b(a)                 # distance above trailing edge
-        t = float(np.clip(1.0 - d / 2.6, 0, 1)) ** 1.8
-        base = np.array(T) * (1 - t) + np.array((34, 150, 160)) * t
-        e = 0.12 * t
-        if d < 0.55:
-            base = np.array((60, 200, 205)); e = 0.5
-        if b > 4.6 and a < 8:               # darker upper band near the wrist
-            base = np.array(K) * 1.1
+        a = a0 + (i + 0.5) * WCELL
+        b = b1 - (j + 0.5) * WCELL
+        d = b - _interp(trail, a)            # height above trailing edge
+        u = _interp(lead, a) - b             # depth below leading edge
+        t = float(np.clip(1.0 - d / 2.4, 0, 1)) ** 1.5
+        base = np.array(T, float) * (1 - t) + np.array((32, 150, 162)) * t
+        e = 0.15 * t
+        if d < 0.45:
+            base = np.array((66, 214, 214)); e = 0.6
+        if u < 1.3:
+            base = np.array(K, float) * 1.05; e = 0.0
         if (i, j) in glow_cells:
             base, e = np.array(C), 1.0
-        x, y = wx + i * cellpx, wy + j * cellpx
-        stud_cell(x, y, base, 0.08, e, cp=int(round(cellpx)))
+        stud_cell(wx + i * cellpx, wy + j * cellpx, base, 0.08, e, cp=int(round(cellpx)))
 
 # glow halo around emissive cyan cells
 em_img = Image.fromarray((emi * 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(10))
