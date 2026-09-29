@@ -28,3 +28,7 @@
   - The shards are now broad, flat blades.
   - Most shards became 4-tri blades, and the triangles this saved were spent on much denser ice.
   - The Blender glow on the ice was lowered from 1.4 to 0.55, so the ice keeps its colour instead of washing out to white.
+- **Round 6:**
+  - Added the `FlyIdle` (hover) and `FlyWalk` clips. The Root stays still and the Torso lifts. The foot IK is switched off while these clips are sampled.
+  - Rested the claw tips on the ground.
+  - Gave each eyebrow a large bevel on its front-outer edge, mirrored on both sides of all three heads.

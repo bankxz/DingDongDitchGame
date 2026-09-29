@@ -1,5 +1,7 @@
 # Executed from build_dragon.py (shares its globals: bpy, arm, BONES, V, math ...).
-# Creates two looping actions on the rig: "Idle" (90 f) and "Walk" (40 f, in place), 30 fps.
+# Creates four looping actions on the rig, 30 fps:
+#   "Idle" (90 f), "Walk" (40 f, in place), "FlyIdle" (60 f, hover), "FlyWalk" (40 f, flying forward in place).
+# The Root bone never moves: flight is the Torso lifting inside the animation.
 from mathutils import Matrix, Quaternion
 
 scene.render.fps = 30
@@ -121,9 +123,80 @@ def pose_walk(f, N=40):
     for i in range(1, 6):
         set_rot(f'Tail{i}', ((0, 0, 1), (4.0 + 2.0 * i) * S(f, N, 0.15 - 0.08 * i)), ((1, 0, 0), 2.0 * S(f, N / 2, -0.06 * i)))
 
+# ------------------------------------------------------------------ FLY ----
+HOVER = 2.4          # studs the body rises above its standing height
+
+def flap(w):
+    """0 at the top of the upstroke, 1 at the bottom of the downstroke (w = beat phase)."""
+    return 0.5 - 0.5 * math.cos(2 * math.pi * w)
+
+def wings_flap(w, amp=1.0, sweep=8.0):
+    for side, sg in (('L', 1), ('R', -1)):
+        d1, d2, d3 = flap(w), flap(w - 0.08), flap(w - 0.16)
+        set_rot(f'Wing1.{side}', ((0, 1, 0), sg * amp * (-14 + 62 * d1)),
+                ((0, 0, 1), sg * sweep * math.sin(2 * math.pi * w)))
+        set_rot(f'Wing2.{side}', ((0, 1, 0), sg * amp * (-8 + 26 * d2)), ((1, 0, 0), -6 * (1 - d2)))
+        set_rot(f'Wing3.{side}', ((0, 1, 0), sg * amp * (-6 + 22 * d3)))
+
+def legs_tucked(f, N, tight=0.0, sway=1.0):
+    """Front legs fold back under the chest, hind legs trail with toes pointed."""
+    for side in ('L', 'R'):
+        dang = sway * 3.0 * S(f, N, 0.2 if side == 'L' else 0.45)
+        set_rot(f'UpperArm.{side}', ((1, 0, 0), 32 + 10 * tight + dang))
+        set_rot(f'Forearm.{side}', ((1, 0, 0), 58 + 10 * tight + dang))
+        set_rot(f'Hand.{side}', ((1, 0, 0), 45 + dang))
+        set_rot(f'Thigh.{side}', ((1, 0, 0), 38 + 14 * tight - dang))
+        set_rot(f'Shin.{side}', ((1, 0, 0), 30 + 10 * tight - dang))
+        set_rot(f'Foot.{side}', ((1, 0, 0), 55 + 10 * tight))
+
+def pose_fly_idle(f, N=60):
+    beats = 2; w = (f / N) * beats                                   # two slow wingbeats per loop
+    bob = 0.28 * (flap(w - 0.15) - 0.5)                              # body rises on the downstroke
+    arm.pose.bones['Torso'].location = world_loc('Torso', (0, 0.1 * S(f, N), HOVER + bob))
+    set_rot('Torso', ((1, 0, 0), -9 + 2.0 * S(f, N / beats, -0.1)), ((0, 1, 0), 2.0 * S(f, N)))
+    set_rot('Pelvis', ((1, 0, 0), 3 - 2.0 * S(f, N / beats, -0.2)))
+    wings_flap(w, amp=1.0, sweep=8.0)
+    legs_tucked(f, N, tight=0.0)
+    for k in 'CLR':
+        ph = {'C': 0.0, 'L': 0.18, 'R': 0.36}[k]; sd = neck_side(k)
+        for i in (1, 2, 3):
+            set_rot(f'Neck{k}{i}', ((1, 0, 0), 3.0 + 2.0 * S(f, N, ph + 0.05 * i)),
+                    ((0, 0, 1), 3.0 * S(f, N, ph + 0.25) + 1.5 * sd * S(f, N / 2, ph)))
+        # heads counter the body bob so they stay steady
+        set_rot(f'Head{k}', ((1, 0, 0), 6.0 - 3.0 * S(f, N / beats, ph - 0.1)), ((0, 0, 1), -3.0 * S(f, N, ph + 0.3)))
+        snap = max(0.0, S(f, N, ph + 0.6)) ** 6
+        jaw_axis = arm.data.bones[f'Head{k}'].matrix_local.to_3x3() @ V((1, 0, 0))
+        set_rot(f'Jaw{k}', (jaw_axis, 3.0 * S(f, N, ph) - 9.0 * snap))
+    for i in range(1, 6):                                            # tail hangs down and sways
+        set_rot(f'Tail{i}', ((1, 0, 0), (7 if i == 1 else -2.5) + 2.0 * S(f, N / beats, -0.1 * i)),
+                ((0, 0, 1), (4.0 + 2.0 * i) * S(f, N, -0.08 * i)))
+
+def pose_fly_walk(f, N=40):
+    beats = 2; w = (f / N) * beats                                   # faster, stronger beats
+    bob = 0.36 * (flap(w - 0.15) - 0.5)
+    arm.pose.bones['Torso'].location = world_loc('Torso', (0.06 * S(f, N), 0, HOVER + bob))
+    set_rot('Torso', ((1, 0, 0), 8 + 2.5 * S(f, N / beats, -0.1)), ((0, 1, 0), 3.0 * S(f, N)), ((0, 0, 1), 2.0 * S(f, N, 0.25)))
+    set_rot('Pelvis', ((1, 0, 0), 2 - 2.5 * S(f, N / beats, -0.2)), ((0, 0, 1), -3.0 * S(f, N, 0.25)))
+    wings_flap(w, amp=1.25, sweep=12.0)
+    legs_tucked(f, N, tight=1.0, sway=0.6)
+    for k in 'CLR':
+        ph = {'C': 0.0, 'L': 0.12, 'R': 0.24}[k]
+        for i in (1, 2, 3):                                          # necks reach forward
+            set_rot(f'Neck{k}{i}', ((1, 0, 0), 9.0 + 2.5 * S(f, N / beats, ph + 0.1 * i)), ((0, 0, 1), 2.5 * S(f, N, ph + 0.3)))
+        set_rot(f'Head{k}', ((1, 0, 0), -30.0 - 4.0 * S(f, N / beats, ph + 0.3)))   # keep heads level
+        jaw_axis = arm.data.bones[f'Head{k}'].matrix_local.to_3x3() @ V((1, 0, 0))
+        set_rot(f'Jaw{k}', (jaw_axis, 3.0 * S(f, N / beats, ph)))
+    for i in range(1, 6):                                            # tail streams back with a wave
+        set_rot(f'Tail{i}', ((1, 0, 0), (-4 if i == 1 else 1.5) + 3.0 * S(f, N / beats, -0.12 * i)),
+                ((0, 0, 1), (3.0 + 2.5 * i) * S(f, N, 0.1 - 0.1 * i)))
+
 # sample both clips with IK active (idle keeps IK targets at rest => planted feet)
+CLIPS = [('Idle', 90, pose_idle, False), ('Walk', 40, pose_walk, False),
+         ('FlyIdle', 60, pose_fly_idle, True), ('FlyWalk', 40, pose_fly_walk, True)]
+LEG_CONS = [c for leg, (up, lo, ft, ph) in LEGS.items() for c in (*arm.pose.bones[lo].constraints, *arm.pose.bones[ft].constraints)]
 baked = {}
-for name, n, fn in (('Idle', 90, pose_idle), ('Walk', 40, pose_walk)):
+for name, n, fn, flying in CLIPS:
+    for c in LEG_CONS: c.influence = 0.0 if flying else 1.0     # feet leave the ground in flight
     src = new_action(name + 'Src')
     for f in range(0, n + 1):
         reset_pose(); fn(f, n); key_all(f, ALL)
@@ -143,10 +216,10 @@ for leg in LEGS:
     arm.data.edit_bones.remove(arm.data.edit_bones['IK_' + leg])
 bpy.ops.object.mode_set(mode='POSE')
 acts = {}
-for name, n in (('Idle', 90), ('Walk', 40)):
+for name, n, fn, flying in CLIPS:
     act = acts[name] = new_action(name)
     reset_pose()
-    for f in range(0, n + 1, 1 if name == 'Walk' else 2):
+    for f in range(0, n + 1, 1 if name in ('Walk', 'FlyWalk') else 2):
         for bn in DEFORM:
             bone_ = arm.data.bones[bn]; P = baked[name][f][bn]
             if bone_.parent:
@@ -158,11 +231,11 @@ for name, n in (('Idle', 90), ('Walk', 40)):
         key_all(f, DEFORM)
 idle, walk = acts['Idle'], acts['Walk']
 
-# looping: keep keys linear-ish smooth, make sure the actions have their ranges set
-for act, n in ((idle, 90), (walk, 40)):
-    act.frame_range = (0, n); act.use_frame_range = True; act.use_cyclic = True
+# looping: make sure every action has its range set and is flagged cyclic
+for name, n, fn, flying in CLIPS:
+    act = acts[name]; act.frame_range = (0, n); act.use_frame_range = True; act.use_cyclic = True
 reset_pose()
 arm.animation_data.action = idle
 bpy.ops.object.mode_set(mode='OBJECT')
 scene.frame_start = 0; scene.frame_end = 90
-print('ANIM idle keys', len(idle.fcurves), 'walk keys', len(walk.fcurves))
+print('ANIM', {k: len(a.fcurves) for k, a in acts.items()})

@@ -402,6 +402,22 @@ def build_head(k):
     def hbox(c, size, slot, rot=None, taper=1.0, slots=None):
         box(BODY, P(*c), [v * HS for v in size], slot, hw, R @ (rot or Matrix.Identity(3)), taper, slots)
     BOT, TOP, BACK, SIDE_P, FRONT, SIDE_N = range(6)
+    def bevel_prism(xy, z0, z1, sg, slot='navy', c=(0, 0, 0), rot=None):
+        """Extrude a local (x side, y forward) outline between z0..z1, placed at c and turned by
+        rot in head space. The outline is given for the +x side (counter-clockwise from +z)
+        and mirrored for sg < 0."""
+        rot = rot or Matrix.Identity(3); c = V(c)
+        pts = [(x * sg, y) for x, y in xy]
+        if sg < 0: pts = pts[::-1]
+        Q = lambda x, y, z: P(*(c + rot @ V((x, y, z))))
+        lo = [BODY.add_v(Q(x, y, z0), hw) for x, y in pts]
+        hi = [BODY.add_v(Q(x, y, z1), hw) for x, y in pts]
+        n = len(pts)
+        for i in range(1, n - 1):
+            BODY.face([hi[0], hi[i], hi[i + 1]], slot); BODY.face([lo[0], lo[i + 1], lo[i]], slot)
+        for i in range(n):
+            j = (i + 1) % n
+            BODY.face([lo[i], lo[j], hi[j], hi[i]], slot)
     # --- skull: narrower core + full-width cranium cap; the eye sockets are the gap
     #     between the cap/brow ledge and the cheek ridge, cut into the core's sides
     hbox((0, 0.4, 0.2), (1.7, 1.7, 1.0), 'navy', taper=0.95, slots={BOT: 'red'})         # core
@@ -417,7 +433,8 @@ def build_head(k):
         # brow ledge: grows out of the cranium cap, overhangs the socket, slopes down to the
         # front (angry slant) and rises to the outside (V seen from the front)
         tilt = Matrix.Rotation(-0.24, 3, 'X') @ Matrix.Rotation(-0.44 * sg, 3, 'Y')
-        hbox((0.62 * sg, 0.98, 0.74), (0.9, 1.25, 0.4), 'navy', rot=tilt, taper=0.92)
+        bevel_prism([(-0.45, -0.625), (0.45, -0.625), (0.45, 0.235), (0.06, 0.625), (-0.45, 0.625)],
+                    -0.2, 0.2, sg, 'navy', c=(0.62 * sg, 0.98, 0.74), rot=tilt)   # big bevel on the front-outer edge
         # cheek ridge: the socket floor, flush with the skull side, lighter plate at the front
         hbox((0.8 * sg, 0.72, 0.06), (0.46, 1.35, 0.38), 'navy', rot=Matrix.Rotation(-0.12, 3, 'X'))
         hbox((0.78 * sg, 1.42, 0.02), (0.36, 0.42, 0.34), 'royal')
@@ -505,7 +522,7 @@ def leg(chain, bones, radii, sg, front):
         chevron(BODY, V((f.x + x, f.y - 0.72, 0.86)), (0, -1, 0.9), 0.5, 0.36, 0.1, fw)
         cf = V((0, -1, 0.9)).normalized(); cup = cf.cross(V((0, 0, 1))).normalized().cross(cf)
         shard(GLOW, V((f.x + x, f.y - 0.72, 0.86)) + cup * 0.36 + cf * 0.05, cup + cf * 0.4, 0.3, 0.2, fw, twist=0.78, simple=True)
-        claw(BODY, V((f.x + x, f.y - 0.98, 0.55)), (x * 0.08, -1, 0), 0.62, 0.66, 0.46, 0.5, fw)
+        claw(BODY, V((f.x + x, f.y - 0.98, 0.55)), (x * 0.08, -1, 0), 0.62, 0.55, 0.46, 0.5, fw)   # tip rests on the ground
     gold_band(BODY, chain[2], chain[3] - chain[2] + V((0, 0, 0.5)), radii[2][0] * 1.12, radii[2][1] * 1.12, 0.22, W(bones[1], bones[2], 0.5))
 
 for side, sg in (('L', 1), ('R', -1)):

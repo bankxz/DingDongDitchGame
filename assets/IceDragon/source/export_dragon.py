@@ -22,6 +22,8 @@ def fbx(path, all_actions, action=None):
 fbx(os.path.join(ROOT, 'IceDragon.fbx'), True, 'Idle')
 fbx(os.path.join(ROOT, 'IceDragon_Idle.fbx'), False, 'Idle')
 fbx(os.path.join(ROOT, 'IceDragon_Walk.fbx'), False, 'Walk')
+fbx(os.path.join(ROOT, 'IceDragon_FlyIdle.fbx'), False, 'FlyIdle')
+fbx(os.path.join(ROOT, 'IceDragon_FlyWalk.fbx'), False, 'FlyWalk')
 arm.animation_data.action = bpy.data.actions['Idle']
 bpy.ops.export_scene.gltf(filepath=os.path.join(ROOT, 'IceDragon.glb'), export_format='GLB', export_yup=True,
                           export_animations=True, export_animation_mode='ACTIONS', export_skins=True,

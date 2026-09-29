@@ -1,6 +1,6 @@
 import bpy, sys, os, json
 ROOT = os.path.abspath(sys.argv[-1]); rep = {}
-for fn in ('IceDragon.fbx', 'IceDragon_Idle.fbx', 'IceDragon_Walk.fbx', 'IceDragon.glb'):
+for fn in ('IceDragon.fbx', 'IceDragon_Idle.fbx', 'IceDragon_Walk.fbx', 'IceDragon_FlyIdle.fbx', 'IceDragon_FlyWalk.fbx', 'IceDragon.glb'):
     bpy.ops.wm.read_factory_settings(use_empty=True)
     for a in list(bpy.data.actions): bpy.data.actions.remove(a)
     p = os.path.join(ROOT, fn)
