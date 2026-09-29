@@ -334,11 +334,12 @@ def loft_blocks(L, n, k_range, a_range, tan_p=0.15, size=(0.9, 1.45), out=(0.12,
                 mir = True
         o = rng.uniform(*out)
         p, nn, t = L.point(kf, a, out=o)
-        if any((Vector((abs(p.x), p.y, p.z)) - c).length < r for c, r in avoid):
-            continue
         sa, sb = rng.uniform(*size), rng.uniform(*size)
         if rng.random() < 0.15:
             sb *= 1.5
+        reach = 0.75 * max(sa, sb)  # block half-diagonal, so no corner pokes into the keep-clear zone
+        if any((Vector((abs(p.x), p.y, p.z)) - c).length < r + reach for c, r in avoid):
+            continue
         mat = "tan" if rng.random() < tan_p else "navy"
         oriented_box(p, nn, t, sa, sb, rng.uniform(*thick) + o, mat, dominant(L.weights_at(kf)), mir, frame=frame)
 
@@ -411,9 +412,9 @@ for s, a in ((10.8, -0.1), (12.9, 0.35), (13.6, -0.45), (16.2, 0.4), (19.0, -0.2
 H = "Head"
 HEAD = Loft([
     # measured from the reference side view: ~5 studs long, ~4 tall, blunt squared snout
-    (V(0, 0.75, 10.3), 1.12, 1.15, w1(H)),
-    (V(0, 1.8, 10.55), 1.25, 1.42, w1(H)),
-    (V(0, 3.2, 10.9), 1.9, 1.78, w1(H)),
+    (V(0, 1.05, 10.12), 0.88, 0.95, w1(H)),     # smaller squared nose
+    (V(0, 1.95, 10.45), 1.1, 1.3, w1(H)),
+    (V(0, 3.2, 10.9), 1.6, 1.68, w1(H)),
     (V(0, 4.6, 11.05), 2.2, 1.92, w1(H)),
     (V(0, 5.8, 10.9), 2.25, 1.85, w1(H)),
     (V(0, 6.9, 10.6), 2.0, 1.6, w1(H)),
@@ -518,7 +519,7 @@ if fn.dot(EYE_N) < 0:
 add_prim(rim + [apex], faces, "glow", H, True)
 # slit pupil: white-hot core, raised just in front of the eyeball
 pc = EYE_C + EYE_N * -0.23 + EYE_E1 * 0.04
-pv = [pc + EYE_E2 * 0.25, pc + EYE_E1 * 0.08, pc - EYE_E2 * 0.25, pc - EYE_E1 * 0.08]
+pv = [pc + EYE_E2 * 0.2, pc + EYE_E1 * 0.08, pc - EYE_E2 * 0.2, pc - EYE_E1 * 0.08]
 ptip = pc + EYE_N * 0.09
 faces = [((i, (i + 1) % 4, 4), PUPIL_UV) for i in range(4)]
 fn = (pv[1] - pv[0]).cross(ptip - pv[0])
@@ -532,15 +533,35 @@ loft_blocks(HEAD, 14, (2.3, 4.6), (-0.1 * math.pi, 0.5 * math.pi), tan_p=0.45, h
 loft_blocks(HEAD, 6, (0.2, 2.0), (0.1 * math.pi, 0.5 * math.pi), tan_p=0.9, half=True, size=(0.7, 1.0),
             out=(0.05, 0.25), avoid=EYE_AVOID)
 box(-1.2, 1.2, 3.2, 5.6, 12.45, 13.05, "tan", H, skip=("-z",))          # forehead plate
-box(-1.7, 1.7, 0.9, 5.8, 9.1, 9.5, "tan", H)                            # upper lip rail
-for sx in (1,):
-    f = rot_frame((1.6, 3.8, 12.9), "Y", math.radians(-12))
-    box(0.8, 2.25, 3.0, 4.9, 12.55, 13.2, "tan", H, frame=f, skip=("-z",), mirror=True)  # brow overhang
+box(-1.55, 1.55, 1.15, 5.8, 9.1, 9.5, "tan", H)                          # upper lip rail
+
+
+def brow_block(c, size, mat, pitch, roll, yaw=0.0):
+    """block centred at c, pitched nose-down (X), rolled inner-edge-down (Y), yawed (Z)."""
+    c = Vector(c)
+    R = (Matrix.Rotation(math.radians(yaw), 3, "Z") @ Matrix.Rotation(math.radians(roll), 3, "Y")
+         @ Matrix.Rotation(math.radians(pitch), 3, "X"))
+    sx, sy, sz = size
+    box(-sx / 2, sx / 2, -sy / 2, sy / 2, -sz / 2, sz / 2, mat, H, frame=lambda v: c + R @ v, mirror=True)
+
+
+# Brow ridge (reference): stepped blocks running from high at the outer back of the skull down to
+# low at the inner front corner above the eye -> angry "V" from the front, heavy overhang from the side.
+# Tan blocks ride on top, navy blocks form the lip directly over the glowing eye.
+BROW = [  # centre (x, s, z), size (x, s, z), mat, pitch, roll, yaw
+    ((1.75, 3.85, 12.72), (1.1, 1.15, 0.6), "navy", 14, 20, -10),   # lip over the eye (inner, lowest)
+    ((2.45, 4.2, 12.8), (0.85, 1.15, 0.6), "navy", 12, 12, -4),     # lip over the eye (outer)
+    ((2.3, 4.55, 13.3), (1.0, 1.3, 0.7), "tan", 16, 16, -6),        # tan block stacked on top
+    ((1.7, 5.1, 13.35), (1.1, 1.3, 0.75), "tan", 18, 16, -8),       # ridge climbing back
+    ((2.05, 5.95, 13.4), (1.1, 1.3, 0.8), "tan", 16, 12, -4),
+]
+for c, size, mat, pitch, roll, yaw in BROW:
+    brow_block(c, size, mat, pitch, roll, yaw)
 # mouth glow + throat
 box(-1.45, 1.45, 1.3, 6.2, 8.2, 9.3, bone=H, group="glow", uv="mouth")
 # upper teeth (hang down)
 for x in (-1.1, -0.37, 0.37, 1.1):
-    pyramid(V(x, 1.05, 9.15), (0, 0, -1), 0.75 if abs(x) > 1 else 0.5, 0.2, H)
+    pyramid(V(x * 0.9, 1.3, 9.15), (0, 0, -1), 0.75 if abs(x) > 1 else 0.5, 0.2, H)
 for s, L in ((1.9, 0.6), (2.9, 0.5), (3.9, 0.55), (4.9, 0.45)):
     pyramid(V(1.5, s, 9.15), (0.15, 0, -1), L, 0.2, H, mirror=True)
 

@@ -6,7 +6,7 @@ The eyes sit in almond-shaped sockets carved into the head (boolean cut into the
 
 | | |
 |---|---|
-| Triangles | **4,872**, under the 5k budget |
+| Triangles | **4,900**, under the 5k budget |
 | Size | 1 block = 1 stud: about 34 studs long, 15 wide, 15.6 tall (including crystals) |
 | Rig | 22 deform bones: Root, Hips, Chest, Neck, Head, Jaw, Tail1-4, and for each side UpperArm, Forearm, Hand, Thigh, Shin, Foot |
 | Skinning | Up to 2 bones per vertex. Blends at the neck, hips, tail and knee rings so joints bend smoothly; armour blocks and crystals stay rigid. |
