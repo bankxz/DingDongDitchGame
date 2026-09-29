@@ -14,6 +14,9 @@ from PIL import Image
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import shark_geo as G  # noqa: E402
+import shark_lowpoly as L  # noqa: E402
+import stud_bake as SB  # noqa: E402
+import bmesh  # noqa: E402
 
 OUT = os.path.abspath(sys.argv[-1] if len(sys.argv) > 1 else ".")
 S = 0.3  # blender units per voxel cube -> shark is ~14.4 units long
@@ -36,86 +39,92 @@ scene.unit_settings.system = "METRIC"
 scene.unit_settings.scale_length = 0.01
 scene.unit_settings.length_unit = "CENTIMETERS"
 
-res = G.build_all(1024)
-atlas = res["atlas"]
 os.makedirs(OUT, exist_ok=True)
 tex_dir = os.path.join(OUT, "textures")
 os.makedirs(tex_dir, exist_ok=True)
 color_path = os.path.join(tex_dir, "SkeletalShark_Color.png")
 emis_path = os.path.join(tex_dir, "SkeletalShark_Emissive.png")
-Image.fromarray(np.clip(atlas.img, 0, 255).astype(np.uint8)).save(color_path)
-Image.fromarray((atlas.emis * 255).astype(np.uint8)).save(emis_path)
 
-# ----------------------------------------------------------------------------- mesh data
-verts, faces, uvs, vbone, vshark = [], [], [], [], []
-
-
-def add_face(pts_shark, face_uvs, bone):
-    base = len(verts)
-    for p in pts_shark:
-        verts.append(to_world(p))
-        vshark.append(p)
-        vbone.append(bone)
-    # shark (i,w,z)->(Y,X,Z) swaps two axes => reverse winding to keep normals outward
-    idx = list(range(base, base + len(pts_shark)))[::-1]
-    faces.append(idx)
-    uvs.append(list(face_uvs)[::-1])
-
-
-for q in res["quads"]:
-    xf = q.part.xf
-    pts = []
-    for c in q.corners:
-        v = xf @ np.array([c[0], c[1], c[2], 1.0])
-        pts.append(tuple(v[:3]))
-    add_face(pts, q.uvs, q.bone)
-
-u0, v0, u1, v1 = res["tooth_rect"]
-for vs, fs, bone in res["teeth"]:
-    zs = [p[2] for p in vs]
-    zmin, zmax = min(zs), max(zs)
-    for f in fs:
-        pts = [vs[k] for k in f]
-        # gradient tile: base (ivory) -> tip (white)
-        fu = []
-        for p in pts:
-            t = (p[2] - zmin) / max(zmax - zmin, 1e-6)
-            down = bone == "Head"
-            t = 1 - t if not down else t
-            t = 1 - t
-            fu.append((u0 + (u1 - u0) * (0.3 + 0.4 * ((p[0] + p[1]) % 1.0)), v0 + (v1 - v0) * t))
-        add_face(pts, fu, bone)
-
-gu0, gv0, gu1, gv1 = res["glow_rect"]
-for (a0, b0, c0), (a1, b1, c1) in res["glows"]:
-    X = [a0, a1]
-    Yw = [b0, b1]
-    Zc = [c0, c1]
-    cube_faces = [((0, 0, 0), (0, 1, 0), (0, 1, 1), (0, 0, 1)),
-                  ((1, 0, 0), (1, 0, 1), (1, 1, 1), (1, 1, 0)),
-                  ((0, 0, 0), (0, 0, 1), (1, 0, 1), (1, 0, 0)),
-                  ((0, 1, 0), (1, 1, 0), (1, 1, 1), (0, 1, 1)),
-                  ((0, 0, 0), (1, 0, 0), (1, 1, 0), (0, 1, 0)),
-                  ((0, 0, 1), (0, 1, 1), (1, 1, 1), (1, 0, 1))]
-    guv = [(gu0, gv0), (gu1, gv0), (gu1, gv1), (gu0, gv1)]
-    for cf in cube_faces:
-        pts = [(X[a], Yw[b], Zc[c]) for a, b, c in cf]
-        add_face(pts, guv, "SPINE")
-
+# ----------------------------------------------------------------------------- mesh (smooth low-poly)
+lp = L.build_all()
+vshark = [tuple(p) for p in lp.V]
+vbone = list(lp.VB)
 mesh = bpy.data.meshes.new("SkeletalShark")
-mesh.from_pydata([tuple(v) for v in verts], [], faces)
+mesh.from_pydata([tuple(to_world(p)) for p in lp.V], [], [f[::-1] for f in lp.F])
 mesh.update()
-uvl = mesh.uv_layers.new(name="UVMap")
-for poly, fu in zip(mesh.polygons, uvs):
-    for li, uv in zip(poly.loop_indices, fu):
-        uvl.data[li].uv = uv
+MAT_IDS = {n: k for k, n in enumerate(SB.MATS)}
+parts = sorted(set(lp.FP))
+fa_m = mesh.attributes.new("shark_mat", "INT", "FACE")
+fa_p = mesh.attributes.new("shark_part", "INT", "FACE")
+for k, (mt, pt) in enumerate(zip(lp.FM, lp.FP)):
+    fa_m.data[k].value = MAT_IDS[mt]
+    fa_p.data[k].value = parts.index(pt)
+bm = bmesh.new()
+bm.from_mesh(mesh)
+bmesh.ops.triangulate(bm, faces=bm.faces[:], quad_method="BEAUTY", ngon_method="BEAUTY")
+bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
+bm.to_mesh(mesh)
+bm.free()
 for p in mesh.polygons:
     p.use_smooth = False
-mesh.validate(clean_customdata=False)
 obj = bpy.data.objects.new("SkeletalShark", mesh)
 scene.collection.objects.link(obj)
 
-# merge coincident verts that share bone *and* uv island is not possible (per-quad UVs), keep as is.
+# UVs: smart project (planar islands, uniform texel density) then bake the stud atlas
+bpy.context.view_layer.objects.active = obj
+obj.select_set(True)
+bpy.ops.object.mode_set(mode="EDIT")
+bpy.ops.mesh.select_all(action="SELECT")
+bpy.ops.uv.smart_project(angle_limit=math.radians(50), island_margin=0.006, area_weight=0.0,
+                         correct_aspect=True, scale_to_bounds=False)
+bpy.ops.object.mode_set(mode="OBJECT")
+# flat-colour islands (teeth, glow, eye, sockets) get little texture space -> more pixels for studs
+from bpy_extras import mesh_utils  # noqa: E402
+
+_uv = mesh.uv_layers.active
+_mat = mesh.attributes["shark_mat"]
+for isl in mesh_utils.mesh_linked_uv_islands(mesh):
+    if all(_mat.data[p].value in (0, 1) for p in isl):
+        continue
+    loops = [li for p in isl for li in mesh.polygons[p].loop_indices]
+    c = sum((_uv.data[li].uv for li in loops), start=_uv.data[loops[0]].uv * 0) / len(loops)
+    for li in loops:
+        _uv.data[li].uv = c + (_uv.data[li].uv - c) * 0.25
+bpy.ops.object.mode_set(mode="EDIT")
+bpy.ops.mesh.select_all(action="SELECT")
+bpy.ops.uv.select_all(action="SELECT")
+bpy.ops.uv.pack_islands(rotate=True, margin=0.003)
+bpy.ops.object.mode_set(mode="OBJECT")
+uvl = mesh.uv_layers.active
+uvl.name = "UVMap"
+from bpy_extras import mesh_utils  # noqa: E402
+
+isl_of = np.zeros(len(mesh.polygons), np.int32)
+for k, isl in enumerate(mesh_utils.mesh_linked_uv_islands(mesh)):
+    isl_of[isl] = k
+T = len(mesh.polygons)
+UV = np.zeros((T, 3, 2))
+POS = np.zeros((T, 3, 3))
+NRM = np.zeros((T, 3))
+MT = np.array([mesh.attributes["shark_mat"].data[k].value for k in range(T)])
+PT = np.array([mesh.attributes["shark_part"].data[k].value for k in range(T)])
+for t, poly in enumerate(mesh.polygons):
+    for c, li in enumerate(poly.loop_indices):
+        UV[t, c] = uvl.data[li].uv
+        POS[t, c] = vshark[mesh.loops[li].vertex_index]
+    NRM[t] = (poly.normal.x, poly.normal.y, poly.normal.z)
+# height range per part (per tooth for teeth) for the painted gradient
+ZR = np.zeros((T, 2))
+for pi in range(len(parts)):
+    sel = PT == pi
+    if parts[pi] == "teeth":
+        for t in np.nonzero(sel)[0]:
+            ZR[t] = (POS[t, :, 2].min(), POS[t, :, 2].max())
+    else:
+        ZR[sel] = (POS[sel, :, 2].min(), POS[sel, :, 2].max())
+img_arr, emis_arr, PPC = SB.bake(UV, POS, NRM, MT, isl_of, ZR, 1024)
+Image.fromarray(img_arr.astype(np.uint8)).save(color_path)
+Image.fromarray((emis_arr * 255).astype(np.uint8)).save(emis_path)
 
 # ----------------------------------------------------------------------------- material
 mat = bpy.data.materials.new("M_SkeletalShark")
@@ -126,17 +135,17 @@ img = bpy.data.images.load(color_path)
 img.colorspace_settings.name = "sRGB"
 tex = nt.nodes.new("ShaderNodeTexImage")
 tex.image = img
-tex.interpolation = "Closest"
+tex.interpolation = "Linear"
 tex.location = (-500, 200)
 emi = bpy.data.images.load(emis_path)
 emi.colorspace_settings.name = "Non-Color"
 etex = nt.nodes.new("ShaderNodeTexImage")
 etex.image = emi
-etex.interpolation = "Closest"
+etex.interpolation = "Linear"
 etex.location = (-500, -150)
 mul = nt.nodes.new("ShaderNodeMath")
 mul.operation = "MULTIPLY"
-mul.inputs[1].default_value = 4.0
+mul.inputs[1].default_value = 2.0
 mul.location = (-200, -150)
 nt.links.new(tex.outputs["Color"], bsdf.inputs["Base Color"])
 nt.links.new(tex.outputs["Color"], bsdf.inputs["Emission Color"])
@@ -356,7 +365,7 @@ for pb in arm.pose.bones:
     pb.location = (0, 0, 0)
 
 scene.frame_start, scene.frame_end = 1, 90
-print("TRIS", sum(len(p.vertices) - 2 for p in mesh.polygons), "VERTS", len(mesh.vertices), "PPC", res["ppc"])
+print("TRIS", sum(len(p.vertices) - 2 for p in mesh.polygons), "VERTS", len(mesh.vertices), "PPC", round(PPC, 1))
 
 # pack texture so the .blend is self contained
 img.pack()

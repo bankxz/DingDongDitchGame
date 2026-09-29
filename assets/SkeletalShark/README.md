@@ -1,11 +1,11 @@
 # Skeletal Shark (Roblox-ready)
 
-A voxel skeletal shark built in Blender 4.2 from the "Skeletal Shark – Rare Aquatic Creature" reference sheet.
+A skeletal shark built in Blender 4.2 from the "Skeletal Shark – Rare Aquatic Creature" reference sheet. It uses the smooth, chunky low-poly style of the example Roblox pets: large flat faces and clean diagonal edges, with no voxel stair-stepping.
 
 | | |
 |---|---|
-| Triangles | **4,812**, under the 5k budget. One mesh and one material. |
-| Texture | `textures/SkeletalShark_Color.png` (1024², stud atlas), `textures/SkeletalShark_Emissive.png` (glow mask) |
+| Triangles | **2,838**, under the 5k budget. One mesh and one material. |
+| Texture | `textures/SkeletalShark_Color.png` (1024², baked colour, gradient and studs), `textures/SkeletalShark_Emissive.png` (glow mask) |
 | Rig | 11 bones. Max 2 influences per vertex. Every vertex is weighted. |
 | Animations | `Idle` (90 f, loop), `Walk` (40 f, loop, swim cycle), `Run` (24 f, loop, fast swim), `Attack` (41 f, lunge + bite). All at 30 fps. |
 | Size | About 14.3 × 6.3 × 4.7 studs (length × width × height) |
@@ -19,8 +19,10 @@ A voxel skeletal shark built in Blender 4.2 from the "Skeletal Shark – Rare Aq
 - `textures/` holds the colour atlas and the emissive mask.
 - `validation/` holds the reference-vs-model comparisons, per-view renders, the animation contact sheet and the multiview fit report.
 - `source/` holds the scripts that regenerate everything:
-  - `shark_geo.py`: voxel parts measured from the reference, a greedy mesher with cross-part culling, and the stud atlas painter.
-  - `build_blend.py`: builds the mesh, material, rig, weights and animations, then exports the FBX files.
+  - `shark_lowpoly.py`: the low-poly pieces (lofted skull, jaw and body, swept ribs, extruded fins with inset panels, teeth).
+  - `shark_geo.py`: the reference measurements (profiles and outlines) the pieces are built from. It also holds the earlier voxel build.
+  - `stud_bake.py`: rasterises every triangle into the UV atlas, painting the gradient, the edge highlights and the studs.
+  - `build_blend.py`: builds the mesh, UV-unwraps it (smart project + pack), bakes the texture, and builds the rig, weights and animations. It then exports the FBX files.
   - `render_views.py`, `compare_sheet.py`, `fit_report.py`, `anim_sheet.py` and `iterate.sh`: validation tools.
 
 To rebuild: `python source/build_blend.py <out_dir>` with a Python that has `bpy` 4.2 (`pip install bpy==4.2.*`).
@@ -57,6 +59,12 @@ The body and rib vertices are blended along the spine chain, so the swim wave be
 
 ## Stud texture
 
-The stud is painted into the colour atlas, not modelled. It is one inset square per voxel block, with a dark upper-left inner edge, a light lower-right edge and soft block seams. This follows the example Roblox pets you supplied. Every face gets its own atlas island, so studs line up with the block grid on every surface.
+The stud is painted into the colour texture, not modelled. It follows the example meshes: sparse engraved squares with a dark inner shadow on two sides and a light lip on the other two. About 30% of them are partial corner marks.
 
-The stud pattern is generated procedurally rather than downloaded. That keeps it licence-free and exactly matched to the example look.
+The texture also has two finishing touches:
+- a soft painted gradient on every part, lighter on top and darker below;
+- a light bevel highlight along every hard edge.
+
+Studs are only placed where the whole square fits on a single UV island, so none are cut off at seams. The teeth, eyes, glow cores and sockets get flat colours and little texture space, which leaves more resolution for the studded surfaces.
+
+The stud pattern is generated procedurally rather than downloaded. That keeps it licence-free and matched to the example look.

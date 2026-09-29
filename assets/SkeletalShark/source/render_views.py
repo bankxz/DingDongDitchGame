@@ -97,7 +97,7 @@ def place(view):
     if ortho:
         cam_data.ortho_scale = s
     else:
-        cam.location = CENTER + d * (26 if view == "three_quarter" else 20)
+        cam.location = CENTER + d * (26 if view == "three_quarter" else 15)
         cam_data.lens = s
 
 

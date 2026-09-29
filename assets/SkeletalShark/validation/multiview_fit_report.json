@@ -1,26 +1,26 @@
 {
  "left": {
-  "iou": 0.727,
-  "label_agreement": 0.708,
+  "iou": 0.739,
+  "label_agreement": 0.705,
   "ref_aspect": 3.232,
-  "render_aspect": 3.05
+  "render_aspect": 3.074
  },
  "front": {
-  "iou": 0.62,
-  "label_agreement": 0.714,
+  "iou": 0.586,
+  "label_agreement": 0.69,
   "ref_aspect": 1.13,
-  "render_aspect": 0.867
+  "render_aspect": 0.903
  },
  "back": {
-  "iou": 0.276,
-  "label_agreement": 0.617,
+  "iou": 0.332,
+  "label_agreement": 0.654,
   "ref_aspect": 1.28,
-  "render_aspect": 0.661
+  "render_aspect": 0.81
  },
  "top": {
-  "iou": 0.556,
-  "label_agreement": 0.69,
+  "iou": 0.553,
+  "label_agreement": 0.703,
   "ref_aspect": 3.274,
-  "render_aspect": 2.256
+  "render_aspect": 2.261
  }
 }
