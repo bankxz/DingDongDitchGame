@@ -752,7 +752,7 @@ def make_material(name):
         for inp in bsdf.inputs:
             if inp.name in ("Specular IOR Level", "Specular"):
                 inp.default_value = 0.05
-    nmap_path = os.path.join(TEX, image.replace(".png", "_Normal.png"))
+    nmap_path = os.path.join(TEX, "Dragon_Stud_Normal.png") if image.endswith("_Stud.png") else ""
     if os.path.exists(nmap_path):
         ntex = nt.nodes.new("ShaderNodeTexImage")
         ntex.image = bpy.data.images.load(nmap_path, check_existing=True)
@@ -856,6 +856,193 @@ def build_armature():
     return arm
 
 
+
+# ============================================================== optimisation: remove faces that can never be seen
+def cull_hidden_faces(arm, objs, poses, dirs=64):
+    """Delete faces that no ray from outside the model can reach in any of the given poses
+    (rest + sampled animation frames), so joints that open up during animation keep their faces."""
+    from mathutils.bvhtree import BVHTree
+    n = dirs * 2
+    ga = math.pi * (3 - math.sqrt(5))
+    sphere = [V((math.cos(ga * i) * math.sqrt(1 - (1 - 2 * (i + 0.5) / n) ** 2),
+                 math.sin(ga * i) * math.sqrt(1 - (1 - 2 * (i + 0.5) / n) ** 2), 1 - 2 * (i + 0.5) / n))
+              for i in range(n)]
+    visible = {ob.name: set() for ob in objs}
+    sc = bpy.context.scene
+    for act, frame in poses:
+        arm.animation_data.action = act
+        if act is not None:
+            try:
+                arm.animation_data.action_slot = arm.animation_data.action_suggested_slots[0]
+            except Exception:
+                pass
+        else:
+            for pb in arm.pose.bones:
+                pb.matrix_basis.identity()
+        sc.frame_set(frame)
+        dg = bpy.context.evaluated_depsgraph_get()
+        verts, polys = [], []
+        data = {}
+        gbase = {}
+        for ob in objs:
+            me = ob.evaluated_get(dg).to_mesh()
+            mw = ob.matrix_world
+            base = len(verts)
+            gbase[ob.name] = len(polys)
+            verts += [mw @ v.co for v in me.vertices]
+            info = []
+            for p_ in me.polygons:
+                polys.append([base + i for i in p_.vertices])
+                c = mw @ p_.center
+                samples = [c] + [c.lerp(mw @ me.vertices[i].co, 0.7) for i in p_.vertices]
+                info.append((samples, (mw.to_3x3() @ p_.normal).normalized()))
+            data[ob.name] = info
+            ob.evaluated_get(dg).to_mesh_clear()
+        bvh = BVHTree.FromPolygons(verts, polys)
+
+        def escapes(o, d, own):
+            # twisted quads can be hit by their own rays: skip hits on the face being tested
+            for _ in range(4):
+                hit = bvh.ray_cast(o, d, 200.0)
+                if hit[0] is None:
+                    return True
+                if hit[2] != own:
+                    return False
+                o = hit[0] + d * 1e-4
+            return False
+
+        for ob in objs:
+            vis = visible[ob.name]
+            gb = gbase[ob.name]
+            for fi, (samples, nrm) in enumerate(data[ob.name]):
+                if fi in vis:
+                    continue
+                # both sides are tested (open parts may have flipped normals); several points per face
+                for side in (nrm, -nrm):
+                    for c in samples:
+                        o = c + side * 0.004
+                        if any(d.dot(side) > 0.08 and escapes(o + d * 0.004, d, gb + fi) for d in sphere):
+                            vis.add(fi)
+                            break
+                    if fi in vis:
+                        break
+    arm.animation_data.action = None
+    for pb in arm.pose.bones:
+        pb.matrix_basis.identity()
+    sc.frame_set(1)
+    removed = 0
+    for ob in objs:
+        bm = bmesh.new()
+        bm.from_mesh(ob.data)
+        bm.faces.ensure_lookup_table()
+        dead = [f for f in bm.faces if f.index not in visible[ob.name]]
+        removed += len(dead)
+        bmesh.ops.delete(bm, geom=dead, context="FACES_ONLY")
+        bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context="VERTS")
+        bmesh.ops.remove_doubles(bm, verts=bm.verts[:], dist=1e-4)
+        bm.to_mesh(ob.data)
+        bm.free()
+        ob.data.update()
+    print("CULLED_FACES", removed)
+
+
+# ============================================================== animation (in-place loops, Roblox imports them per FBX)
+def fcurves_of(action):
+    out = []
+    try:
+        out = list(action.fcurves)
+    except Exception:
+        pass
+    if out:
+        return out
+    for layer in action.layers:
+        for strip_ in layer.strips:
+            for cb in strip_.channelbags:
+                out.extend(cb.fcurves)
+    return out
+
+
+def animate(arm, name, frames, pose_fn, step=2):
+    """pose_fn(phase 0..1) -> {bone: (rx, ry, rz) deg, 'loc_<bone>': (x, y, z)}; first == last key, loops seamlessly"""
+    act = bpy.data.actions.new(name)
+    act.use_fake_user = True
+    arm.animation_data_create()
+    arm.animation_data.action = act
+    for pb in arm.pose.bones:
+        pb.rotation_mode = "XYZ"
+    for f in range(0, frames + 1, step):
+        pose = pose_fn((f % frames) / frames)
+        for pb in arm.pose.bones:
+            pb.rotation_euler = [math.radians(a) for a in pose.get(pb.name, (0, 0, 0))]
+            pb.location = pose.get("loc_" + pb.name, (0, 0, 0))
+            pb.keyframe_insert("rotation_euler", frame=f + 1)
+            pb.keyframe_insert("location", frame=f + 1)
+    for pb in arm.pose.bones:
+        pb.rotation_euler = (0, 0, 0)
+        pb.location = (0, 0, 0)
+    for fc in fcurves_of(act):
+        for kp in fc.keyframe_points:
+            kp.interpolation = "BEZIER"
+            kp.handle_left_type = kp.handle_right_type = "AUTO_CLAMPED"
+    arm.animation_data.action = None
+    return act
+
+
+def sn(ph, k=1.0, off=0.0):
+    return math.sin(2 * math.pi * (ph * k + off))
+
+
+N_TAIL = len(TAIL) - 1
+
+
+def idle_pose(ph):
+    """4 s breathing loop: chest heave, neck/head sway, slow growl, wing settle, tail wave"""
+    br = sn(ph)
+    p = {"Hips": (0.8 * br, 0, 0), "Spine": (-0.8 * br, 0, 0), "Chest": (1.5 * br, 0, 0),
+         "Neck1": (-2 * br, 0, 2 * sn(ph, 1, 0.1)), "Neck2": (-2 * br, 0, 2.5 * sn(ph, 1, 0.15)),
+         "Neck3": (-1.5 * br, 0, 3 * sn(ph, 1, 0.2)), "Head": (3 * sn(ph, 1, 0.3), 0, 4 * sn(ph, 1, 0.25)),
+         "Jaw": (-6 * max(0.0, sn(ph, 1, 0.1)), 0, 0), "loc_Root": (0, 0, 0.06 * br)}
+    for sfx, s_ in (("_L", 1), ("_R", -1)):
+        p["Wing1" + sfx] = (0, 5 * s_ * sn(ph, 1, 0.05), 0)
+        p["Wing2" + sfx] = (0, 3 * s_ * sn(ph, 1, 0.12), 0)
+        for k, f in enumerate(("Finger2", "Finger3", "Finger4")):
+            p[f + sfx] = ((2 + k * 0.5) * sn(ph, 1, 0.2 + 0.05 * k), 0, 0)
+        p["UpperArm" + sfx] = (-1 * br, 0, 0)
+        p["Forearm" + sfx] = (1 * br, 0, 0)
+        p["Thigh" + sfx] = (-1 * br, 0, 0)
+        p["Shin" + sfx] = (1 * br, 0, 0)
+    for i in range(1, N_TAIL + 1):
+        p["Tail%d" % i] = (1.2 * sn(ph, 1, 0.08 * i), 0, 3.5 * sn(ph, 1, -0.09 * i))
+    return p
+
+
+def walk_pose(ph):
+    """1.6 s in-place diagonal quadruped walk (FL+RR, FR+RL) with body bob and tail sway"""
+    p = {}
+    for sfx, s_, off_f, off_r in (("_L", 1, 0.0, 0.5), ("_R", -1, 0.5, 0.0)):
+        a, lift = sn(ph, 1, off_f), max(0.0, sn(ph, 1, off_f + 0.25))
+        p["UpperArm" + sfx] = (-22 * a, 0, 0)
+        p["Forearm" + sfx] = (28 * lift, 0, 0)
+        p["Hand" + sfx] = (22 * a - 17 * lift, 0, 0)
+        a, lift = sn(ph, 1, off_r), max(0.0, sn(ph, 1, off_r + 0.25))
+        p["Thigh" + sfx] = (-20 * a, 0, 0)
+        p["Shin" + sfx] = (-30 * lift, 0, 0)
+        p["Foot" + sfx] = (20 * a + 21 * lift, 0, 0)
+        p["Wing1" + sfx] = (0, 4 * s_ * sn(ph, 2, 0.1), 0)
+        p["Wing2" + sfx] = (0, 3 * s_ * sn(ph, 2, 0.2), 0)
+    bob = sn(ph, 2, 0.1)
+    p["loc_Root"] = (0, 0, 0.12 * bob)
+    p["Hips"] = (0, 3 * sn(ph, 1, 0.0), 4 * sn(ph, 1, 0.25))
+    p["Spine"] = (0, 0, -2 * sn(ph, 1, 0.25))
+    p["Chest"] = (1.5 * bob, -3 * sn(ph, 1, 0.0), -3 * sn(ph, 1, 0.25))
+    for k, bn in enumerate(("Neck1", "Neck2", "Neck3")):
+        p[bn] = (-(2 - 0.3 * k) * bob, 0, 2 * sn(ph, 1, 0.3 + 0.05 * k))
+    p["Head"] = (2.5 * bob, 0, -3 * sn(ph, 1, 0.3))
+    for i in range(1, N_TAIL + 1):
+        p["Tail%d" % i] = (1.2 * sn(ph, 2, 0.08 * i), 0, 5 * sn(ph, 1, 0.3 - 0.08 * i))
+    return p
+
+
 # ============================================================== main
 def main(rig=True):
     bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -877,6 +1064,17 @@ def main(rig=True):
         J[k] = J[k] + OFFSETS[bn]
     arm = build_armature() if rig else None
     objs = build_meshes(arm)
+    if rig:
+        idle = animate(arm, "Dragon_Idle", 120, idle_pose, step=4)
+        walk = animate(arm, "Dragon_Walk", 48, walk_pose, step=2)
+        poses = [(None, 1)] + [(idle, f) for f in (31, 61, 91)] + [(walk, f) for f in (7, 13, 19, 31, 37, 43)]
+        cull_hidden_faces(arm, objs, poses)
+        for act in (idle, walk):
+            tr = arm.animation_data.nla_tracks.new()
+            tr.name = act.name
+            tr.strips.new(act.name, 1, act)
+            tr.mute = True
+    sc.frame_start, sc.frame_end = 1, 121
     per = {}
     for ob in objs:
         ob.data.calc_loop_triangles()

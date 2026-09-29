@@ -87,12 +87,11 @@ def stud_normal(strength=5.0):
 
 
 NORMAL = stud_normal()
+NORMAL.save(os.path.join(OUT, "Dragon_Stud_Normal.png"))  # one normal map shared by every stud material
 for i, (name, col) in enumerate(PALETTE.items()):
     stud_tile(col, i).save(os.path.join(OUT, f"Dragon_{name}_Stud.png"))
-    NORMAL.save(os.path.join(OUT, f"Dragon_{name}_Stud_Normal.png"))
 
-# stud-only greyscale tile (neutral) for reuse on any colour in Studio
-stud_tile((180, 180, 180), 99).save(os.path.join(OUT, "Stud_Tile_Neutral.png"))
+
 
 # ---------------------------------------------------------------- glow atlas
 # 3 regions across a 768x256 sheet:
@@ -157,7 +156,7 @@ rune(13, 13, 3)
 rune(21, 16, 3)
 rune(6, 19, 2)
 rune(27, 22, 2)
-M = M.filter(ImageFilter.SMOOTH)
+M = M.filter(ImageFilter.SMOOTH).resize((512, 512), Image.LANCZOS)
 M.save(os.path.join(OUT, "Dragon_WingMembrane.png"))
 
 # ---------------------------------------------------------------- eyeball: glowing cyan iris, dark slit pupil, highlight
