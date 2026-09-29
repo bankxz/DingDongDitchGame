@@ -2,12 +2,12 @@
 
 A low-poly, rigged and animated model of the blue crystal dinosaur from the reference sheet.
 The body, neck, tail, head, jaw and legs are smooth lofted forms. Studded navy and tan armour blocks are laid over them, tilted to follow the surface.
-The eyes sit in almond-shaped sockets carved into the head (boolean cut into the head mesh), with a faceted glowing gem eyeball and a white-hot slit pupil. See `previews/eye/eye_closeup.png`.
-There are no brow ridges, and the nose bridge has a slight concave curve. The upper lip is a rounded U-shaped rim that follows the mouth. The mouth is open, with a gum-red palate and throat, a rounded tongue on the jaw floor, and packed rows of teeth seated in the gums (see `previews/head/`).
+The eyes sit in almond-shaped sockets carved into the head (boolean cut into the head mesh), with a smooth domed eyeball painted with a glowing cyan iris, an outlined white-hot slit pupil and a highlight. See `previews/eye/eye_closeup.png`.
+There are no brow ridges; the tan forehead plate is a curved slab that follows the skull, and the nose bridge has a slight concave curve. The upper lip is a rounded U-shaped rim that follows the mouth. The mouth is open, with a gum-red palate and throat, a rounded tongue on the jaw floor, and packed rows of teeth seated in the gums (see `previews/head/`).
 
 | | |
 |---|---|
-| Triangles | **4,606**, under the 5k budget |
+| Triangles | **4,784**, under the 5k budget |
 | Size | 1 block = 1 stud: about 34 studs long, 15 wide, 15.6 tall (including crystals) |
 | Rig | 22 deform bones: Root, Hips, Chest, Neck, Head, Jaw, Tail1-4, and for each side UpperArm, Forearm, Hand, Thigh, Shin, Foot |
 | Skinning | Up to 2 bones per vertex. Blends at the neck, hips, tail and knee rings so joints bend smoothly; armour blocks and crystals stay rigid. |

@@ -2,7 +2,8 @@
 
 Layout (pixels, origin top-left):
   navy blocks  x 0..640,    y 0..1024  (10 x 16 cells, 64 px per block)
-  tan blocks   x 640..1024, y 0..576   (6 x 9 cells)
+  tan blocks   x 640..1024, y 0..448   (6 x 7 cells)
+  eye decal    x 640..832,  y 448..576
   crystal      x 640..1024, y 576..832 (6 facet columns, gradient base->tip)
   glow         x 640..768,  y 832..1024
   bone/teeth   x 768..896,  y 832..1024
@@ -72,7 +73,7 @@ def draw_cell(x0, y0, base):
 for j in range(16):
     for i in range(10):
         draw_cell(i * CELL, j * CELL, NAVY)
-for j in range(9):
+for j in range(7):
     for i in range(6):
         draw_cell(640 + i * CELL, j * CELL, TAN)
 
@@ -105,6 +106,26 @@ col[832:1024, 640:768] = g
 emis[832:1024, 640:768] = g
 rough[832:1024, 640:768] = 0.3
 height[832:1024, 640:768] = 0.5
+# painted eye decal (x 640..832, y 448..576): deep-blue rim, glowing cyan iris, white-hot slit pupil
+# with a thin dark outline, soft highlight. Everything glows except the pupil outline.
+ey0, ey1, ex0, ex1 = 448, 576, 640, 832
+yy, xx = np.mgrid[ey0:ey1, ex0:ex1].astype(float)
+u = (xx - (ex0 + ex1) / 2) / ((ex1 - ex0) / 2)      # -1..1 across the eye
+v = (yy - (ey0 + ey1) / 2) / ((ey1 - ey0) / 2)      # -1..1 top->bottom
+r = np.sqrt((u / 0.62) ** 2 + (v / 0.95) ** 2)       # iris radius
+rim_c, iris_o, iris_i, core = (np.array(c) / 255.0 for c in ([10, 40, 150], [20, 120, 255], [90, 225, 255], [235, 252, 255]))
+t = np.clip(r, 0, 1.6)[..., None]
+eye = np.where(t < 1, iris_i + (iris_o - iris_i) * t, iris_o + (rim_c - iris_o) * np.clip((t - 1) / 0.6, 0, 1))
+slit = np.abs(u) / (0.11 * np.clip(1 - np.abs(v) ** 2, 0.05, 1))   # vertical slit, pointed top/bottom
+eye = np.where((slit < 1)[..., None], core, eye)
+outline = (slit >= 1) & (slit < 1.45) & (np.abs(v) < 0.95)
+eye[outline] = np.array([8, 30, 110]) / 255.0
+hl = np.exp(-(((u + 0.3) / 0.12) ** 2 + ((v + 0.45) / 0.14) ** 2))[..., None]
+eye = np.clip(eye + hl * 0.8, 0, 1)
+col[ey0:ey1, ex0:ex1] = eye
+emis[ey0:ey1, ex0:ex1] = eye * (~outline)[..., None]
+rough[ey0:ey1, ex0:ex1] = 0.2
+height[ey0:ey1, ex0:ex1] = 0.5
 # pupil: white-hot glowing core (strip under the glow region)
 col[1002:1024, 640:768] = np.array([225, 248, 255]) / 255.0
 emis[1002:1024, 640:768] = np.array([225, 248, 255]) / 255.0
@@ -135,7 +156,7 @@ nrm = np.stack([nx / ln, ny / ln, nz / ln], -1) * 0.5 + 0.5
 light = np.clip(1 + (nrm[..., 0] - 0.5) * -0.9 + (nrm[..., 1] - 0.5) * 0.9, 0.6, 1.4)
 mask_blocks = np.zeros((S, S), bool)
 mask_blocks[:, :640] = True
-mask_blocks[:576, 640:] = True
+mask_blocks[:448, 640:] = True
 col[mask_blocks] *= light[mask_blocks][:, None]
 
 os.makedirs(OUT, exist_ok=True)

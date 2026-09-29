@@ -34,7 +34,7 @@ rng = random.Random(11)
 # UV atlas helpers (see make_textures.py for the layout)
 # --------------------------------------------------------------------------
 CELL = 64
-REG = {"navy": (0, 0, 10, 16), "tan": (640, 0, 6, 9), "gum": (896, 832, 1, 3), "tongue": (960, 832, 1, 3)}
+REG = {"navy": (0, 0, 10, 16), "tan": (640, 0, 6, 7), "gum": (896, 832, 1, 3), "tongue": (960, 832, 1, 3)}
 
 
 def px(x, y):
@@ -88,6 +88,7 @@ GLOW_UV = [px(662, 1000), px(746, 1000), px(746, 852), px(662, 852)]
 MOUTH_UV = [px(900, 1016), px(1020, 1016), px(1020, 840), px(900, 840)]
 PUPIL_UV = [px(650, 1020), px(758, 1020), px(704, 1006)]
 IRIS_UV = [px(652, 862), px(756, 862), px(704, 928)]  # rim, rim, bright centre
+EYE_DECAL = (640, 448, 832, 576)   # painted eye: iris glow, slit pupil, highlight (x0, y0, x1, y1)
 
 
 # --------------------------------------------------------------------------
@@ -478,8 +479,9 @@ def eye_frame():
 
 
 EYE_SCALE = 1.6   # reference eyes are large glowing almonds (~2.4 x 1 studs)
-ALMOND = [(a * EYE_SCALE, b * EYE_SCALE) for a, b in
-          [(0.74, 0.0), (0.34, 0.31), (-0.36, 0.29), (-0.74, 0.02), (-0.34, -0.27), (0.36, -0.25)]]
+ALMOND = [(0.74 * EYE_SCALE * math.cos(t),
+           0.3 * EYE_SCALE * math.sin(t) * (1 - 0.3 * math.cos(t) ** 2) * (1.05 if math.sin(t) > 0 else 0.92))
+          for t in [i * math.tau / 12 for i in range(12)]]
 
 
 def almond_prism(c, e1, e2, n, d0, d1, s0, s1, shift0=Vector()):
@@ -598,30 +600,77 @@ brow_l = dict(brow_r, verts=[mir_v(v) for v in brow_r["verts"]],
               faces=[(tuple(reversed(f)), list(reversed(u))) for f, u in brow_r["faces"]])
 # (brow ridges removed by request; BROW_SPEC kept for reference, not built)
 
-# eyeball: faceted gem sitting deep in the socket, deep blue rim -> bright centre
-rim = [EYE_C + EYE_N * -0.5 + (EYE_E1 * a + EYE_E2 * b) * 0.88 for a, b in ALMOND]
-apex = EYE_C + EYE_N * -0.22 + EYE_E1 * 0.04
-faces = [((i, (i + 1) % 6, 6), IRIS_UV) for i in range(6)]
-fn = (rim[1] - rim[0]).cross(apex - rim[0])
-if fn.dot(EYE_N) < 0:
-    faces = [((b, a, c), [u[1], u[0], u[2]]) for (a, b, c), u in faces]
-add_prim(rim + [apex], faces, "glow", H, True)
-# slit pupil: white-hot core, raised just in front of the eyeball
-pc = EYE_C + EYE_N * -0.23 + EYE_E1 * 0.04
-pv = [pc + EYE_E2 * 0.36, pc + EYE_E1 * 0.13, pc - EYE_E2 * 0.36, pc - EYE_E1 * 0.13]
-ptip = pc + EYE_N * 0.12
-faces = [((i, (i + 1) % 4, 4), PUPIL_UV) for i in range(4)]
-fn = (pv[1] - pv[0]).cross(ptip - pv[0])
-if fn.dot(EYE_N) < 0:
-    faces = [((b, a, c), [u[1], u[0], u[2]]) for (a, b, c), u in faces]
-add_prim(pv + [ptip], faces, "glow", H, True)
+# eyeball: a smooth dome filling the socket, with the painted eye (glowing iris, slit pupil,
+# highlight) projected across it from the socket's own frame
+AX = max(abs(a_) for a_, _ in ALMOND)
+AY = max(abs(b_) for _, b_ in ALMOND)
+
+
+def eye_uv(a_, b_):
+    x0, y0, x1, y1 = EYE_DECAL
+    fu = 0.5 + a_ / (2 * AX * 0.9)
+    fv = 0.5 + b_ / (2 * AY * 0.9)
+    return px(x0 + (x1 - x0) * fu, y1 - (y1 - y0) * fv)
+
+
+ring_o = [(a_ * 1.0, b_ * 1.0, -0.34) for a_, b_ in ALMOND]    # rim tucked into the socket walls
+ring_i = [(a_ * 0.6, b_ * 0.6, -0.14) for a_, b_ in ALMOND]
+ctr = (0.0, 0.0, -0.08)
+pts = ring_o + ring_i + [ctr]
+verts = [EYE_C + EYE_N * d + EYE_E1 * a_ + EYE_E2 * b_ for a_, b_, d in pts]
+uvs = [eye_uv(a_, b_) for a_, b_, _ in pts]
+n = len(ALMOND)
+faces = []
+for i in range(n):
+    i1 = (i + 1) % n
+    faces.append((i, i1, n + i1, n + i))
+    faces.append((n + i, n + i1, 2 * n))
+fixed = []
+for f in faces:
+    fn = (verts[f[1]] - verts[f[0]]).cross(verts[f[2]] - verts[f[0]])
+    f = f if fn.dot(EYE_N) > 0 else tuple(reversed(f))
+    fixed.append((f, [uvs[i] for i in f]))
+PRIMS.append(dict(verts=verts, faces=fixed, group="glow", bone=H, mirror=True, smooth=True))
 
 EYE_AVOID = [(EYE_C, 2.0), (EYE_C + EYE_N * 1.1, 1.3), (EYE_C + Vector((0, -1.6, 0)), 1.4), (EYE_C + Vector((-0.4, -2.6, 0)), 1.2)]  # socket + sight lines
 loft_blocks(HEAD, 14, (2.3, 4.6), (-0.1 * math.pi, 0.5 * math.pi), tan_p=0.45, half=True, size=(0.8, 1.2),
             avoid=EYE_AVOID)
 loft_blocks(HEAD, 6, (0.2, 2.0), (0.1 * math.pi, 0.5 * math.pi), tan_p=0.9, half=True, size=(0.7, 1.0),
             out=(0.05, 0.25), avoid=EYE_AVOID)
-box(-1.2, 1.2, 3.2, 5.6, 12.45, 13.05, "tan", H, skip=("-z",))          # forehead plate
+
+
+def skull_plate(L, k0, k1, a0, a1, nk, na, out, inn, mat, bone):
+    """Armour plate that follows a loft's surface: a curved slab from `inn` below to `out` above it."""
+    grid = [[L.point(k0 + (k1 - k0) * i / nk, a0 + (a1 - a0) * j / na) for j in range(na + 1)]
+            for i in range(nk + 1)]
+    verts, faces, idx = [], [], {}
+    for lay, d in ((0, out), (1, inn)):
+        for i in range(nk + 1):
+            for j in range(na + 1):
+                p, n, _ = grid[i][j]
+                idx[(lay, i, j)] = len(verts)
+                verts.append(p + n * d)
+
+    def quad(q):
+        faces.append((q, planar_uvs(mat, [verts[v] for v in q])))
+    for i in range(nk):
+        for j in range(na):
+            quad((idx[(0, i, j)], idx[(0, i + 1, j)], idx[(0, i + 1, j + 1)], idx[(0, i, j + 1)]))
+    rim = ([(i, 0) for i in range(nk + 1)] + [(nk, j) for j in range(1, na + 1)] +
+           [(i, na) for i in range(nk - 1, -1, -1)] + [(0, j) for j in range(na - 1, 0, -1)])
+    for (i0, j0), (i1, j1) in zip(rim, rim[1:] + rim[:1]):
+        quad((idx[(0, i0, j0)], idx[(0, i1, j1)], idx[(1, i1, j1)], idx[(1, i0, j0)]))
+    ctr = sum(verts, Vector()) / len(verts)
+    ok = []
+    for q, u in faces:
+        fn = (verts[q[1]] - verts[q[0]]).cross(verts[q[2]] - verts[q[0]])
+        fc = sum((verts[v] for v in q), Vector()) / len(q)
+        ok.append((q, u) if fn.dot(fc - ctr) > 0 else (tuple(reversed(q)), list(reversed(u))))
+    PRIMS.append(dict(verts=verts, faces=ok, group="body", bone=bone, mirror=False, smooth=False))
+
+
+# forehead plate: a curved tan slab hugging the top of the skull (follows its shape, not a flat box)
+skull_plate(HEAD, 2.05, 3.7, math.pi / 2 - 0.62, math.pi / 2 + 0.62, 3, 4, 0.26, -0.12, "tan", H)
 # upper lip rim: a rounded U-shaped band that follows the mouth opening (not a flat plank)
 LIP_PATH = [(1.5, 5.8), (1.52, 4.6), (1.48, 3.4), (1.38, 2.4), (1.15, 1.6), (0.7, 1.12), (0.0, 0.98)]
 LIP_PATH = LIP_PATH + [(-x, s_) for x, s_ in reversed(LIP_PATH[:-1])]
