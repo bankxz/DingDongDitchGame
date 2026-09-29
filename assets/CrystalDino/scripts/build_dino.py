@@ -25,7 +25,7 @@ ROOT = os.path.dirname(HERE)
 TEX = os.path.join(ROOT, "textures")
 S_OFF = 14.0
 Z_SCALE = 0.92  # measured reference back-height / length ratio
-DENSITY = float(os.environ.get("DINO_DENSITY", "0.44"))
+DENSITY = float(os.environ.get("DINO_DENSITY", "0.38"))
 TRI_BUDGET = 4990
 
 rng = random.Random(11)
@@ -53,6 +53,35 @@ def cell_uvs(mat, w, h):
     ux1, vy1 = ux0 + nu * CELL, vy0 + nv * CELL
     A, B, C, D = px(ux0, vy1), px(ux1, vy1), px(ux1, vy0), px(ux0, vy0)
     return [A, D, C, B] if swap else [A, B, C, D]
+
+
+def stud_uvs(mat, pts):
+    """Atlas UVs for a face whose vertices have 2D coords `pts` measured in studs.
+    One texture cell = one stud exactly, so the inlet grid never stretches. The inlet texture is
+    periodic per cell, so the face is shifted by whole cells to fit the region: the fractional
+    phase is kept, which also keeps neighbouring faces seamless."""
+    if mat not in ("navy", "tan"):
+        xs = [p[0] for p in pts]
+        ys = [p[1] for p in pts]
+        q = cell_uvs(mat, max(xs) - min(xs), max(ys) - min(ys))
+        return (q * 2)[: len(pts)]
+    x0, y0, cols, rows = REG[mat]
+    mu, mv = math.floor(min(p[0] for p in pts)), math.floor(min(p[1] for p in pts))
+    loc = [(p[0] - mu, p[1] - mv) for p in pts]
+    su, sv = max(l[0] for l in loc), max(l[1] for l in loc)
+    k = min(1.0, cols / max(su, 1e-6), rows / max(sv, 1e-6))   # only shrinks faces bigger than the region
+    loc = [(a * k, b * k) for a, b in loc]
+    nu, nv = math.ceil(su * k - 1e-6), math.ceil(sv * k - 1e-6)
+    ci, cj = rng.randint(0, cols - max(nu, 1)), rng.randint(0, rows - max(nv, 1))
+    return [px(x0 + (ci + a) * CELL, y0 + (cj + nv - b) * CELL) for a, b in loc]
+
+
+def planar_uvs(mat, pts3):
+    """stud_uvs for an arbitrary planar polygon given its 3D vertices (in studs)."""
+    e1 = (pts3[1] - pts3[0]).normalized()
+    n = (pts3[1] - pts3[0]).cross(pts3[-1] - pts3[0])
+    e2 = n.cross(e1).normalized() if n.length > 1e-9 else e1.orthogonal().normalized()
+    return stud_uvs(mat, [((p - pts3[0]).dot(e1), (p - pts3[0]).dot(e2)) for p in pts3])
 
 
 GLOW_UV = [px(662, 1000), px(746, 1000), px(746, 852), px(662, 852)]
@@ -140,7 +169,7 @@ def box(x0, x1, y0, y1, z0, z1, mat="navy", bone="Chest", frame=IDENT, skip=(), 
         elif uv == "mouth":
             uvs = MOUTH_UV
         else:
-            uvs = cell_uvs(mat, w, h)
+            uvs = planar_uvs(mat, [verts[i] for i in ids])
         faces.append((tuple(ids), uvs))
     add_prim([frame(v) for v in verts], faces, group, bone, mirror)
 
@@ -203,7 +232,7 @@ def V(x, s, z):
 class Loft:
     """Elliptical tube through ring centres; rings = [(centre, rx, rw, weights)]."""
 
-    def __init__(self, rings, sides, sq=2.0):
+    def __init__(self, rings, sides, sq=2.0, ref=None):
         self.rings, self.sides, self.sq = rings, sides, sq
         self.frames = []
         n = len(rings)
@@ -211,8 +240,12 @@ class Loft:
             a = rings[max(k - 1, 0)][0]
             b = rings[min(k + 1, n - 1)][0]
             t = (b - a).normalized()
-            u = Vector((1, 0, 0))
-            u = (u - t * u.dot(t)).normalized()
+            if ref is not None:            # frame from an up vector (path may run along x)
+                w_ = (Vector(ref) - t * Vector(ref).dot(t)).normalized()
+                u = w_.cross(t).normalized()
+            else:
+                u = Vector((1, 0, 0))
+                u = (u - t * u.dot(t)).normalized()
             w = u.cross(t)
             if w.z < -0.5 or (abs(w.z) < 0.5 and w.y < 0):
                 w = -w
@@ -258,14 +291,29 @@ def loft(L, mat, group="body", mirror=False, cap0=False, cap1=False, frame=IDENT
             ca, sa = L.cs(a)
             verts.append(c + u * (rx * ca) + w * (rw * sa))
             weights.append(wts)
+    # continuous surface coordinates in studs: U around each ring, Vc along the loft
+    U = [[0.0] * (S + 1) for _ in rings]
+    Vc = [[0.0] * S for _ in rings]
+    for k in range(len(rings)):
+        for j in range(S):
+            U[k][j + 1] = U[k][j] + (verts[k * S + (j + 1) % S] - verts[k * S + j]).length
+            if k:
+                Vc[k][j] = Vc[k - 1][j] + (verts[k * S + j] - verts[(k - 1) * S + j]).length
     for k in range(len(rings) - 1):
         for j in range(S):
             j1 = (j + 1) % S
             ids = (k * S + j, k * S + j1, (k + 1) * S + j1, (k + 1) * S + j)
             m = matfn(k, j) if matfn else mat
-            wd = (verts[ids[1]] - verts[ids[0]]).length
-            ht = (verts[ids[3]] - verts[ids[0]]).length
-            faces.append((ids, cell_uvs(m, wd, ht)))
+            # orthonormal projection onto the face (no shear, so inlets stay square), offset by the
+            # face's running surface coordinates so the inlet grid stays in phase with its neighbours
+            p0 = verts[ids[0]]
+            e1 = (verts[ids[1]] - p0).normalized()
+            nrm = (verts[ids[1]] - p0).cross(verts[ids[3]] - p0)
+            e2 = nrm.cross(e1).normalized()
+            if (verts[ids[3]] - p0).dot(e2) < 0:
+                e2 = -e2
+            pts = [(U[k][j] + (verts[i] - p0).dot(e1), Vc[k][j] + (verts[i] - p0).dot(e2)) for i in ids]
+            faces.append((ids, stud_uvs(m, pts)))
     # make winding outward
     ids = faces[0][0]
     fn = (verts[ids[1]] - verts[ids[0]]).cross(verts[ids[3]] - verts[ids[0]])
@@ -282,14 +330,7 @@ def loft(L, mat, group="body", mirror=False, cap0=False, cap1=False, frame=IDENT
         t = L.frames[which][0]
         sgn = -1 if which == 0 else 1
         m = matfn(which, -1) if matfn else mat
-        q = cell_uvs(m, 2 * rx, 2 * rw)
         _, uu, ww = L.frames[which]
-
-        def cap_uv(v):
-            fx = 0.5 + (v - c).dot(uu) / (2 * rx)
-            fy = 0.5 + (v - c).dot(ww) / (2 * rw)
-            return (q[0][0] + (q[1][0] - q[0][0]) * fx + (q[3][0] - q[0][0]) * fy,
-                    q[0][1] + (q[1][1] - q[0][1]) * fx + (q[3][1] - q[0][1]) * fy)
         for j in range(S):
             j1 = (j + 1) % S
             a, b = which * S + j, which * S + j1
@@ -297,7 +338,8 @@ def loft(L, mat, group="body", mirror=False, cap0=False, cap1=False, frame=IDENT
             fn = (verts[b] - verts[a]).cross(verts[ci] - verts[a])
             if fn.dot(t * sgn) < 0:
                 tri = (b, a, ci)
-            faces.append((tri, [cap_uv(verts[i]) for i in tri]))
+            cap = [((verts[i] - c).dot(uu), (verts[i] - c).dot(ww)) for i in tri]
+            faces.append((tri, stud_uvs(m, cap)))
     verts = [frame(v) for v in verts]
     PRIMS.append(dict(verts=verts, faces=faces, group=group, bone=None, weights=weights,
                       mirror=mirror, smooth=True))
@@ -539,17 +581,17 @@ def head_surface(x, s_):
 # ring is seated on the skull surface (60% buried) and the ridge is boolean-unioned into the head
 # mesh, so it grows out of the skull with no seam or gap.
 BROW_SPEC = [  # x, s, half-width, half-height, lift above the skull surface
-    (0.9, 2.85, 0.3, 0.26, 0.3),
-    (1.35, 3.5, 0.6, 0.45, 0.45),
-    (1.75, 4.45, 0.72, 0.52, 0.38),
-    (1.95, 5.45, 0.62, 0.45, 0.2),
-    (1.9, 6.3, 0.2, 0.2, -0.05),
+    (0.9, 2.7, 0.48, 0.34, 0.62),     # blunt squared front edge overhanging the eye
+    (1.3, 3.3, 0.66, 0.4, 0.64),
+    (1.75, 4.3, 0.72, 0.4, 0.4),
+    (1.95, 5.35, 0.6, 0.34, 0.2),
+    (1.9, 6.3, 0.25, 0.16, -0.05),
 ]
 rings = []
 for x, s_, rx, rw, lift in BROW_SPEC:
     p, n = head_surface(x, s_)
     rings.append((p + n * (lift - rw * 0.6), rx, rw, w1(H)))
-BROW = Loft(rings, 8, sq=2.6)
+BROW = Loft([(c, rx / 0.7071, rw / 0.7071, w) for c, rx, rw, w in rings], 4)   # rectangular section: flat top, crisp edges
 brow_r = loft(BROW, "tan", cap0=True, cap1=True)
 PRIMS.remove(brow_r)
 brow_l = dict(brow_r, verts=[mir_v(v) for v in brow_r["verts"]],
@@ -580,18 +622,39 @@ loft_blocks(HEAD, 14, (2.3, 4.6), (-0.1 * math.pi, 0.5 * math.pi), tan_p=0.45, h
 loft_blocks(HEAD, 6, (0.2, 2.0), (0.1 * math.pi, 0.5 * math.pi), tan_p=0.9, half=True, size=(0.7, 1.0),
             out=(0.05, 0.25), avoid=EYE_AVOID)
 box(-1.2, 1.2, 3.2, 5.6, 12.45, 13.05, "tan", H, skip=("-z",))          # forehead plate
-box(-1.55, 1.55, 1.15, 5.8, 9.1, 9.5, "tan", H)                          # upper lip rail
+# upper lip rim: a rounded U-shaped band that follows the mouth opening (not a flat plank)
+LIP_PATH = [(1.5, 5.8), (1.52, 4.6), (1.48, 3.4), (1.38, 2.4), (1.15, 1.6), (0.7, 1.12), (0.0, 0.98)]
+LIP_PATH = LIP_PATH + [(-x, s_) for x, s_ in reversed(LIP_PATH[:-1])]
+LIP_Z = 9.3
+LIP = Loft([(V(x, s_, LIP_Z), 0.3, 0.2, w1(H)) for x, s_ in LIP_PATH], 6, sq=3.0, ref=(0, 0, 1))
+loft(LIP, "tan", cap0=True, cap1=True)
+
+
+def along(path, step, start, end):
+    """Points spaced `step` apart along a 2D polyline, between arc lengths start..end."""
+    segs, total = [], 0.0
+    for (x0, y0), (x1, y1) in zip(path, path[1:]):
+        L_ = math.hypot(x1 - x0, y1 - y0)
+        segs.append((x0, y0, x1, y1, total, L_))
+        total += L_
+    out, d = [], start
+    while d <= total - end + 1e-6:
+        for x0, y0, x1, y1, t0, L_ in segs:
+            if d <= t0 + L_:
+                f = (d - t0) / L_
+                out.append((x0 + (x1 - x0) * f, y0 + (y1 - y0) * f, d / total))
+                break
+        d += step
+    return out
 
 # mouth interior: roof of the mouth and back of the throat (gum red, open mouth - no solid block)
-box(-1.45, 1.45, 1.2, 6.3, 9.0, 9.2, "gum", H, skip=("+z",))            # palate
+box(-1.25, 1.25, 1.55, 6.3, 9.0, 9.2, "gum", H, skip=("+z",))            # palate (tucked inside the lip rim)
 box(-1.45, 1.45, 5.95, 6.35, 7.6, 9.1, "gum", H, skip=("+y",))          # throat wall
-# upper teeth: a packed row seated in the lip rail (bases buried 0.2 so there are no gaps)
-for i in range(6):
-    x = -1.1 + i * 0.44
-    pyramid(V(x, 1.4, 9.3), (0, 0, -1), (0.85 if abs(x) > 0.8 else 0.6) + 0.2, 0.27, H)
-for i in range(8):
-    s_ = 1.85 + i * 0.5
-    pyramid(V(1.35, s_, 9.3), (0.1, 0, -1), (0.75 if i % 2 == 0 else 0.55) + 0.2, 0.27, H, mirror=True)
+# upper teeth: a packed row following the lip rim, bases buried in it (no gaps); fangs at the corners
+for i, (x, s_, f) in enumerate(along(LIP_PATH, 0.46, 0.6, 0.6)):
+    fang = abs(f - 0.5) > 0.2 and abs(f - 0.5) < 0.3
+    L_ = 0.95 if fang else (0.7 if i % 2 else 0.55)
+    pyramid(V(x, s_, LIP_Z), (x * 0.06, 0, -1), L_ + 0.2, 0.27, H)
 
 # ---------------- JAW (bone Jaw), modelled open like the reference -------
 J = "Jaw"

@@ -51,16 +51,14 @@ INLET = 0.46   # inlet side as a fraction of the stud pitch (matches the Roblox 
 
 def draw_cell(x0, y0, base):
     """One stud of smooth surface with a recessed square inlet in the middle (no seams, tiles
-    seamlessly with its neighbours). Shading comes from the dudeax HD Inlets AO map."""
+    seamlessly with its neighbours: every cell is identical, so the UVs can shift by whole cells). Shading comes from the dudeax HD Inlets AO map."""
     c = CELL
     yy, xx = np.mgrid[0:c, 0:c] + 0.5
     st = INLET * c
     sd = np.maximum(np.abs(xx - c / 2), np.abs(yy - c / 2)) - st / 2   # <0 inside the inlet
     # surface at 0.6, inlet floor at 0.3, 2.5 px bevelled walls
     h = 0.6 - 0.3 * np.clip(-sd / 2.5 + 0.5, 0, 1)
-    gx_, gy_ = xx + x0, yy + y0   # atlas coords -> continuous (seam-free) mottling
     cc = np.ones((c, c, 3)) * base
-    cc *= (1 + 0.025 * np.sin(gx_ / 37.0) * np.cos(gy_ / 53.0))[..., None]
     if ao_patch is not None:
         scale = 287.0 / st          # HD inlet spans ~287 of its 512 px quadrant
         u = np.clip(((xx - c / 2) * scale + 256).astype(int), 0, 511)
