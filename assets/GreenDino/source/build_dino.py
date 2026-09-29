@@ -59,12 +59,23 @@ class MeshAcc:
     if uvs is not None:
       self.uv.append(uvs)
     elif len(pts) == 4:
-      # loft quad: lay whole stud blocks along the quad's own edges so rows follow the body (belly plates)
-      w = min(4, max(1, round(((pts[1] - pts[0]).length + (pts[2] - pts[3]).length) / 2 / U)))
-      h = min(4, max(1, round(((pts[3] - pts[0]).length + (pts[2] - pts[1]).length) / 2 / U)))
+      # loft quad: lay whole stud cells along the quad's own edges so rows follow the body.
+      # Pick which corner is the cell's bottom-left so the cell's "up" points up the surface
+      # (forward on top-facing quads) -> every inlet stud is lit from the same side.
+      n = newell(pts).normalized()
+      def score(r):
+        q = [pts[(r + i) % 4] for i in range(4)]
+        up = (q[3] - q[0]) + (q[2] - q[1])
+        return up.z if abs(n.z) < 0.7 else -up.y
+      r0 = max(range(4), key=score)
+      q = [pts[(r0 + i) % 4] for i in range(4)]
+      w = min(4, max(1, round(((q[1] - q[0]).length + (q[2] - q[3]).length) / 2 / U)))
+      h = min(4, max(1, round(((q[3] - q[0]).length + (q[2] - q[1]).length) / 2 / U)))
       p = rng.choice(LAYOUT[cat]); px, py = p % NP, p // NP
       bx, by = px * 4 + rng.randint(0, 4 - w), (NP - 1 - py) * 4 + rng.randint(0, 4 - h)
-      uvs = [(bx, by), (bx + w, by), (bx + w, by + h), (bx, by + h)]
+      rect = [(bx, by), (bx + w, by), (bx + w, by + h), (bx, by + h)]
+      uvs = [None] * 4
+      for i in range(4): uvs[(r0 + i) % 4] = rect[i]
       self.uv.append([(x / ATL, y / ATL) for x, y in uvs])
     else:
       self.uv.append(face_uv(pts, newell(pts), cat, fit))
