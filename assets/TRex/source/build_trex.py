@@ -297,7 +297,7 @@ def build_head():
     for x in (1.2, -1.2):                                                                 # nostrils
         horn((x, -23.4, 12.6), (x, -23.6, 13.3), 1.0, 0.9, 0.6, 0.5, 'BONE_LIGHT', 'Head')
     # brow ridges overhanging the eye sockets
-    mhorn((3.0, -17.2, 13.9), (3.3, -18.9, 14.6), 1.8, 1.4, 1.0, 0.8, 'BONE_LIGHT', 'Head', sides=6, p=3.0)
+    mhorn((2.8, -17.0, 13.3), (3.3, -18.9, 14.6), 1.8, 1.4, 1.0, 0.8, 'BONE_LIGHT', 'Head', sides=6, p=3.0)
     # dark crown with horns (front-head view)
     loft([(0, -17.0, 15.0), (0, -14.4, 14.9)], [(5.0, 1.0), (5.4, 1.3)], 'CHARCOAL', [H] * 2, sides=8)
     mhorn((2.3, -15.6, 15.2), (2.6, -14.9, 17.1), 1.5, 1.6, 0.5, 0.6, 'CHARCOAL', 'Head')
@@ -310,9 +310,9 @@ def build_head():
     box((0, -16.3, 10.2), (4.4, 1.6, 1.8), 'MOUTH', 'Head')
     # upper teeth
     for x, ln in ((-1.8, 1.6), (-0.9, 1.1), (0.0, 1.3), (0.9, 1.1), (1.8, 1.6)):
-        spike((x, -23.4, 11.0), (0.62, 0.6), (0, 0, -ln), 'TEETH', 'Head')
+        spike((x, -23.2, 11.45), (0.62, 0.6), (0, 0, -ln - 0.45), 'TEETH', 'Head')
     for y, ln in ((-22.2, 1.9), (-21.0, 1.2), (-19.8, 1.5), (-18.6, 1.0), (-17.5, 1.2)):
-        mspike((2.7, y, 11.0), (0.62, 0.7), (0, 0, -ln), 'TEETH', 'Head')
+        mspike((2.6, y, 11.45), (0.62, 0.7), (0, 0, -ln - 0.45), 'TEETH', 'Head')
 
 
 def build_jaw():
@@ -325,9 +325,9 @@ def build_jaw():
     loft([(0, -22.2, 10.5), (0, -19.0, 10.75), (0, -16.4, 10.6)], [(2.2, 0.5), (2.6, 0.7), (2.2, 0.5)],
          'TONGUE', [J] * 3, sides=8, p=2.2, **kw)
     for x, ln in ((-1.6, 1.3), (0.0, 1.1), (1.6, 1.3)):
-        spike((x, -23.3, 10.5), (0.6, 0.6), (0, 0, ln), 'TEETH', 'Jaw', **kw)
+        spike((x, -23.1, 10.0), (0.6, 0.6), (0, 0, ln + 0.45), 'TEETH', 'Jaw', **kw)
     for y, ln in ((-22.0, 1.5), (-20.7, 1.0), (-19.4, 1.3), (-18.1, 0.9)):
-        mspike((2.5, y, 10.4), (0.6, 0.7), (0, 0, ln), 'TEETH', 'Jaw', **kw)
+        mspike((2.4, y, 9.95), (0.6, 0.7), (0, 0, ln + 0.45), 'TEETH', 'Jaw', **kw)
 
 
 # body + tail as ONE continuous smooth tube: (y, centre z, width, height, bone weights)
@@ -362,6 +362,34 @@ def tail_rings():
     return rings
 
 
+def _ring_at(y):
+    """Interpolated body/tail cross-section at y: (centre z, half width, half height)."""
+    rings = BODY_RINGS + tail_rings()
+    for (y0, z0, w0, h0, _), (y1, z1, w1, h1, _) in zip(rings, rings[1:]):
+        if y0 <= y <= y1:
+            t = (y - y0) / (y1 - y0)
+            return z0 + (z1 - z0) * t, (w0 + (w1 - w0) * t) / 2, (h0 + (h1 - h0) * t) / 2
+    y0, z0, w0, h0, _ = rings[0] if y < rings[0][0] else rings[-1]
+    return z0, w0 / 2, h0 / 2
+
+
+BODY_P = 2.6
+
+
+def flank_x(y, z):
+    """Body surface x (left side) at height z; used to sit parts ON the body."""
+    cz, a, b = _ring_at(y)
+    t = min(abs(z - cz) / b, 0.999)
+    return a * (1 - t ** BODY_P) ** (1 / BODY_P)
+
+
+def back_z(y, x=0.0):
+    """Body surface z on top of the back at lateral offset x."""
+    cz, a, b = _ring_at(y)
+    t = min(abs(x) / a, 0.999)
+    return cz + b * (1 - t ** BODY_P) ** (1 / BODY_P)
+
+
 def build_body():
     rings = BODY_RINGS + tail_rings()
     loft([(0, y, z) for y, z, _, _, _ in rings], [(w, h) for _, _, w, h, _ in rings], 'MIX',
@@ -381,11 +409,15 @@ def build_body():
     # big curved bone ribs wrapping the flanks in front of the thigh (hero/side views)
     for y in (-13.0, -10.8, -8.6, -6.4):
         b = 'Chest' if y < -7.2 else 'Spine'
-        mloft([(4.6, y - 0.3, 13.9), (6.3, y, 12.0), (7.0, y + 0.3, 9.4), (6.6, y + 0.8, 6.8), (5.4, y + 1.2, 5.6)],
-              [(0.8, 1.3), (0.9, 1.5), (0.9, 1.5), (0.8, 1.3), (0.6, 0.9)], 'BONE',
+        pts = []
+        for dy, z, inset in ((-0.3, back_z(y - 0.3, 3.8) - 0.1, 0.6), (0.0, 12.0, 0.25), (0.3, 9.6, 0.2),
+                             (0.8, 7.2, 0.25), (1.2, _ring_at(y + 1.2)[0] - _ring_at(y + 1.2)[2] + 0.5, 0.5)):
+            pts.append((flank_x(y + dy, z) - inset + 0.45, y + dy, z))
+        mloft(pts, [(0.8, 1.3), (0.9, 1.5), (0.9, 1.5), (0.8, 1.3), (0.6, 0.9)], 'BONE',
               [W(**{b: 1})] * 5, sides=6, p=4.0, up=(0, 1, 0))
-    mloft([(5.2, -13.9, 11.0), (5.8, -13.6, 8.6)], [(1.2, 1.4), (1.0, 1.1)], 'BONE',
-          [W(Chest=1)] * 2, sides=6, up=(0, 1, 0))                                   # shoulder plate
+    # shoulder plate, sunk into the front of the chest
+    mloft([(flank_x(-13.9, 11.0) - 0.1, -13.9, 11.0), (flank_x(-13.6, 8.6) - 0.1, -13.6, 8.6)],
+          [(1.2, 1.4), (1.0, 1.1)], 'BONE', [W(Chest=1)] * 2, sides=6, up=(0, 1, 0))
 
 
 # spine plates: (y, height, bone) -- big bone plates down the back like the reference
@@ -396,17 +428,18 @@ BACK_SPIKES = [(-15.3, 2.0, 'Head'), (-12.6, 4.0, 'Neck'), (-9.6, 7.0, 'Chest'),
 def build_back_spikes():
     """Tapered bone plates down the back, leaning backwards, with gaps between (side views)."""
     for y, h, bone in BACK_SPIKES:
-        base = {'Head': 14.8, 'Neck': 13.6}.get(bone, 13.0)
+        base = 14.8 if bone == 'Head' else back_z(y) - 0.6
         horn((0, y, base), (0, y + h * 0.4, base + h), 1.6, 3.2, 0.8, 1.7, 'BONE_LIGHT', bone, sides=6, p=4.0)
         if bone in ('Chest', 'Hips'):     # lateral spikes at the shoulders and hips (top/back views)
-            mhorn((3.2, y + 0.4, 13.0), (3.9, y + 1.4, 13.0 + h * 0.45), 1.3, 1.8, 0.35, 0.5, 'BONE', bone,
+            lz = back_z(y + 0.4, 3.2) - 0.5
+            mhorn((3.2, y + 0.4, lz), (3.9, y + 1.4, lz + 0.5 + h * 0.45), 1.3, 1.8, 0.35, 0.5, 'BONE', bone,
                   sides=6, p=3.0)
     # dorsal spikes down the tail, shrinking toward the tip
     for i in range(6):
         a, b = Vector(TAIL_PTS[i]), Vector(TAIL_PTS[i + 1])
         m = (a + b) / 2
         hh = (TAIL_H[i] + TAIL_H[i + 1]) / 2
-        base = m.z + hh / 2 - 0.1
+        base = m.z + hh / 2 - 0.5
         horn((0, m.y, base), (0, m.y + 1.2, base + hh * 0.55 + 0.6), max(0.5, TAIL_W[i] * 0.15), 1.6,
              0.3, 0.7, 'BONE_LIGHT', f'Tail{i + 1}', sides=6, p=4.0)
 
@@ -428,8 +461,8 @@ def build_leg():
     for dx in (-1.3, 0.0, 1.3):
         mloft([(6.4 + dx, -4.6, 0.8), (6.4 + dx, -6.4, 0.7)], [(1.2, 1.6), (0.9, 1.1)], 'BONE', [F] * 2,
               sides=6, p=3.0)
-        mspike((6.4 + dx, -6.5, 0.55), (0.75, 0.6), (0, -1.1, -0.45), 'TEETH', 'Foot')
-    mhorn((6.4, -0.3, 0.6), (6.4, 0.6, 0.35), 0.9, 0.9, 0.4, 0.4, 'BONE', 'Foot')
+        mspike((6.4 + dx, -5.8, 0.65), (0.6, 0.5), (0, -1.8, -0.55), 'TEETH', 'Foot')
+    mhorn((6.4, -1.0, 0.65), (6.4, 0.6, 0.35), 0.9, 0.9, 0.4, 0.4, 'BONE', 'Foot')
 
 
 SHOULDER, ELBOW, WRIST, KNUCKLE = (5.0, -13.7, 8.9), (5.9, -14.0, 5.9), (5.9, -16.5, 4.8), (5.9, -17.7, 4.0)
@@ -464,9 +497,9 @@ def build_arm():
     mloft([WRIST, _off(KNUCKLE, 0, 0.5, 0.3), KNUCKLE], [(1.6, 1.6), (2.4, 1.5), (2.3, 1.3)], 'CHARCOAL',
           [FH, Ha, Ha], sides=8, p=2.8)
     for dx in (-0.75, 0.0, 0.75):
-        mloft([_off(KNUCKLE, dx, 0.1, 0.1), _off(HAND_TIP, dx * 1.1, 0.2, 0.3)], [(0.75, 0.75), (0.6, 0.6)],
+        mloft([_off(KNUCKLE, dx * 0.85, 0.8, 0.15), _off(HAND_TIP, dx * 1.1, 0.2, 0.3)], [(0.8, 0.8), (0.7, 0.7)],
               'DARK', [Ha] * 2, sides=6, p=2.4)
-        mspike(_off(HAND_TIP, dx * 1.1, 0.1, 0.3), (0.55, 0.6), (0, -0.5, -1.2), 'TEETH', 'Hand')
+        mspike(_off(HAND_TIP, dx * 1.1, 0.55, 0.3), (0.36, 0.36), (0, -0.85, -1.25), 'TEETH', 'Hand')
 
 
 # --------------------------------------------------------------------------- armature
