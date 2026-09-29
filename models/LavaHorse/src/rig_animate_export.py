@@ -195,6 +195,15 @@ idle = make_action('Idle', IDLE_LEN, idle_pose)
 walk = make_action('Walk', WALK_LEN, walk_pose)
 reset_pose()
 
+# ------------------------------------------------------------------ visibility culling
+# drop faces that are never visible: rendered from 32 directions in rest + idle/walk poses
+from visibility_cull import cull_invisible_faces
+before = sum(len(p.vertices) - 2 for p in horse.data.polygons)
+POSES = [(None, 0), (walk, 0), (walk, 8), (walk, 16), (walk, 24), (idle, 30), (idle, 72), (idle, 100)]
+removed = cull_invisible_faces(horse, rig, POSES)
+print('VISCULL removed tris', removed, 'of', before)
+reset_pose()
+
 # NLA: one muted track per clip so the .blend shows both; active action = Idle
 ad = rig.animation_data
 for act in (walk, idle):

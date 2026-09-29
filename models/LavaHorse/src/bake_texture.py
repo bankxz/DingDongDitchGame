@@ -207,6 +207,8 @@ def switch_output(mats, key):
 def main():
     parts = build_geo.build_all()
     build_geo.validate_attachment(parts)          # no floating mane/tail/armour pieces
+    if os.environ.get('NO_CULL') != '1':
+        print('CULLED hidden tris', build_geo.cull_hidden_faces(parts))
     mats = {}
     for ob, cat, bone in parts:
         if cat not in mats:
@@ -284,7 +286,7 @@ def main():
             me.attributes.remove(me.attributes[a])
     for m in mats.values():
         bpy.data.materials.remove(m)
-    bpy.ops.wm.save_as_mainfile(filepath=os.path.join(ROOT, 'src', 'LavaHorse_stage1.blend'))
+    bpy.ops.wm.save_as_mainfile(filepath=os.environ.get('STAGE1_OUT') or os.path.join(ROOT, 'src', 'LavaHorse_stage1.blend'))
     print('STAGE1_OK')
 
 

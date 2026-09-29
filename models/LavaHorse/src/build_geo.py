@@ -55,6 +55,24 @@ def box_pts(sx, sy, sz, top_scale=(1, 1), top_off=(0, 0)):
             (-tx + ox, -ty + oy, hz), (tx + ox, -ty + oy, hz), (tx + ox, ty + oy, hz), (-tx + ox, ty + oy, hz)]
 
 
+def _stud_uv(me, co):
+    """StudUV: per-face projection along the part's local axes (world units / STUD_TILE), from the
+    local-space vertex coords `co`. 'axisid' records which projection each face used."""
+    uvs = me.uv_layers['StudUV']
+    axid = me.attributes.get('axisid') or me.attributes.new('axisid', 'FLOAT', 'FACE')
+    for p in me.polygons:
+        vs = [co[i] for i in p.vertices]
+        n = (vs[1] - vs[0]).cross(vs[2] - vs[0]).normalized() if len(vs) >= 3 else p.normal
+        ax = max(range(3), key=lambda i: abs(n[i]))
+        axid.data[p.index].value = ax * 2 + (1 if n[ax] >= 0 else 0)
+        b = [2, 2, 1][ax]
+        sign = 1 if n[ax] >= 0 else -1          # keep studs upright on side faces
+        for li in p.loop_indices:
+            c = co[me.loops[li].vertex_index]
+            u = c[1] * -sign if ax == 0 else (c[0] * sign if ax == 1 else c[0])
+            uvs.data[li].uv = (u / STUD_TILE + 0.13, c[b] / STUD_TILE + 0.37)
+
+
 def finish_part(name, bm, matrix, category, bone, chamfer=0.0, cuts=None, grad_axis=None,
                 weights=None, rigid=True):
     """Chamfer, loop cuts, StudUV (local projection), rest/grad attributes, transform, link."""
@@ -76,23 +94,7 @@ def finish_part(name, bm, matrix, category, bone, chamfer=0.0, cuts=None, grad_a
     bm.free()
     uv0 = me.uv_layers.new(name='UVMap')
     uvs = me.uv_layers.new(name='StudUV')
-    # local-axis projection per face; 'axisid' records which projection each face used
-    axid = me.attributes.new('axisid', 'FLOAT', 'FACE')
-    for p in me.polygons:
-        n = p.normal
-        ax = max(range(3), key=lambda i: abs(n[i]))
-        axid.data[p.index].value = ax * 2 + (1 if n[ax] >= 0 else 0)
-        a, b = [(1, 2), (0, 2), (0, 1)][ax]
-        # keep studs upright on side faces
-        sign = 1 if n[ax] >= 0 else -1
-        for li in p.loop_indices:
-            co = me.vertices[me.loops[li].vertex_index].co
-            u = co[a] * (sign if ax != 2 else 1)
-            if ax == 0:
-                u = co[1] * -sign
-            if ax == 1:
-                u = co[0] * sign
-            uvs.data[li].uv = (u / STUD_TILE + 0.13, co[b] / STUD_TILE + 0.37)
+    _stud_uv(me, [v.co.copy() for v in me.vertices])
     # gradient attribute along local axis (mane/tail base->tip)
     ga = me.attributes.new('grad', 'FLOAT', 'POINT')
     if grad_axis is not None:
@@ -113,6 +115,10 @@ def finish_part(name, bm, matrix, category, bone, chamfer=0.0, cuts=None, grad_a
     else:
         for v in me.vertices:
             v.co.z = remap_z(v.co.z)
+        # the leg band was stretched: redo the stud projection on the stretched shape (in the part's
+        # local frame) so studs stay square instead of being pulled tall on the legs
+        inv = matrix.inverted()
+        _stud_uv(me, [inv @ v.co for v in me.vertices])
     me.update()
     rest = me.attributes.new('rest', 'FLOAT_VECTOR', 'POINT')
     for i, v in enumerate(me.vertices):
@@ -229,8 +235,8 @@ def build_head():
         def eye_box(name, x0, x1, y0, y1, z0, z1, cat):
             hbox(name + sd, (s * (x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2),
                  (x1 - x0, y1 - y0, z1 - z0), cat, 'Head', chamfer=0.0)
-        eye_box('EyeWhite', 0.39, 0.715, -4.126, -3.64, 4.83, 5.33, 'eye_white')
-        eye_box('EyeBlack', 0.46, 0.722, -4.132, -3.71, 4.9, 5.36, 'eye_black')
+        eye_box('EyeWhite', 0.41, 0.715, -4.126, -3.66, 4.85, 5.34, 'eye_white')
+        eye_box('EyeBlack', 0.53, 0.722, -4.132, -3.79, 4.95, 5.3, 'eye_black')
         # ears: dark pyramids, base y-3.6..-3.0 at z5.65, tip ~(y-3.4, z6.45)
         hbox('Ear' + sd, (s * 0.45, -3.3, 6.02), (0.46, 0.6, 0.82), 'rock', 'Ear.' + sd,
              rot=(0, s * 6, 0), chamfer=0.03, top_scale=(0.3, 0.3), top_off=(s * 0.02, -0.08))
@@ -519,3 +525,63 @@ def validate_attachment(parts):
     print('ATTACH floating=%d unrooted_flames=%d weak_rocks=%d' % (len(fl), len(ur), len(wr)))
     if fl or ur or wr:
         raise RuntimeError(f'detached parts: floating={fl} unrooted={ur} weak_rocks={wr}')
+
+
+# ---------------------------------------------------------------- hidden-face culling
+def _bone_group(bone):
+    """Parts in the same group move together in every animation, so a face buried in one stays
+    buried. Legs, ears and the tail articulate separately and keep their own groups."""
+    if bone in ('Chest', 'Hips', 'Torso', 'Neck'):
+        return 'trunk'
+    if bone in ('Tail1', 'Tail2'):
+        return 'tail'
+    return bone
+
+
+def cull_hidden_faces(parts, margin=0.04):
+    """Delete faces that are completely enclosed (every vertex and the face centre at least
+    `margin` deep) by another convex part of the same bone group. Invisible from any angle and in
+    any pose, so the silhouette/texture are unchanged; returns the number of triangles removed."""
+    info = []
+    for o, cat, bone in parts:
+        vs = [v.co.copy() for v in o.data.vertices]
+        info.append((o, cat, _bone_group(bone), _planes(vs, o.data),
+                     Vector([min(c[i] for c in vs) for i in range(3)]),
+                     Vector([max(c[i] for c in vs) for i in range(3)])))
+    removed = 0
+    for o, cat, grp, _, _, _ in info:
+        if cat in ('eye_white', 'eye_black'):
+            continue
+        me = o.data
+        hosts = [(pl, lo, hi) for o2, c2, g2, pl, lo, hi in info
+                 if o2 is not o and g2 == grp and c2 not in ('eye_white', 'eye_black')]
+        bm = bmesh.new(); bm.from_mesh(me)
+        doomed = []
+        for f in bm.faces:
+            # dense samples over the face (fan-triangulated barycentric grid, corners included);
+            # the face goes only if EVERY sample is buried >= margin in some same-group part
+            vs = [v.co for v in f.verts]
+            pts = []
+            n = 5
+            for k in range(1, len(vs) - 1):
+                a, b, c = vs[0], vs[k], vs[k + 1]
+                for i in range(n + 1):
+                    for j in range(n + 1 - i):
+                        u, v = i / n, j / n
+                        pts.append(a + (b - a) * u + (c - a) * v)
+            ok = True
+            for p in pts:
+                if not any(lo.x - margin <= p.x <= hi.x + margin and lo.y - margin <= p.y <= hi.y + margin
+                           and lo.z - margin <= p.z <= hi.z + margin and _depth(pl, p) >= margin
+                           for pl, lo, hi in hosts):
+                    ok = False
+                    break
+            if ok:
+                doomed.append(f)
+        if doomed:
+            removed += sum(len(f.verts) - 2 for f in doomed)
+            bmesh.ops.delete(bm, geom=doomed, context='FACES')
+            bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context='VERTS')
+            bm.to_mesh(me); me.update()
+        bm.free()
+    return removed
