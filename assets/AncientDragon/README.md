@@ -4,15 +4,16 @@ This is a low-poly voxel dragon rebuilt from the "Ancient Dragon" reference shee
 
 | | |
 |---|---|
-| Triangles | 4,919 (budget < 5,000) |
+| Triangles | 4,955 (budget < 5,000) |
 | Bones | 33 (Root, Hips, Spine, Chest, Neck1-2, Head, Jaw, legs x12, Tail1-9, Wing1-2 x2) |
 | Skinning | smooth blends at joints, max 2 influences per vertex (Roblox limit is 4) |
 | Size | about 9.2 m long x 4.4 m tall x 6.9 m wingspan (1 Blender unit = 1 m) |
 | Bind pose | standing quadruped with wings spread, the quadruped equivalent of a T-pose |
 | Texture | one 1024² stud atlas (color + normal). 2048² masters are also included |
 
-The model follows the reference's construction: small uniform cubes, each carrying one square stud, with stepped silhouettes. The runes, horns, spikes, claws and wing spars are built as pixel-art cube plates and cube chains.
-The studs, cube seams and bevels are **texture only** (colour + normal map). Only the cube silhouette is modelled, and coplanar cube faces are merged to stay under 5k triangles.
+The model is built from smooth, rounded forms that follow the reference's proportions. The horns, spikes, claws and wing spars are ribbed, tapering segments.
+The stud texture gives the cube and stud surface. Studs, seams and bevels are **texture only** (colour + normal map). The runes are pixel-art plates.
+Each eye is a real eye canal cut into the skull with a boolean, and a UV-sphere eyeball sits inside it. The glowing iris and slit pupil are painted on the eyeball texture.
 
 ## Files
 - `AncientDragon.blend`: source scene with the mesh, armature, material and `Idle` / `Walk` actions.

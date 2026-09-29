@@ -243,9 +243,6 @@ for j in range(ny):
         stud_cell(wx + i * cellpx, wy + j * cellpx, base, 0.08, e, cp=int(round(cellpx)))
 
 # ---- the painted sculpt atlas is only used to colour voxels (runes / wing glyphs) ----
-CACHE = os.path.join(os.path.dirname(__file__), '_cache'); os.makedirs(CACHE, exist_ok=True)
-Image.fromarray(flat.astype(np.uint8)).save(os.path.join(CACHE, 'source_flat.png'))
-Image.fromarray(col.astype(np.uint8)).save(os.path.join(CACHE, 'source_color.png'))
 
 # ---------------- final voxel atlas: one studded swatch per palette colour ----------------
 col[:] = 0; hgt[:] = 0; emi[:] = 0
@@ -262,6 +259,8 @@ halo = np.zeros((ATLAS, ATLAS, 1), np.float32)
 VC = {k: (rgb, e) for k, rgb, e, _ in VOX}
 wa0, wb0, NA, NB, wc = wing_grid()
 cells = wing_cells()
+paint = {(i + di, j + dj) for i, j in cells for di in (-1, 0, 1) for dj in (-1, 0, 1)
+         if 0 <= i + di < NA and 0 <= j + dj < NB}
 wglow = set()
 for (ga, gb), g in [(anch[2], G_BIG), (anch[1], G_MED), (anch[0], G_SML), (anch[3], G_TINY)]:
     rows = glyph_rows(g)
@@ -271,7 +270,7 @@ for (ga, gb), g in [(anch[2], G_BIG), (anch[1], G_MED), (anch[0], G_SML), (anch[
         for c_, ch in enumerate(row):
             if ch == 'C':
                 wglow.add((ci0 + c_, cj0 - r))
-for (i, j) in cells:
+for (i, j) in paint:
     a = wa0 + (i + 0.5) * wc; b = wb0 + (j + 0.5) * wc
     d = b - _interp(trail, a); u = _interp(lead, a) - b
     k = 'teal'
@@ -282,6 +281,23 @@ for (i, j) in cells:
     if (i, j) in wglow: k = 'glow'
     rgb, e = VC[k]
     stud_cell(i * CELL_PX, WING_ROW_Y + (NB - 1 - j) * CELL_PX, rgb, 0.08, e)
+# eyeball: pale glowing sclera, bright cyan iris, dark vertical slit pupil
+ex, ey, ew, eh = EYE_REGION
+yy, xx = np.mgrid[0:eh, 0:ew]
+dx = (xx + 0.5 - ew / 2) / (ew / 2); dy = (yy + 0.5 - eh / 2) / (eh / 2)
+d = np.sqrt(dx ** 2 + dy ** 2)
+eye = np.zeros((eh, ew, 3), np.float32); eem = np.zeros((eh, ew), np.float32)
+eye[:] = (150, 238, 236); eem[:] = 0.55
+iris = d < 0.62
+eye[iris] = (60, 250, 244); eem[iris] = 1.0
+ring = (d >= 0.56) & (d < 0.64)
+eye[ring] = (20, 120, 130); eem[ring] = 0.2
+pupil = (np.abs(dx) < 0.13 * np.sqrt(np.clip(1 - (dy / 0.5) ** 2, 0, 1))) & (np.abs(dy) < 0.5)
+eye[pupil] = (8, 16, 22); eem[pupil] = 0.0
+glint = ((dx + 0.25) ** 2 + (dy + 0.3) ** 2) < 0.012
+eye[glint] = (255, 255, 255); eem[glint] = 1.0
+col[ey:ey + eh, ex:ex + ew] = eye; emi[ey:ey + eh, ex:ex + ew] = eem; hgt[ey:ey + eh, ex:ex + ew] = 0.5
+
 for name, art in RUNE_ART.items():
     ox_, oy_ = RUNE_ORIGIN[name]
     for r, row in enumerate(art):

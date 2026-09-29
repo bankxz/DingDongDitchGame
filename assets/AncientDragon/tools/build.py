@@ -31,6 +31,7 @@ class MB:
     def __init__(self):
         self.co, self.w, self.faces = [], [], []   # faces: (vidx, uvs, smooth)
         self.fkey, self.fpart, self.part, self.open, self.direct = [], [], 0, set(), set()
+        self.skull_part, self.eyes = None, []
 
     def new_part(self, open_=False, direct=False):
         self.part += 1
@@ -62,40 +63,11 @@ def face_basis(pts):
     return n, u, v
 
 
-def tile_uv(pts, key, u, v):
-    """map a face into its colour swatch; extents snapped to whole stud cells."""
-    ox, oy = SWATCH[key][0] * SW, SWATCH[key][1] * SW
-    cu = [p.dot(u) for p in pts]; cv = [p.dot(v) for p in pts]
-    u0, v0 = min(cu), min(cv)
-    eu, ev = (max(cu) - u0) / CELL_U, (max(cv) - v0) / CELL_U
-    iu, iv = min(CELLS, max(1, round(eu))), min(CELLS, max(1, round(ev)))
-    su, sv = iu / max(eu, 1e-6), iv / max(ev, 1e-6)
-    offu = rnd.randint(0, CELLS - iu); offv = rnd.randint(0, CELLS - iv)
-    uv = []
-    for a, b in zip(cu, cv):
-        px = ox + MARGIN + (offu + (a - u0) / CELL_U * su) * CELL_PX
-        py = oy + MARGIN + (offv + iv - (b - v0) / CELL_U * sv) * CELL_PX
-        uv.append((px / ATLAS, 1 - py / ATLAS))
-    return uv
-
-
-def decal_uv(pts, key, u, v):
-    ox, oy = SWATCH[key][0] * SW, SWATCH[key][1] * SW
-    cu = [p.dot(u) for p in pts]; cv = [p.dot(v) for p in pts]
-    u0, v0, u1, v1 = min(cu), min(cv), max(cu), max(cv)
-    return [((ox + MARGIN + (a - u0) / max(u1 - u0, 1e-6) * (SW - 2 * MARGIN)) / ATLAS,
-             1 - (oy + MARGIN + (1 - (b - v0) / max(v1 - v0, 1e-6)) * (SW - 2 * MARGIN)) / ATLAS)
-            for a, b in zip(cu, cv)]
-
-
-def add_poly(vidx, key, smooth=False, uvs=None, decal_pts=None):
+def add_poly(vidx, key, smooth=False, uvs=None):
     pts = [mb.co[i] for i in vidx]
     if uvs is None:
         n, u, v = face_basis(pts)
-        if key.startswith('rune'):
-            uvs = decal_uv(pts, key, u, v)
-        else:
-            uvs = tile_uv(pts, key, u, v)
+        uvs = tile_uv_vox(pts, key, u, v)
     mb.faces.append((list(vidx), uvs, smooth)); mb.fkey.append(key); mb.fpart.append(mb.part)
 
 
@@ -169,22 +141,6 @@ def solid(key):
     return lambda s, k, nn, c: key
 
 
-def cone_smooth(base, tip, r, key, bone, n=4, up=None):
-    """pointed spike/claw (n-sided pyramid), flat shaded."""
-    mb.new_part()
-    base, tip = Vector(base), Vector(tip)
-    ax = (tip - base).normalized()
-    upv = Vector(up) if up is not None else (Vector((0, 0, 1)) if abs(ax.z) < 0.9 else Vector((0, -1, 0)))
-    sd = ax.cross(upv).normalized(); upv = sd.cross(ax).normalized()
-    ids = [mb.vert(base + (sd * math.cos(2 * math.pi * k / n + math.pi / n) + upv * math.sin(2 * math.pi * k / n + math.pi / n)) * r, bone)
-           for k in range(n)]
-    tv = mb.vert(tip, bone)
-    ctr = base + (tip - base) * 0.3
-    for k in range(n):
-        add_poly(outward([ids[k], ids[(k + 1) % n], tv], ctr), key)
-    add_poly(outward(ids[:], tip), key)
-
-
 def tile_uv_vox(pts, key, u, v):
     """final-atlas tiling: whole VOX_CELL_U cubes inside the colour's swatch."""
     ox, oy = VOX_SWATCH[key][0] * SW, VOX_SWATCH[key][1] * SW
@@ -198,46 +154,49 @@ def tile_uv_vox(pts, key, u, v):
              1 - (oy + MARGIN + (offv + iv - (b - v0) / VOX_CELL_U * sv) * CELL_PX) / ATLAS) for a, b in zip(cu, cv)]
 
 
-def vblock(p0, p1, w, h, key, bone, up=None, taper=1.0, skip_start=False):
-    """cube-style block between p0 and p1 (final-atlas UVs, flat shaded, not voxelized)."""
-    p0, p1 = Vector(p0), Vector(p1)
-    ax = (p1 - p0).normalized()
-    upv = Vector(up) if up is not None else (Vector((0, 0, 1)) if abs(ax.z) < 0.9 else Vector((0, -1, 0)))
-    sd = ax.cross(upv).normalized(); upv = sd.cross(ax).normalized()
-    ring = lambda p, sc: [p + sd * sx * w / 2 * sc + upv * sy * h / 2 * sc for sx, sy in ((-1, -1), (1, -1), (1, 1), (-1, 1))]
-    c8 = ring(p0, 1.0) + ring(p1, taper)
-    ids = [mb.vert(q, bone) for q in c8]
-    ctr = (p0 + p1) / 2
-    for q in ((0, 1, 2, 3), (4, 5, 6, 7), (0, 1, 5, 4), (1, 2, 6, 5), (2, 3, 7, 6), (3, 0, 4, 7)):
-        if skip_start and q == (0, 1, 2, 3):
-            continue
-        f = outward([ids[i] for i in q], ctr)
-        pts = [mb.co[i] for i in f]
-        n, u, v = face_basis(pts)
-        mb.faces.append((f, tile_uv_vox(pts, key, u, v), False)); mb.fkey.append(key); mb.fpart.append(mb.part)
-
-
-def cube_chain(pts, w0, w1, key, bone, seg=1.0):
-    """stepped chain of studded cubes along a curve, tapering w0 -> w1 (reference horn/spike style)."""
-    mb.new_part(direct=True)
-    pts = [Vector(p) for p in pts]
-    L = sum((q - p).length for p, q in zip(pts, pts[1:]))
-    n = max(1, min(6, int(round(L / seg))))
-    tp = [tuple(p) for p in pts]
-    rs = [Vector(p) for p in resample(tp, n + 1)] if len(pts) > 2 else [pts[0].lerp(pts[1], k / n) for k in range(n + 1)]
-    for k in range(n):
-        t = k / max(1, n)
-        w = w0 + (w1 - w0) * t
-        last = k == n - 1
-        vblock(rs[k], rs[k + 1], w, w, key, bone, taper=0.55 if last else 0.92, skip_start=True)
+def horn(pts, r0, r1, key, bone, nseg=4, n=6, rib=0.08, tip=True):
+    """smooth tapered horn/spike/claw made of slightly stepped segments (the reference's ribbed horns)."""
+    path = [Vector(p) for p in resample([tuple(p) for p in pts], nseg + 1)]
+    for k in range(nseg):
+        ra = r0 + (r1 - r0) * k / nseg
+        rb = r0 + (r1 - r0) * (k + 0.85) / nseg
+        last = k == nseg - 1
+        loft([path[k], path[k + 1]], [(ra * (1 + rib),) * 2, (rb,) * 2], [bone, bone], solid(key), n=n, p=2.0,
+             smooth=True, cap0=k == 0, cap1=last and not tip, tip1=last and tip)
 
 
 def cone(base, tip, r, key, bone, n=4, up=None):
-    cube_chain([base, tip], max(0.36, 2.2 * r), max(0.25, 1.1 * r), key, bone)
+    horn([base, tip], r, r * 0.45, key, bone, nseg=2, n=n)
 
 
 def curved_cone(pts, r0, key, bone, n=4):
-    cube_chain(pts, max(0.36, 2.0 * r0), max(0.22, 0.6 * r0), key, bone)
+    horn(pts, r0, r0 * 0.35, key, bone, nseg=2, n=n)
+
+
+def eyeball(c, axis, r, bone, seg=8, rings=5):
+    """UV sphere looking along `axis`; planar UVs put the painted iris + slit pupil on the front."""
+    c = Vector(c); ax = Vector(axis).normalized()
+    up = Vector((0, 0, 1)); rt = up.cross(ax).normalized(); up = ax.cross(rt).normalized()
+    ex, ey, ew, eh = EYE_REGION
+    def uv(p):
+        d = (p - c) / r
+        return ((ex + (0.5 + d.dot(rt) * 0.5) * ew) / ATLAS, 1 - (ey + (0.5 - d.dot(up) * 0.5) * eh) / ATLAS)
+    mb.new_part(direct=True)
+    grid = []
+    for i in range(1, rings):
+        th = math.pi * i / rings
+        grid.append([mb.vert(c + (ax * math.cos(th) + (rt * math.cos(2 * math.pi * j / seg) + up * math.sin(2 * math.pi * j / seg)) * math.sin(th)) * r, bone)
+                     for j in range(seg)])
+    front = mb.vert(c + ax * r, bone); back = mb.vert(c - ax * r, bone)
+    def face(ids):
+        ids = outward(ids, c)
+        add_poly(ids, 'glow', True, [uv(mb.co[q]) for q in ids])
+    for j in range(seg):
+        k = (j + 1) % seg
+        face([front, grid[0][j], grid[0][k]])
+        face([back, grid[-1][k], grid[-1][j]])
+        for i in range(rings - 2):
+            face([grid[i][j], grid[i][k], grid[i + 1][k], grid[i + 1][j]])
 
 
 PLATE_SHAPES = {
@@ -271,49 +230,6 @@ def art_plate(center, normal, up, name, cell, thick, bone, shape=None):
         f = outward([front[i], front[j], back[j], back[i]], ctr); pts = [mb.co[q] for q in f]
         nn, uu, vv = face_basis(pts)
         mb.faces.append((f, tile_uv_vox(pts, 'gold', uu, vv), False)); mb.fkey.append('gold'); mb.fpart.append(mb.part)
-
-
-def curved_cone_smooth(pts, r0, key, bone, n=4):
-    """multi-segment tapered horn/claw along pts, radius r0 -> 0."""
-    path = [Vector(p) for p in pts]
-    m = len(path)
-    radii = [(r0 * (1 - i / (m - 1)) + 0.04,) * 2 for i in range(m)]
-    loft(path[:-1], radii[:-1], [bone] * (m - 1), solid(key), n=n, p=2.0, smooth=False, tip1=False, cap1=False)
-    # tip fan
-    rings_start = len(mb.co) - (m - 1) * n
-    last = list(range(rings_start + (m - 2) * n, rings_start + (m - 1) * n))
-    tv = mb.vert(path[-1], bone)
-    for k in range(n):
-        add_poly(outward([last[k], last[(k + 1) % n], tv], path[-2]), key)
-
-
-def prism(center, axis, radius, thick, n, key, bone, cap_key=None, rot=0.0):
-    mb.new_part()
-    axis = Vector(axis).normalized(); c = Vector(center)
-    ref = Vector((0, 0, 1)) if abs(axis.z) < 0.9 else Vector((0, 1, 0))
-    e1 = (ref - axis * ref.dot(axis)).normalized(); e2 = axis.cross(e1)
-    ring = lambda off: [c + axis * off + (e1 * math.cos(2 * math.pi * i / n + rot) + e2 * math.sin(2 * math.pi * i / n + rot)) * radius for i in range(n)]
-    ia = [mb.vert(q, bone) for q in ring(thick / 2)]; ib = [mb.vert(q, bone) for q in ring(-thick / 2)]
-    add_poly(outward(ia[:], c), cap_key or key)
-    add_poly(outward(ib[:], c), key)
-    for i in range(n):
-        j = (i + 1) % n
-        add_poly(outward([ia[i], ia[j], ib[j], ib[i]], c), key)
-
-
-def extrude_poly(pts2d, frame_o, ex, ez, depth_dir, depth, key, bone, front_key=None):
-    """flat polygon (x,z in a local frame) extruded along depth_dir."""
-    mb.new_part()
-    o = Vector(frame_o); ex = Vector(ex); ez = Vector(ez); dd = Vector(depth_dir)
-    f = [mb.vert(o + ex * x + ez * z, bone) for x, z in pts2d]
-    b = [mb.vert(o + ex * x + ez * z + dd * depth, bone) for x, z in pts2d]
-    ctr = o + dd * depth / 2 + ex * (sum(x for x, _ in pts2d) / len(pts2d)) + ez * (sum(z for _, z in pts2d) / len(pts2d))
-    add_poly(outward(f[:], ctr), front_key or key)
-    add_poly(outward(b[:], ctr), key)
-    n = len(pts2d)
-    for i in range(n):
-        j = (i + 1) % n
-        add_poly(outward([f[i], f[j], b[j], b[i]], ctr), key)
 
 
 def blend(b0, b1, t):
@@ -355,7 +271,7 @@ def build():
             return G                                     # gold back armour plates
         return C
     loft([P(0, l, z) for l, z, *_ in body], [(rx, rz) for _, _, rx, rz, _ in body],
-         [w for *_, w in body], body_col, n=12, p=2.4, cap1=True)
+         [w for *_, w in body], body_col, n=16, p=2.3, cap1=True)
 
     # ================= tail: segments with gold bands, side runes =================
     tpath = [(16.4, 4.75, 2.05), (18.4, 4.05, 1.9), (20.5, 3.4, 1.75), (22.6, 2.95, 1.62), (24.7, 2.7, 1.5),
@@ -385,7 +301,7 @@ def build():
         if s == 'bottom':
             return B
         return C
-    loft(path, radii, wts, tail_col, n=8, p=2.8, cap0=True, cap1=True)
+    loft(path, radii, wts, tail_col, n=10, p=2.4, cap0=True, cap1=True)
     # tail spikes (pairs, leaning back) and tip cluster
     for i in range(len(tpath) - 1):
         (l0, z0, r0), (l1, z1, r1) = tpath[i], tpath[i + 1]
@@ -402,58 +318,57 @@ def build():
     for dl, dz, dx in ((2.2, 0.2, 0.0), (1.6, 1.0, 0.55), (1.6, 1.0, -0.55)):
         cone(P(0, lt - 0.2, zt), P(dx, lt + dl, zt + dz), 0.36, H, 'Tail9')
 
-    # ================= head: studded blocks + stepped horn crown (built directly, not voxelized) =================
+    # ================= head: rounded skull with carved eye canals, ribbed horn crown =================
     hb, jb = 'Head', 'Jaw'
-    mb.new_part(direct=True)
+    skull = [(6.4, 9.0, 1.15, 1.2), (5.4, 9.05, 1.25, 1.25), (4.2, 8.9, 1.18, 1.1),
+             (3.0, 8.6, 0.98, 0.92), (1.8, 8.35, 0.86, 0.78), (0.8, 8.25, 0.76, 0.62)]
 
-    def blk(x0, x1, l0, l1, z0, z1, key, bone=hb):
-        vblock(P((x0 + x1) / 2, (l0 + l1) / 2, z0), P((x0 + x1) / 2, (l0 + l1) / 2, z1), x1 - x0, l1 - l0, key, bone)
+    def skull_col(seg, k, nn, c):
+        if seg < 0:
+            return D
+        if nn.z < -0.55:
+            return CR
+        if nn.z > 0.6 and c.y + L0 < 2.6:
+            return 'slate'
+        return C
+    loft([P(0, l, z) for l, z, _, _ in skull], [(rx, rz) for _, _, rx, rz in skull], [hb] * len(skull),
+         skull_col, n=12, p=2.8)
+    mb.skull_part = mb.part
 
-    def sblk(x0, x1, l0, l1, z0, z1, key, bone=hb):
-        for s in (1, -1):
-            blk(min(s * x0, s * x1), max(s * x0, s * x1), l0, l1, z0, z1, key, bone)
-    SL = 'slate'
-    # skull: blunt dark snout tip -> mid head -> rear skull
-    blk(-0.85, 0.85, 0.7, 3.0, 7.75, 8.95, D)             # snout
-    blk(-0.75, 0.75, 1.0, 3.2, 8.95, 9.35, SL)            # snout top plate
-    blk(-0.55, 0.55, 0.55, 1.1, 8.3, 9.05, D)             # nose tip
-    blk(-1.1, 1.1, 2.8, 4.8, 7.7, 9.8, C)                 # mid head
-    blk(-1.2, 1.2, 4.6, 6.4, 7.8, 10.1, C)                # rear skull
-    # gold brow, crest strip and cheek band
-    sblk(0.55, 1.28, 3.0, 4.7, 9.6, 10.1, G)
-    blk(-0.38, 0.38, 1.6, 3.4, 9.3, 9.7, G)
-    blk(-0.4, 0.4, 3.3, 5.9, 9.75, 10.35, G)
-    sblk(1.05, 1.35, 3.3, 5.6, 8.35, 8.85, G)
-    sblk(1.05, 1.4, 4.9, 6.3, 7.85, 8.4, CR)              # cream cheek plate
-    sblk(0.8, 0.98, 2.1, 2.8, 8.25, 8.7, 'teal')          # teal accent cube on the snout side
-    sblk(1.05, 1.2, 2.9, 3.5, 8.9, 9.3, SL)
-    # glowing eyes + glow slit low on the snout
-    sblk(1.08, 1.32, 3.55, 4.35, 9.1, 9.5, GL)
-    sblk(0.83, 0.95, 1.25, 1.6, 7.8, 8.55, GL)
-    # cream tooth line under the upper jaw
-    sblk(0.55, 0.95, 1.0, 3.6, 7.35, 7.78, CR)
-    # lower jaw (small, dark) with cream inner teeth
-    blk(-0.8, 0.8, 1.5, 4.8, 6.75, 7.35, C, jb)
-    sblk(0.45, 0.78, 1.6, 3.0, 7.35, 7.6, CR, jb)
-    # big fangs hanging at the front + side teeth
+    def strip(pts, rx, rz, key, bone=hb, n=6):
+        loft([P(*q) for q in pts], [(rx, rz)] * len(pts), [bone] * len(pts), solid(key), n=n, p=2.2)
+    strip([(0, 1.5, 9.05), (0, 3.0, 9.48), (0, 4.4, 9.98), (0, 5.7, 10.25)], 0.3, 0.12, G)       # crest strip
+    jaw = [(5.2, 7.35, 1.02, 0.5), (3.4, 7.1, 0.92, 0.45), (1.4, 6.95, 0.72, 0.38)]
+    loft([P(0, l, z) for l, z, _, _ in jaw], [(rx, rz) for _, _, rx, rz in jaw], [jb] * 3,
+         lambda s, k, nn, c: CR if nn.z > 0.5 else C, n=8, p=2.4)
+    mb.eyes = []
     for s in (1, -1):
-        cube_chain([P(s * 0.58, 1.1, 7.75), P(s * 0.6, 1.05, 6.8), P(s * 0.62, 1.0, 5.8)], 0.42, 0.24, H, hb, seg=0.7)
-        cube_chain([P(s * 0.82, 2.6, 7.6), P(s * 0.84, 2.6, 6.95)], 0.3, 0.2, H, hb, seg=0.7)
-        # crown: big cream crescent horn sweeping back then curling up
-        cube_chain([P(s * 1.0, 5.3, 9.9), P(s * 1.6, 6.4, 10.5), P(s * 2.1, 7.6, 11.1), P(s * 2.3, 8.8, 11.8),
-                    P(s * 2.1, 9.8, 12.8), P(s * 1.7, 10.4, 13.8)], 0.85, 0.3, H, hb, seg=1.05)
-        # two gold horns above it
-        cube_chain([P(s * 0.65, 4.9, 10.2), P(s * 0.95, 6.2, 10.8), P(s * 1.1, 7.5, 11.2), P(s * 1.15, 8.6, 11.7)],
-                   0.6, 0.25, G, hb, seg=1.35)
-        cube_chain([P(s * 0.95, 5.8, 10.0), P(s * 1.4, 7.2, 10.3), P(s * 1.65, 8.5, 10.7), P(s * 1.7, 9.5, 11.2)],
-                   0.55, 0.22, G, hb, seg=1.35)
-        # lower cream horn pointing straight back
-        cube_chain([P(s * 1.15, 5.9, 8.95), P(s * 1.65, 7.2, 9.1), P(s * 2.05, 8.6, 9.6), P(s * 2.2, 9.7, 10.4)],
-                   0.62, 0.24, H, hb, seg=1.35)
-        # gold cheek frill
-        cube_chain([P(s * 1.3, 6.0, 8.2), P(s * 1.95, 7.2, 7.95), P(s * 2.35, 8.2, 8.4)], 0.5, 0.22, G, hb, seg=0.8)
-    # tall gold forehead crest (front view)
-    cube_chain([P(0, 4.9, 10.2), P(0, 5.4, 11.1), P(0, 5.9, 11.8)], 0.55, 0.28, G, hb, seg=0.8)
+        strip([(s * 0.75, 2.8, 9.5), (s * 1.18, 3.8, 9.7), (s * 1.15, 5.0, 9.75)], 0.22, 0.17, G)   # brow ridge
+        strip([(s * 1.1, 3.2, 8.45), (s * 1.2, 4.6, 8.5), (s * 1.18, 5.8, 8.65)], 0.12, 0.2, G)     # cheek band
+        strip([(s * 1.1, 5.0, 8.05), (s * 1.12, 6.3, 8.15)], 0.14, 0.3, CR)                         # cheek plate
+        strip([(s * 0.8, 1.15, 8.1), (s * 0.84, 1.75, 8.15)], 0.08, 0.12, GL)                      # snout glow slit
+        strip([(s * 0.66, 1.0, 7.8), (s * 0.72, 2.3, 7.78), (s * 0.78, 3.6, 7.8)], 0.12, 0.16, CR)   # tooth row
+        horn([P(s * 0.58, 1.1, 7.85), P(s * 0.6, 1.05, 6.9), P(s * 0.62, 0.95, 6.0)], 0.2, 0.06, H, hb, nseg=2)
+        horn([P(s * 0.8, 2.5, 7.75), P(s * 0.82, 2.5, 7.1)], 0.13, 0.05, H, hb, nseg=1, n=5)
+        # eye canal (carved in main) + eyeball with painted slit pupil
+        axis = Vector((s * 0.94, -0.34, 0.0)).normalized()
+        surf = P(s * 1.13, 3.95, 9.12)
+        mb.eyes.append((mb.vert(surf, hb), mb.vert(surf + axis, hb)))
+        eyeball(surf - axis * 0.2, axis, 0.3, hb)
+        # great cream crescent horn: back, up, curling in at the tip
+        horn([P(s * 0.85, 5.1, 9.8), P(s * 1.45, 5.9, 10.9), P(s * 1.95, 6.8, 11.9), P(s * 2.1, 7.8, 12.7),
+              P(s * 1.95, 8.7, 13.5), P(s * 1.5, 9.3, 14.3)], 0.62, 0.12, H, hb, nseg=5, n=7)
+        # gold crown horns behind the brow
+        horn([P(s * 0.55, 4.6, 10.1), P(s * 0.8, 5.6, 11.0), P(s * 0.95, 6.8, 11.6), P(s * 1.0, 7.9, 12.2)],
+             0.3, 0.07, G, hb, nseg=4)
+        horn([P(s * 1.0, 5.6, 9.9), P(s * 1.45, 6.9, 10.35), P(s * 1.7, 8.2, 10.8), P(s * 1.8, 9.2, 11.4)],
+             0.28, 0.06, G, hb, nseg=4)
+        # lower cream horn swept straight back
+        horn([P(s * 1.15, 5.9, 8.95), P(s * 1.65, 7.2, 9.1), P(s * 2.0, 8.6, 9.55), P(s * 2.15, 9.7, 10.3)],
+             0.34, 0.07, H, hb, nseg=4)
+        # gold cheek frill spikes
+        horn([P(s * 1.25, 6.0, 8.3), P(s * 1.85, 7.1, 8.05), P(s * 2.25, 8.1, 8.4)], 0.24, 0.05, G, hb, nseg=3, n=5)
+    horn([P(0, 4.9, 10.2), P(0, 5.35, 11.1), P(0, 5.9, 11.9)], 0.28, 0.06, G, hb, nseg=3, n=5)     # forehead crest
 
     # enlarge + lift the head cluster about the neck joint (reference head reads bigger)
     piv = P(0, 6.4, 8.6)
@@ -477,7 +392,7 @@ def build():
         pth = [P(s * 3.0, 9.9, 6.3), P(s * 3.35, 9.6, 4.6), P(s * 3.6, 9.2, 3.0), P(s * 3.75, 8.8, 2.0), P(s * 3.85, 8.5, 0.9)]
         rad = [(1.2, 1.5), (1.35, 1.45), (1.3, 1.3), (1.15, 1.15), (1.05, 1.05)]
         wt = [{ua: 1}, {ua: 1}, blend(ua, fa, 0.5), {fa: 1}, blend(fa, hd, 0.5)]
-        loft(pth, rad, wt, lambda seg, k, nn, c: G if seg == 2 else C, n=8, p=2.6, up_hint=(0, -1, 0))
+        loft(pth, rad, wt, lambda seg, k, nn, c: G if seg == 2 else C, n=10, p=2.3, up_hint=(0, -1, 0))
         # pauldron over the shoulder (gold)
         loft([P(s * 2.6, 11.0, 7.3), P(s * 3.2, 9.8, 7.5), P(s * 3.4, 8.6, 7.0)], [(1.0, 0.55), (1.15, 0.65), (0.9, 0.5)],
              [{ua: 1}] * 3, solid(G), n=8, p=2.4)
@@ -499,7 +414,7 @@ def build():
         pth = [P(s * 2.7, 14.9, 5.8), P(s * 3.1, 14.2, 4.1), P(s * 3.3, 13.5, 2.7), P(s * 3.4, 14.2, 1.7), P(s * 3.45, 14.8, 0.9)]
         rad = [(1.35, 1.7), (1.4, 1.55), (1.3, 1.3), (1.1, 1.1), (1.0, 1.0)]
         wt = [{th: 1}, {th: 1}, blend(th, sh, 0.5), {sh: 1}, blend(sh, ft, 0.5)]
-        loft(pth, rad, wt, lambda seg, k, nn, c: G if seg == 2 else C, n=8, p=2.6, up_hint=(0, -1, 0))
+        loft(pth, rad, wt, lambda seg, k, nn, c: G if seg == 2 else C, n=10, p=2.3, up_hint=(0, -1, 0))
         art_plate(P(s * 4.05, 12.8, 2.6), (s * 0.55, -0.83, 0), (0, 0, 1), 'knee', 0.4, 0.35, sh)
         loft([P(s * 3.45, 15.3, 0.6), P(s * 3.45, 14.1, 0.62), P(s * 3.45, 12.9, 0.5)], [(1.15, 0.65), (1.3, 0.68), (1.15, 0.55)],
              [{ft: 1}] * 3, lambda seg, k, nn, c: G if nn.z > 0.6 else C, n=8, p=2.8)
@@ -508,78 +423,42 @@ def build():
             curved_cone([P(x, 12.9, 0.6), P(x, 12.0, 0.5), P(x, 11.0, 0.1)], 0.28, H, ft, n=4)
     rear_leg(1, '_L'); rear_leg(-1, '_R')
 
-    # ================= wings: stepped studded membrane + gold cube-chain spars =================
+    # ================= wings: ribbed gold spars + smooth-outline studded membrane =================
     def wing(s, sf):
         w1b, w2b = 'Wing1' + sf, 'Wing2' + sf
         nl = Vector(wing_plane_normal()); N = Vector((nl.x * s, nl.y, nl.z))
+        X = lambda p: P(p[0] * s, p[1], p[2])
         def W3(a, b, off=0.0):
-            q = wing_plane_pt(a, b); return P(q[0] * s, q[1], q[2]) + N * off
-        def proj(p):
-            return wing2d(p)
-        def chain(pts2d, w, h, key, bone, seg=1.7, stagger=0.0, off=0.0, taper_last=None):
-            poly = resample(pts2d, max(2, int(round(sum(math.dist(p, q) for p, q in zip(pts2d, pts2d[1:])) / seg)) + 1))
-            for k, (p, q) in enumerate(zip(poly, poly[1:])):
-                d = Vector((q[0] - p[0], q[1] - p[1])).normalized(); perp = Vector((-d.y, d.x))
-                sh = perp * (stagger if k % 2 else -stagger)
-                a0, b0 = p[0] + sh.x - d.x * 0.1, p[1] + sh.y - d.y * 0.1
-                a1, b1 = q[0] + sh.x + d.x * 0.1, q[1] + sh.y + d.y * 0.1
-                tp = taper_last if (taper_last and k == len(poly) - 2) else 1.0
-                vblock(W3(a0, b0, off), W3(a1, b1, off), w, h, key, bone, up=N, taper=tp)
-        root2 = proj(W_ROOT); wr2 = proj(W_WRIST)
-        mb.new_part(direct=True)
-        chain([root2, wr2], 1.0, 0.9, G, w1b, seg=3.0)
-        lead2 = [proj(p) for p in W_LEAD]
-        chain(lead2, 1.0, 0.85, G, w2b, seg=3.0, stagger=0.08)
-        ridge = []
-        for k, p in enumerate(lead2):
-            q = lead2[min(k + 1, len(lead2) - 1)]; o = lead2[max(k - 1, 0)]
-            d = Vector((q[0] - o[0], q[1] - o[1])).normalized(); perp = Vector((-d.y, d.x))
-            if perp.y < 0: perp = -perp
-            ridge.append((p[0] + perp.x * 0.75, p[1] + perp.y * 0.75))
-        chain(ridge[:-1], 0.6, 0.7, C, w2b, seg=4.5)
-        tips2 = [proj(p) for p in W_TIPS]
+            q = wing_plane_pt(a, b); return X(q) + N * off
+        horn([X(W_ROOT), X(W_WRIST)], 0.5, 0.45, G, w1b, nseg=2, tip=False)
+        horn([X(p) for p in W_LEAD], 0.5, 0.3, G, w2b, nseg=5, tip=False)
+        rim = []
+        for k, p in enumerate(W_LEAD[:-1]):
+            q2 = wing2d(p); rim.append(W3(q2[0], q2[1] + 0.4))
+        horn(rim, 0.3, 0.2, C, w2b, nseg=3, n=5, tip=False)
         for i in range(3):
-            sp = [proj(p) for p in spar_path(i, 7)]
-            chain(sp, 0.75, 0.7, G, w2b, seg=2.3, stagger=0.1)
-        # stepped cream claws at every tip (two cube tiers)
+            horn([X(p) for p in spar_path(i, 5)], 0.36, 0.24, G, w2b, nseg=3, n=5, tip=False)
         for i in range(4):
-            src = [proj(p) for p in (spar_path(i, 7) if i < 3 else W_LEAD)]
-            p, q = Vector(src[-2]), Vector(src[-1]); d = (q - p).normalized()
-            t1 = q + d * 0.9; t2 = t1 + d * 0.9
-            vblock(W3(*q), W3(*t2), 0.6, 0.6, H, w2b, up=N, taper=0.45)
-        # glowing drips below the scallops
+            src = spar_path(i, 5) if i < 3 else W_LEAD
+            p, q = X(src[-2]), X(src[-1]); d = (q - p).normalized()
+            horn([q, q + d * 1.5], 0.26, 0.06, H, w2b, nseg=1, n=5)
         for i in range(3):
-            q = proj(scallop(i))
-            vblock(W3(q[0], q[1] + 0.1), W3(q[0] + 0.1, q[1] - 0.9), 0.35, 0.3, GL, w2b, up=N, taper=0.5)
-        # membrane rows (stepped outline), double sided, UVs into the painted row
+            q = X(scallop(i))
+            horn([q + Vector((0, 0, 0.2)), q + Vector((0, 0.2, -0.9))], 0.17, 0.05, GL, w2b, nseg=1, n=4)
         a0, b0, NA, NB, c = wing_grid()
-        cells = wing_cells()
-        for j in range(NB):
-            i = 0
-            while i < NA:
-                if (i, j) not in cells:
-                    i += 1; continue
-                i1 = i
-                while (i1 + 1, j) in cells:
-                    i1 += 1
-                aa, ab = a0 + i * c, a0 + (i1 + 1) * c
-                ba, bb = b0 + j * c, b0 + (j + 1) * c
-                px0, px1 = i * CELL_PX, (i1 + 1) * CELL_PX
-                py0, py1 = WING_ROW_Y + (NB - 1 - j) * CELL_PX, WING_ROW_Y + (NB - j) * CELL_PX
-                uv = [(px0 / ATLAS, 1 - py1 / ATLAS), (px1 / ATLAS, 1 - py1 / ATLAS),
-                      (px1 / ATLAS, 1 - py0 / ATLAS), (px0 / ATLAS, 1 - py0 / ATLAS)]
-                corners = [(aa, ba), (ab, ba), (ab, bb), (aa, bb)]
-                for off in (0.04, -0.04):
-                    ids = []
-                    for ca, cb in corners:
-                        wt = {w1b: 1.0} if ca < 1.0 else ({w1b: 0.5, w2b: 0.5} if ca < 3.0 else {w2b: 1.0})
-                        ids.append(mb.vert(W3(ca, cb, off), wt))
-                    uvs = list(uv)
-                    n_, _, _ = face_basis([mb.co[k] for k in ids])
-                    if (n_.dot(N) > 0) != (off > 0):
-                        ids = ids[::-1]; uvs = uvs[::-1]
-                    mb.faces.append((ids, uvs, False)); mb.fkey.append('wing'); mb.fpart.append(mb.part)
-                i = i1 + 1
+        outline = wing_outline_2d()[:-1]
+        uvs = [((a - a0) / c * CELL_PX / ATLAS, 1 - (WING_ROW_Y + (NB - (b - b0) / c) * CELL_PX) / ATLAS) for a, b in outline]
+        mb.new_part(direct=True)
+        for off in (0.04, -0.04):
+            ids = []
+            for a, b in outline:
+                wt = {w1b: 1.0} if a < 1.0 else ({w1b: 0.5, w2b: 0.5} if a < 3.0 else {w2b: 1.0})
+                ids.append(mb.vert(W3(a, b, off), wt))
+            uv = list(uvs)
+            n_, _, _ = face_basis([mb.co[k] for k in ids])
+            if (n_.dot(N) > 0) != (off > 0):
+                ids = ids[::-1]; uv = uv[::-1]
+            mb.faces.append((ids, uv, False)); mb.fkey.append('wing'); mb.fpart.append(mb.part)
     wing(1, '_L'); wing(-1, '_R')
 
 
@@ -646,6 +525,59 @@ def lift_all():
             mb.co[i].z = mb.co[i].z + (lift_z(mb.co[i].z) - mb.co[i].z) * f
         else:
             mb.co[i].z = lift_z(mb.co[i].z)
+
+
+def carve_eye_canals():
+    """boolean-cut an eye canal (elongated socket) into the skull at each eye marker."""
+    fids = [i for i, p in enumerate(mb.fpart) if p == mb.skull_part]
+    vids = sorted({q for i in fids for q in mb.faces[i][0]})
+    vi = {v: k for k, v in enumerate(vids)}
+    keys = sorted({mb.fkey[i] for i in fids} | {'dark'})
+    me = bpy.data.meshes.new('skull')
+    me.from_pydata([tuple(mb.co[v]) for v in vids], [], [[vi[q] for q in mb.faces[i][0]] for i in fids])
+    for k in keys:
+        me.materials.append(bpy.data.materials.get('k_' + k) or bpy.data.materials.new('k_' + k))
+    for poly, i in zip(me.polygons, fids):
+        poly.material_index = keys.index(mb.fkey[i])
+    sk = bpy.data.objects.new('skull', me); bpy.context.scene.collection.objects.link(sk)
+    cutters = []
+    for m0, m1 in mb.eyes:
+        c0 = mb.co[m0]; ax = mb.co[m1] - c0; hs = ax.length; ax.normalize()
+        bm = bmesh.new(); bmesh.ops.create_uvsphere(bm, u_segments=12, v_segments=8, radius=1.0)
+        cm = bpy.data.meshes.new('cut'); bm.to_mesh(cm); bm.free()
+        cm.materials.append(bpy.data.materials['k_dark'])
+        cu = bpy.data.objects.new('cut', cm); bpy.context.scene.collection.objects.link(cu)
+        cu.location = c0 - ax * 0.12 * hs
+        cu.rotation_mode = 'QUATERNION'; cu.rotation_quaternion = ax.to_track_quat('Z', 'Y')
+        cu.scale = (0.36 * hs, 0.36 * hs, 0.55 * hs)
+        mod = sk.modifiers.new('eye', 'BOOLEAN'); mod.operation = 'DIFFERENCE'; mod.solver = 'EXACT'
+        mod.object = cu; mod.material_mode = 'TRANSFER'
+        cutters.append(cu)
+    dg = bpy.context.evaluated_depsgraph_get()
+    ev = sk.evaluated_get(dg); m = ev.to_mesh()
+    mats = [ms.name[2:] for ms in m.materials]
+    keep = [i for i, p in enumerate(mb.fpart) if p != mb.skull_part]
+    mb.faces = [mb.faces[i] for i in keep]; mb.fkey = [mb.fkey[i] for i in keep]; mb.fpart = [mb.fpart[i] for i in keep]
+    base = len(mb.co)
+    for v in m.vertices:
+        mb.vert(v.co.copy(), 'Head')
+    for poly in m.polygons:
+        ids = [base + q for q in poly.vertices]
+        key = mats[poly.material_index] if poly.material_index < len(mats) else 'dark'
+        add_poly(ids, key, True)
+    carved = sum(1 for poly in m.polygons if mats[poly.material_index] == 'dark')
+    print('EYE CANALS carved faces', carved)
+    assert carved > 0, 'eye canal boolean produced no socket faces'
+    ev.to_mesh_clear()
+    for o in cutters + [sk]:
+        bpy.data.objects.remove(o)
+
+
+def compact():
+    used = sorted({q for f in mb.faces for q in f[0]})
+    idx = {v: k for k, v in enumerate(used)}
+    mb.co = [mb.co[v] for v in used]; mb.w = [mb.w[v] for v in used]
+    mb.faces = [([idx[q] for q in ids], uvs, sm) for ids, uvs, sm in mb.faces]
 
 
 def make_armature():
@@ -721,22 +653,8 @@ def main():
     build()
     widen_legs()
     lift_all()
-    import voxel
-    keep = [i for i, p in enumerate(mb.fpart) if p not in mb.direct]
-    vco, vw, vfaces, info = voxel.voxelize(mb.co, [mb.faces[i] for i in keep], [mb.fkey[i] for i in keep],
-                                           [mb.fpart[i] for i in keep], mb.open, mb.w)
-    remap = {}
-    for i, p in enumerate(mb.fpart):
-        if p in mb.direct:
-            ids, uvs, sm = mb.faces[i]
-            nid = []
-            for q in ids:
-                if q not in remap:
-                    vco.append(mb.co[q]); vw.append(mb.w[q]); remap[q] = len(vco) - 1
-                nid.append(remap[q])
-            vfaces.append((nid, uvs, False))
-    print('VOXELS grid', info[:3], 'filled', info[3], 'quads', len(vfaces))
-    mb.co, mb.w, mb.faces = vco, vw, vfaces
+    carve_eye_canals()
+    compact()
     ob = assemble()
     rig = make_armature()
     missing = [g.name for g in ob.vertex_groups if g.name not in rig.data.bones]

@@ -53,3 +53,10 @@ The result is 4,956 tris. Walk and idle deformation were checked on contact shee
   - glowing eye and snout slit, a cream tooth line, a small dark lower jaw, and big hanging cream fangs
   - a crown of stepped cube-chain horns: big cream crescents, two gold horns per side, a cream horn swept back, a gold cheek frill and a tall gold forehead crest
 - The head is enlarged 1.32× and raised onto a taller neck.
+
+## v3.1 feedback → v4 (horns, less blocky, eyes)
+**User feedback:** "make the horns like the reference, then make it less blocky, model an eye canal in the skull and an eyeball with pupils inside".
+- **Horns:** the reference horns are ribbed, tapering and curved. The great cream horns are now thick crescents that bow outward and curl in at the tips in the front view, and sweep back in the side view. The gold crown horns, the swept-back cream horn, the cheek frill and the forehead crest all use the same ribbed-segment horn builder.
+- **Less blocky:** I removed the voxel pass. The body, neck, tail and legs are smooth-shaded rounded lofts with 10–16 sides. The spars, claws and spikes are ribbed tubes. The wing membrane now has a smooth outline, and its painted cells were extended so the edges stay covered.
+- **Eyes:** a boolean (EXACT solver) cuts an elongated eye canal into a closed skull loft. The canal walls are dark. An 8×5 UV-sphere eyeball sits inside with planar UVs onto a painted eye: pale glowing sclera, cyan iris, dark slit pupil and a glint.
+- 4,955 tris.

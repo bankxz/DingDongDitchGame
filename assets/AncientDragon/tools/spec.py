@@ -235,3 +235,7 @@ RUNE_ART = {
 RUNE_ORIGIN = {'disc': (1290, WING_ROW_Y + 16), 'chest': (1560, WING_ROW_Y + 16),
                'tail': (1800, WING_ROW_Y + 16), 'knee': (1800, WING_ROW_Y + 150)}
 ART_COLORS = {'G': 'gold', 'D': 'dark', 'C': 'glow', 'T': 'teal', 'S': 'slate', 'K': 'charcoal'}
+
+
+# ---------------- eyeball texture (planar, painted in atlas row 3) ----------------
+EYE_REGION = (1300, WING_ROW_Y + 300, 180, 180)   # x, y (top-left px), w, h
