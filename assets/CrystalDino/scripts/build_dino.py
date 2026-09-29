@@ -176,7 +176,7 @@ def box(x0, x1, y0, y1, z0, z1, mat="navy", bone="Chest", frame=IDENT, skip=(), 
 
 
 def crystal(base, d, length, radius, bone, sides=None, sink=0.5, mirror=False, lean_twist=None):
-    sides = sides or (5 if length > 1.6 else 4)
+    sides = sides or (5 if length > 1.6 else 4 if length > 0.95 else 3)   # tiny tail crystals: 3 facets
     d = Vector(d).normalized()
     t = d.orthogonal().normalized()
     b = d.cross(t)
@@ -343,7 +343,9 @@ def loft(L, mat, group="body", mirror=False, cap0=False, cap1=False, frame=IDENT
             faces.append((tri, stud_uvs(m, cap)))
     verts = [frame(v) for v in verts]
     PRIMS.append(dict(verts=verts, faces=faces, group=group, bone=None, weights=weights,
-                      mirror=mirror, smooth=True))
+                      mirror=mirror, smooth=True,
+                      ends=[list(range(S)), list(range((len(rings) - 1) * S, len(rings) * S))]))
+    L.prim = PRIMS[-1]
     return PRIMS[-1]
 
 
@@ -357,6 +359,26 @@ def oriented_box(p, n, t, sa, sb, sn, mat, bone, mirror, frame=IDENT, group="bod
     f = lambda v: frame(p + R @ v)
     box(-sa / 2, sa / 2, -sb / 2, sb / 2, -sn, 0.0, mat, bone, frame=f, skip=("-z",), mirror=mirror,
         group=group, uv=uv)
+
+
+def glow_decal(p, n, t, sa, sb, bone, mirror, roll=20, surf=None):
+    """Flat glowing crack on the surface: one quad (2 tris) just above the skin at p, normal n.
+    With `surf` (a Loft), each corner is snapped onto that loft's actual (faceted) mesh."""
+    z = n.normalized()
+    y = (t - z * t.dot(z)).normalized()
+    R = Matrix((y.cross(z), y, z)).transposed() @ Matrix.Rotation(math.radians(rng.uniform(-roll, roll)), 3, "Z")
+    c = p + z * 0.01
+    verts = [c + R @ Vector((dx * sa / 2, dy * sb / 2, 0)) for dx, dy in ((-1, -1), (1, -1), (1, 1), (-1, 1))]
+    if surf is not None:
+        from mathutils.bvhtree import BVHTree
+        pr = surf.prim
+        bvh = BVHTree.FromPolygons([tuple(v) for v in pr["verts"]], [f for f, _ in pr["faces"]])
+        snapped = []
+        for v in verts:
+            hit = bvh.ray_cast(v + z * 1.0, -z, 2.0)[0]
+            snapped.append(hit + z * 0.01 if hit is not None else v)
+        verts = snapped
+    add_prim(verts, [((0, 1, 2, 3), GLOW_UV)], "glow", bone, mirror)
 
 
 def dominant(w):
@@ -448,8 +470,7 @@ def body_side(s, a):
 # glow cracks flush with the flank surface
 for s, a in ((10.8, -0.1), (12.9, 0.35), (13.6, -0.45), (16.2, 0.4), (19.0, -0.2)):
     p, nn, t = body_side(s, a)
-    oriented_box(p + nn * 0.06, nn, t, 0.3, 1.5, 0.3, None, "Chest" if s < 15 else "Hips", True,
-                 group="glow", uv="glow", roll=25, tilt=0)
+    glow_decal(p, nn, t, 0.3, 1.5, "Chest" if s < 15 else "Hips", True, roll=25, surf=BODY)
 
 # ---------------- HEAD (bone Head) -------------------------------------------
 H = "Head"
@@ -613,7 +634,7 @@ def eye_uv(a_, b_):
     return px(x0 + (x1 - x0) * fu, y1 - (y1 - y0) * fv)
 
 
-ring_o = [(a_ * 0.74, b_ * 0.74, -0.8) for a_, b_ in ALMOND]    # rim sits inside the socket walls
+ring_o = [(a_ * 0.9, b_ * 0.9, -0.8) for a_, b_ in ALMOND]      # rim embedded in the socket walls (attached, recessed)
 ring_i = [(a_ * 0.45, b_ * 0.45, -0.7) for a_, b_ in ALMOND]
 ctr = (0.0, 0.0, -0.66)                                            # dome stays well below the socket rim
 pts = ring_o + ring_i + [ctr]
@@ -749,7 +770,7 @@ TONGUE = Loft([(V(0, s_, jaw_top(s_)[1] + dz), rx, rw, w1(J)) for s_, dz, rx, rw
 )], 8, sq=2.4)
 loft(TONGUE, "tongue", cap0=True, frame=jf)
 for s, L in ((1.9, 0.8), (3.2, 0.95), (4.6, 0.8)):                      # jaw-side horn spikes
-    pyramid(jf(V(1.9, s, 8.0)), (0.75, 0.35, 0.6), L, 0.3, J, mat="tan", mirror=True)
+    pyramid(jf(V(jaw_top(s)[0] - 0.12, s, 7.95)), (0.75, 0.35, 0.6), L, 0.3, J, mat="tan", mirror=True)
 pyramid(jf(V(0.0, 0.8, 7.2)), (0, -0.6, -0.8), 0.7, 0.34, J, mat="tan")  # chin spike
 
 
@@ -763,10 +784,10 @@ def claw(base, d, L, wdt, hgt, bone):
 def leg(x, rings, foot, toes, bones, tan_cells):
     U, F, Hd = bones
     LEG = Loft([(V(x + dx, s, z), rx, rs, w) for (dx, s, z, rx, rs, w) in rings], 8)
-    loft(LEG, "navy", mirror=True,
+    loft(LEG, "navy", mirror=True, cap0=True,   # capped top: no hole shows when the leg swings
          matfn=lambda k, j: "tan" if (j == 3 and k in (2, 3)) or (j in (4, 5) and k == 1) else "navy")
     FOOT = Loft([(V(x, s, z), rx, rz, w1(Hd)) for (s, z, rx, rz) in foot], 8)
-    loft(FOOT, "navy", mirror=True, cap1=True)
+    loft(FOOT, "navy", mirror=True, cap0=True, cap1=True)   # closed: no hole when the foot lifts
     for dx, L in toes:
         claw(V(x + dx, foot[-1][0] + 0.4, 0.6), (dx * 0.15, -1, -0.28), L, 1.0, 0.95, Hd)
     loft_blocks(LEG, 14, (0.3, 2.0), (-0.9 * math.pi, 0.9 * math.pi), tan_p=0.2, mirror=True)
@@ -802,7 +823,7 @@ claw(V(5.9, 17.8, 0.55), (1, -0.2, -0.2), 0.8, 0.8, 0.8, "Foot.L")
 for (lp, kf, a, bone) in ((FRONT, 2.6, 0.2, "UpperArm.L"), (REAR, 2.6, 0.1, "Thigh.L"),
                           (FRONT, 0.9, -2.6, "UpperArm.L"), (REAR, 0.9, 2.8, "Thigh.L")):
     p, nn, t = lp.point(kf, a)
-    oriented_box(p + nn * 0.06, nn, t, 1.2, 0.3, 0.3, None, bone, True, group="glow", uv="glow", roll=20, tilt=0)
+    glow_decal(p, nn, t, 1.2, 0.3, bone, True, surf=lp)
 
 
 # ---------------- CRYSTALS ----------------
@@ -855,7 +876,7 @@ SIDE = [  # base (x,s,z), direction, length, radius, bone
     ((5.8, 18.6, 9.6), (0.7, 0.4, 1), 2.6, 0.6, "Thigh.L"),     # hip
     ((6.0, 16.8, 6.6), (1, 0.3, 0.3), 1.5, 0.4, "Thigh.L"),
     ((5.6, 17.6, 2.9), (1, 0.5, 0.3), 1.3, 0.36, "Shin.L"),
-    ((3.7, 16.2, 10.4), (0.6, 0.3, 1), 1.7, 0.42, "Hips"),
+    (("surf", 16.2, 0.7), (0.6, 0.3, 1), 1.7, 0.42, "Hips"),   # seated on the flank surface
     ((None, 21.8, None), (1, 0.5, 0.7), 1.2, 0.34, "Tail1"),
     ((None, 24.8, None), (1, 0.5, 0.6), 1.0, 0.3, "Tail2"),
     ((None, 27.8, None), (1, 0.5, 0.6), 0.85, 0.26, "Tail3"),
@@ -863,7 +884,9 @@ SIDE = [  # base (x,s,z), direction, length, radius, bone
     ((None, 32.9, None), (1, 0.6, 0.6), 0.5, 0.18, "Tail4"),
 ]
 for base, d, L, r, bone in SIDE:
-    if base[0] is None:
+    if base[0] == "surf":
+        base = tuple(body_side(base[1], base[2])[0])
+    elif base[0] is None:
         q = body_side(base[1], 0.35)[0]
         base = (q.x - 0.1, base[1], q.z)
     crystal(V(*base), d, L, r, bone, mirror=True)
@@ -890,6 +913,127 @@ for pr in PRIMS:
     ALL.append(pr)
     if pr["mirror"]:
         ALL.append(mirrored(pr))
+
+
+def bones_of(pr):
+    if pr.get("weights"):
+        return frozenset(k for w in pr["weights"] for k in w)
+    return frozenset([pr["bone"]])
+
+
+def cull_hidden(prims, margin=0.2, deep=0.6):
+    """Remove faces buried inside the solid body: every vertex AND the face centre must lie at least
+    `margin` studs inside the union of the smooth lofted volumes (body, head, jaw, legs, feet). Inside =
+    rays in all six axis directions hit the volume and the nearest surface faces away. The margin keeps
+    faces that could be exposed when joints bend in the animations."""
+    from mathutils.bvhtree import BVHTree
+    occ = []   # one BVH per smooth volume; overlapping volumes are tested separately
+    for pr in prims:
+        smooth = pr.get("smooth")
+        if pr["group"] == "body" and (smooth is True or isinstance(smooth, list)):
+            vs = [tuple(v) for v in pr["verts"]]
+            lo = Vector([min(v[i] for v in vs) for i in range(3)])
+            hi = Vector([max(v[i] for v in vs) for i in range(3)])
+            polys = [f for f, _ in pr["faces"]] + [tuple(e) for e in pr.get("ends", [])]  # virtual end caps
+            occ.append((lo, hi, BVHTree.FromPolygons(vs, polys), bones_of(pr)))
+    dirs = [Vector(d) for d in ((1, 0, 0), (-1, 0, 0), (0, 1, 0), (0, -1, 0), (0, 0, 1), (0, 0, -1))]
+    cache = {}
+
+    def inside_one(p, bvh, need):
+        loc, n, _, dist = bvh.find_nearest(p)
+        return (loc is not None and dist >= need and (p - loc).dot(n) < 0 and
+                all(bvh.ray_cast(p, d)[0] is not None for d in dirs))
+
+    def inside(p, fb, smooth_face):
+        # Same-bone volumes: `margin` deep is enough. Volumes that move relative to the face (a leg top
+        # inside the body) need `deep` clearance, and only smooth limb surfaces may be culled that way,
+        # so nothing can open up when joints bend in the animations.
+        key = (round(p.x, 4), round(p.y, 4), round(p.z, 4), fb, smooth_face)
+        if key not in cache:
+            cache[key] = any(all(lo[i] <= p[i] <= hi[i] for i in range(3)) and
+                             ((fb <= ob and inside_one(p, bvh, margin)) or
+                              (smooth_face and inside_one(p, bvh, deep)))
+                             for lo, hi, bvh, ob in occ)
+        return cache[key]
+
+    removed = 0
+    for pr in prims:
+        keep, sm_keep = [], []
+        sm = pr.get("smooth")
+        for fi, (f, u) in enumerate(pr["faces"]):
+            pts = [pr["verts"][i] for i in f]
+            ctr = sum(pts, Vector()) / len(pts)
+            fb = frozenset(k for i in f for k in (pr["weights"][i] if pr.get("weights") else {pr["bone"]: 1}))
+            sf = sm is True or (isinstance(sm, list) and sm[fi])
+            if all(inside(q, fb, sf) for q in pts) and inside(ctr, fb, sf):
+                removed += len(f) - 2
+                continue
+            keep.append((f, u))
+            if isinstance(sm, list):
+                sm_keep.append(sm[fi])
+        pr["faces"] = keep
+        if isinstance(sm, list):
+            pr["smooth"] = sm_keep
+    return removed
+
+
+def floating_parts(prims, tol=0.03):
+    """Parts not attached to the model: no vertex within `tol` of another part's surface and no edge
+    passing through another part. Returns [(index, tag, centre)]."""
+    from mathutils.bvhtree import BVHTree
+    allv, allf, owner = [], [], []
+    for pi, pr in enumerate(prims):
+        o = len(allv)
+        allv += [tuple(v) for v in pr["verts"]]
+        for f, _ in pr["faces"]:
+            allf.append(tuple(o + i for i in f))
+            owner.append(pi)
+    bvh = BVHTree.FromPolygons(allv, allf)
+    bad = []
+    for pi, pr in enumerate(prims):
+        ok = False
+        probes = list(pr["verts"]) + [sum((pr["verts"][i] for i in f), Vector()) / len(f) for f, _ in pr["faces"]]
+        for v in probes:
+            if any(owner[h[2]] != pi for h in bvh.find_nearest_range(v, tol)):
+                ok = True
+                break
+        if not ok:
+            for f, _ in pr["faces"]:
+                for a_, b_ in zip(f, f[1:] + f[:1]):
+                    va, vb = pr["verts"][a_], pr["verts"][b_]
+                    d = vb - va
+                    L_ = d.length
+                    if L_ < 1e-6:
+                        continue
+                    d.normalize()
+                    p0 = va
+                    while True:
+                        loc, _, idx, dist = bvh.ray_cast(p0, d, L_)
+                        if loc is None:
+                            break
+                        if owner[idx] != pi:
+                            ok = True
+                            break
+                        p0, L_ = loc + d * 1e-4, L_ - dist - 1e-4
+                        if L_ <= 0:
+                            break
+                    if ok:
+                        break
+                if ok:
+                    break
+        if not ok:
+            c = sum(pr["verts"], Vector()) / len(pr["verts"])
+            bad.append((pi, pr["group"], pr.get("bone"), tuple(round(x, 2) for x in c)))
+    return bad
+
+
+FLOAT = floating_parts(ALL)
+print("floating parts", len(FLOAT))
+for b in FLOAT:
+    print("  FLOAT", b)
+if FLOAT:
+    raise SystemExit("DISCONNECTED PARTS: every part must touch the body")
+print("culled hidden tris", cull_hidden(ALL))
 
 
 def tri_count(prims):

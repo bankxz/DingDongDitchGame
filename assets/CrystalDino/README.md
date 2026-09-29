@@ -7,7 +7,7 @@ There are no brow ridges; the tan forehead plate is a curved slab that follows t
 
 | | |
 |---|---|
-| Triangles | **4,784**, under the 5k budget |
+| Triangles | **4,672**, under the 5k budget |
 | Size | 1 block = 1 stud: about 34 studs long, 15 wide, 15.6 tall (including crystals) |
 | Rig | 22 deform bones: Root, Hips, Chest, Neck, Head, Jaw, Tail1-4, and for each side UpperArm, Forearm, Hand, Thigh, Shin, Foot |
 | Skinning | Up to 2 bones per vertex. Blends at the neck, hips, tail and knee rings so joints bend smoothly; armour blocks and crystals stay rigid. |
@@ -26,6 +26,12 @@ There are no brow ridges; the tan forehead plate is a curved slab that follows t
   `make_textures.py`, then `build_dino.py`, then `render_views.py`, then `export_roblox.py`.
   The scripts run with `pip install bpy==4.2.0` (Python 3.11) or with `blender -b -P`.
 - `previews/` contains the reference-vs-model comparison renders and the animation contact sheets.
+
+## Build checks
+
+`build_dino.py` checks two things on every build:
+- **Attachment:** every part (armour block, crystal, tooth, claw, glow crack, eye) must touch or pass into another part. The build stops if anything floats.
+- **Hidden faces:** faces buried inside the body are removed, but only when they can never show. Either the face moves with the volume it is buried in, or it is a smooth limb surface buried at least 0.6 studs deep, so nothing opens up when the joints bend. The leg tops and feet are closed, so no holes appear when a leg swings or a foot lifts.
 
 ## Stud texture
 
@@ -48,7 +54,7 @@ The studs are texture, not geometry. They use the Roblox "Inlet" look: a smooth,
 ```bash
 cd assets/CrystalDino
 python3 scripts/make_textures.py textures textures/source/Inlets_2x2_AO_Diffuse_dudeax.png
-python3 scripts/build_dino.py         # fails loudly if the triangle budget (<5000) is exceeded
+python3 scripts/build_dino.py         # fails if over 5000 tris or if any part is not attached to the body
 python3 scripts/render_views.py previews/final <dir-with-reference-crops>
 python3 scripts/export_roblox.py
 ```
