@@ -365,17 +365,40 @@ for s in (1, -1):
 print('T eyes', ACC.tris())
 
 # ----------------------------------------------------------------------------- legs: rounded tapered limbs + big flat feet
-def claw(x0, x1, y_back, z0, length, height, bone):
-  """pentagon-profile claw (DETAIL (FOOT)): flat back, rounded front, pointing -Y"""
-  ACC.begin()
-  prof2 = [(0, 0), (length, 0), (length, height * 0.45), (length * 0.55, height), (0, height)]
-  A = [W(x0, y_back - py, z0 + pz) for py, pz in prof2]
-  Bv = [W(x1, y_back - py, z0 + pz) for py, pz in prof2]
-  ACC.quad(list(reversed(Bv)), 'claw', bone, fit=(1, 1))
-  ACC.quad(A, 'claw', bone, fit=(1, 1))
-  for a in range(4):
-    ACC.quad([A[a], A[a + 1], Bv[a + 1], Bv[a]], 'claw', bone, fit=(1, 1))
-  ACC.end()
+def claw(x0, x1, y_back, z0, length, height, bone, sides=6, steps=5):
+  """curved, tapered talon: rounded base buried in the toe, hooking forward and down to a sharp tip (-Y is forward)"""
+  xc, hw = (x0 + x1) / 2, abs(x1 - x0) / 2
+  P0 = Vector((xc, y_back + 0.5, z0 + height * 0.55))                 # inside the toe
+  P1 = Vector((xc, y_back - length * 0.75, z0 + height * 1.05))       # arch over the top
+  P2 = Vector((xc, y_back - length * 1.3, z0 + 0.05))                 # tip, just touching the ground
+  bez = lambda t: P0 * (1 - t) ** 2 + P1 * (2 * t * (1 - t)) + P2 * t * t
+  side = Vector((1, 0, 0))
+  rings_ = []
+  for i in range(steps):
+    t = i / steps
+    c = bez(t); tg = (bez(min(1, t + 0.01)) - bez(max(0, t - 0.01))).normalized()
+    up = tg.cross(side).normalized()
+    if up.z < 0: up = -up
+    k = (1 - t) ** 0.85                                                # taper toward the tip
+    rx, ry = hw * k, height * 0.42 * k
+    rings_.append([ACC.addv(W(*(c + side * (rx * math.cos(2 * math.pi * m / sides)) + up * (ry * math.sin(2 * math.pi * m / sides)))), bone)
+                   for m in range(sides)])
+  tip = ACC.addv(W(*P2), bone)
+  base = ACC.addv(W(*(P0 + (P0 - bez(0.05)).normalized() * 0.2)), bone)
+  cen = lambda ids: sum((ACC.v[i] for i in ids), Vector()) / len(ids)
+  def f(ids, axis_pt):
+    pts = [ACC.v[i] for i in ids]
+    if newell(pts).dot(cen(ids) - axis_pt) < 0: ids = ids[::-1]
+    ACC.face(ids, 'claw')
+  for i in range(steps - 1):
+    ax = W(*bez((i + 0.5) / steps))
+    for m in range(sides):
+      m2 = (m + 1) % sides
+      f([rings_[i][m], rings_[i][m2], rings_[i + 1][m2], rings_[i + 1][m]], ax)
+  for m in range(sides):
+    m2 = (m + 1) % sides
+    f([rings_[-1][m], rings_[-1][m2], tip], W(*bez((steps - 0.5) / steps)))
+    f([rings_[0][m], rings_[0][m2], base], W(*bez(0.1)))
 
 LEG = {
   'front': ([('UpperArm_', [((6.0, fj, 8.4), 3.8, 3.9), ((8.6, fj, 6.4), 3.6, 3.5), ((10.2, fj, 4.6), 3.0, 3.0)]),
@@ -395,9 +418,9 @@ for s, side in ((1, 'L'), (-1, 'R')):
       tube(path, 10, 2.6, 'legcamo', bn + side, jit=0.04)
     bone = segs[-1][0] + side
     for c in range(3):   # claws: 3 per foot, cream, at the front of each foot
-      xa = x0c + 0.4 + c * 2.3; xb = xa + 1.8
+      xa = x0c + 0.5 + c * 2.3; xb = xa + 1.5
       if s < 0: xa, xb = -xb, -xa
-      claw(xa, xb, base_j + 0.8, 0.0, 1.9, 2.2, {bone: 1.0})
+      claw(xa, xb, base_j + 0.8, 0.0, 1.7, 1.9, {bone: 1.0})
     # splay the whole limb around its hip/shoulder (TOP / BOTTOM views: feet point diagonally out)
     piv = W(*BONES[segs[0][0] + side][0]); R = Matrix.Rotation(-s * ang, 3, 'Z')
     for vi in range(mark, len(ACC.v)): ACC.v[vi] = piv + R @ (ACC.v[vi] - piv)

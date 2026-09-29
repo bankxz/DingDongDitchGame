@@ -15,7 +15,7 @@ A green crocodile-dinosaur rebuilt from the reference sheet as smooth, rounded l
 | `source/` | Scripts that rebuild everything: `make_atlas.py` → `build_dino.py` → `export_roblox.py` (`render_views.py` renders the validation images) |
 
 ## Stats
-- **4,006 triangles** (budget: 5,000), 1 mesh, 1 material, 1 texture.
+- **4,558 triangles** (budget: 5,000), 1 mesh, 1 material, 1 texture.
 - 22 bones: Root, Hips, Spine, Chest, Neck, Head, Jaw, Tail1-3, UpperArm/LowerArm/Hand and Thigh/Shin/Foot for each side (L = +X).
 - At most 2 bone influences per vertex; every vertex is weighted.
 - The body, head and tail are one continuous smooth loft (welded vertices, smooth shading), with weights blending along the spine. The lower jaw and each limb segment are rounded tapered tubes bound rigidly to one bone.
@@ -33,6 +33,9 @@ The texture is **painted, not pixel-style**, and the studs are **in the texture,
 - **Rim:** a thin lid rim follows the almond outline and thickens on top into a brow ridge.
 - **Texture:** projected straight along the eye's axis, with a glowing orange iris, a vertical black reptile slit pupil and a small highlight. The emissive mask makes the iris glow but not the pupil.
 - Eyes, rim and socket all move with the Head bone.
+
+## Claws
+Each foot has 3 curved, tapered talons. Each one is a rounded 6-sided cross-section swept along a curve: the base is buried in the toe, the claw arches over and hooks down to a sharp tip touching the ground. They're plain cream and bound to the foot bone.
 
 ## Teeth
 Each tooth's root is placed from the actual jaw surface height under all four of its base corners, then sunk 0.55 cells into the gum, so no gap shows. A check that ray-tests all 30 tooth roots against the jaw meshes passes (0 roots outside). Upper teeth use the same bone blend as the gum they sit in, so they stay seated while animating.
