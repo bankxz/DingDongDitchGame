@@ -85,3 +85,16 @@ The result is 4,956 tris. Walk and idle deformation were checked on contact shee
   - It also has nostrils, a gold nose ridge and a glowing snout slit.
   - The eye canal is carved into the new skull under the brow.
 - 4,980 tris.
+
+## New reference sheet (sheet 2) → v5
+The user supplied a new, more detailed reference sheet (`reference_sheet.webp`). It becomes the source of truth, and `compare.py` now crops its panels.
+
+Design changes taken from sheet 2:
+- **Horns:** an all-gold crown. A tall pair rises from the back of the skull, and three more per side sweep back like a mane. There are no cream horns, and the horns and wing spars are thicker.
+- **Mouth:** open, with a glowing cyan interior, shorter fangs and gold spikes along the lower jaw.
+- **Neck and head:** a longer S-neck holds the head forward and high.
+- **Wing:** it peaks high and forward over the shoulders, and the leading edge slopes straight back to the tip.
+- **Spikes:** all tail spikes are gold. The claws are short and chunky.
+- **Tail:** the tip curls upward.
+- **Style:** the sheet is still drawn in a voxel style. It was matched with smooth forms, per the user's earlier "non-blocky version" request.
+- 4,960 tris.

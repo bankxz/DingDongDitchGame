@@ -1,10 +1,10 @@
 # Ancient Dragon: Roblox-ready model
 
-This is a low-poly voxel dragon rebuilt from the "Ancient Dragon" reference sheet. It is rigged and ships with Idle and Walk animations.
+This is a low-poly voxel dragon rebuilt from the "Ancient Dragon" reference sheet (`reference_sheet.webp`, sheet 2). It is rigged and ships with Idle and Walk animations.
 
 | | |
 |---|---|
-| Triangles | 4,980 (budget < 5,000) |
+| Triangles | 4,960 (budget < 5,000) |
 | Bones | 33 (Root, Hips, Spine, Chest, Neck1-2, Head, Jaw, legs x12, Tail1-9, Wing1-2 x2) |
 | Skinning | smooth blends at joints, max 2 influences per vertex (Roblox limit is 4) |
 | Size | about 9.2 m long x 4.4 m tall x 6.9 m wingspan (1 Blender unit = 1 m) |

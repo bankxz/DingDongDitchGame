@@ -4,9 +4,9 @@ from PIL import Image
 HERE = os.path.dirname(os.path.abspath(__file__)); ROOT = os.path.abspath(os.path.join(HERE, '..'))
 REF = sys.argv[1]
 ref = Image.open(REF).convert('RGB')
-PANELS = {'persp': (0, 0, 728, 612), 'front': (728, 0, 1090, 272), 'back': (1090, 0, 1448, 272),
-          'left': (728, 275, 1090, 455), 'right': (1090, 275, 1448, 455), 'top': (728, 455, 1090, 612),
-          'bottom': (1090, 455, 1448, 612)}
+PANELS = {'persp': (0, 0, 725, 492), 'front': (727, 0, 1047, 200), 'back': (1050, 0, 1448, 200),
+          'left': (727, 226, 1047, 368), 'right': (1050, 226, 1448, 368), 'top': (727, 390, 1047, 494),
+          'bottom': (1050, 390, 1448, 494)}
 tag = sys.argv[2] if len(sys.argv) > 2 else 'Idle_001'
 for name, box in PANELS.items():
     rp = os.path.join(ROOT, 'validation', f'{tag}_{name}.png')

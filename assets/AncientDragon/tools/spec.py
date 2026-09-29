@@ -36,9 +36,9 @@ SHIELD = [(-1.75, 6.0), (1.75, 6.0), (1.95, 4.3), (0.0, 2.2), (-1.95, 4.3)]
 
 # ---------------- wing landmarks (left wing, design coords X, L, Z) ----------------
 W_ROOT = (2.4, 11.6, 8.1)
-W_WRIST = (4.6, 10.4, 13.7)
-W_LEAD = [W_WRIST, (5.4, 12.9, 14.5), (6.4, 16.4, 14.3), (7.5, 20.3, 12.9), (8.5, 23.9, 10.3),
-          (9.3, 26.7, 6.0), (9.8, 28.6, 2.8)]
+W_WRIST = (4.6, 10.2, 14.6)             # reference sheet 2: wing peaks high and forward, over the shoulders
+W_LEAD = [W_WRIST, (5.4, 12.4, 14.9), (6.4, 15.8, 14.0), (7.5, 19.6, 12.3), (8.5, 23.2, 9.9),
+          (9.3, 26.4, 6.2), (9.8, 28.6, 2.8)]
 W_TIPS = [(4.6, 14.6, 7.8), (6.4, 18.6, 6.6), (8.2, 23.0, 5.2), W_LEAD[-1]]
 # spread the wing outward about the root (front view reads wider than the side-solved plane)
 _SPREAD = 1.3

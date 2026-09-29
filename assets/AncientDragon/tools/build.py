@@ -288,8 +288,9 @@ def side_of(nn):
 def build():
     # ================= neck + torso (one rounded loft) =================
     body = [  # L, Z, rx, rz, weights
-        (5.9, 10.3, 1.35, 1.4, {'Neck2': 1}),
-        (6.8, 9.0, 1.5, 1.6, blend('Neck2', 'Neck1', 0.5)),
+        (4.8, 13.0, 1.25, 1.3, {'Neck2': 1}),
+        (5.8, 11.0, 1.35, 1.4, {'Neck2': 1}),
+        (6.7, 9.5, 1.5, 1.6, blend('Neck2', 'Neck1', 0.5)),
         (7.8, 7.25, 1.55, 1.65, {'Neck1': 1}),
         (8.7, 6.5, 2.3, 2.35, blend('Neck1', 'Chest', 0.6)),
         (9.8, 5.9, 2.95, 2.8, {'Chest': 1}),
@@ -316,7 +317,7 @@ def build():
 
     # ================= tail: segments with gold bands, side runes =================
     tpath = [(16.4, 4.75, 2.05), (18.4, 4.05, 1.9), (20.5, 3.4, 1.75), (22.6, 2.95, 1.62), (24.7, 2.7, 1.5),
-             (26.8, 2.65, 1.38), (28.9, 2.8, 1.25), (31.0, 3.1, 1.1), (33.0, 3.5, 0.95), (34.7, 3.95, 0.75)]
+             (26.8, 2.65, 1.38), (28.9, 2.9, 1.25), (31.0, 3.5, 1.1), (32.8, 4.5, 0.95), (34.2, 5.9, 0.75)]
     tb = TAIL_BONES
     path, radii, wts, kinds = [], [], [], []
     for i in range(len(tpath) - 1):
@@ -354,7 +355,7 @@ def build():
         bn = 'Tail%d' % (i + 1)
         for s in (1, -1):
             if s == 1:
-                cone(P(0, lc - 0.2, zc + rc * 0.8), P(0, lc + 0.9, zc + rc + hgt), 0.45 * max(rc, 0.9), H if i % 2 else G, bn)
+                cone(P(0, lc - 0.2, zc + rc * 0.8), P(0, lc + 0.9, zc + rc + hgt), 0.45 * max(rc, 0.9), G, bn)
     lt, zt, _ = tpath[-1]
     for dl, dz, dx in ((2.2, 0.2, 0.0), (1.6, 1.0, 0.55), (1.6, 1.0, -0.55)):
         cone(P(0, lt - 0.2, zt), P(dx, lt + dl, zt + dz), 0.36, H, 'Tail9')
@@ -370,7 +371,7 @@ def build():
         if seg < 0:
             return D
         if nn.z < -0.6:
-            return D                                  # roof of the open mouth
+            return GL                                 # glowing roof of the open mouth
         return C
     section_loft([dragon_section(*r) for r in skull], [hb] * len(skull), skull_col)
     mb.skull_part = mb.part
@@ -383,7 +384,7 @@ def build():
 
     def jaw_col(seg, k, nn, c):
         if nn.z > 0.6:
-            return D                                  # inside of the mouth
+            return GL                                 # glowing inside of the mouth
         return CR if nn.z < -0.5 else C
     section_loft([dragon_section(*r) for r in jaw], [jb] * len(jaw), jaw_col)
     mb.eyes = []
@@ -393,7 +394,7 @@ def build():
         strip([(s * 1.25, 5.0, 8.15), (s * 1.3, 6.2, 8.3)], 0.14, 0.3, CR)                          # cheek plate
         strip([(s * 0.7, 1.2, 8.4), (s * 0.78, 2.2, 8.5)], 0.07, 0.1, GL)                          # snout glow slit
         strip([(s * 0.3, 0.45, 8.6), (s * 0.34, 0.85, 8.72)], 0.13, 0.1, D, n=5)                    # nostril
-        horn([P(s * 0.5, 0.8, 7.95), P(s * 0.52, 0.75, 7.2), P(s * 0.54, 0.65, 6.55)], 0.17, 0.05, H, hb, nseg=2)  # fang
+        horn([P(s * 0.5, 0.8, 7.95), P(s * 0.52, 0.8, 7.5), P(s * 0.54, 0.75, 7.05)], 0.2, 0.06, H, hb, nseg=2)  # fang
         for l in (1.6, 2.5, 3.4):
             horn([P(s * 0.6, l, 7.85), P(s * 0.6, l, 7.45)], 0.1, 0.03, H, hb, nseg=1, n=4)          # upper teeth
         for l in (1.8, 3.0):
@@ -403,17 +404,19 @@ def build():
         surf = P(s * 1.13, 4.0, 9.35)
         mb.eyes.append((mb.vert(surf, hb), mb.vert(surf + axis, hb)))
         eyeball(surf - axis * 0.33, axis, 0.32, hb)
-        # great cream crescent horn: back, up, curling in at the tip
-        horn([P(s * 0.85, 5.0, 9.8), P(s * 1.4, 6.2, 10.25), P(s * 1.85, 7.5, 10.85), P(s * 2.1, 8.6, 11.75),
-              P(s * 2.0, 9.25, 12.9), P(s * 1.6, 9.35, 14.1)], 0.62, 0.12, H, hb, nseg=7, n=7)
-        # gold crown horns behind the brow
-        horn([P(s * 0.55, 4.6, 10.1), P(s * 0.85, 5.7, 10.6), P(s * 1.05, 6.9, 11.1), P(s * 1.05, 7.7, 11.9)],
-             0.3, 0.07, G, hb, nseg=4)
-        horn([P(s * 1.0, 5.6, 9.9), P(s * 1.5, 6.9, 10.1), P(s * 1.8, 8.2, 10.5), P(s * 1.85, 9.0, 11.3)],
-             0.28, 0.06, G, hb, nseg=4)
-        # lower cream horn swept straight back
-        horn([P(s * 1.15, 5.9, 8.95), P(s * 1.7, 7.3, 8.95), P(s * 2.05, 8.7, 9.35), P(s * 2.1, 9.6, 10.2)],
-             0.34, 0.07, H, hb, nseg=5)
+        # all-gold horn crown (reference sheet 2): a tall pair rising from the back of the skull ...
+        horn([P(s * 0.85, 5.0, 9.9), P(s * 1.2, 6.2, 10.8), P(s * 1.4, 7.6, 11.6), P(s * 1.45, 9.0, 12.4),
+              P(s * 1.3, 10.2, 13.4)], 0.72, 0.12, G, hb, nseg=5)
+        # ... and three horns per side sweeping back at stepped heights
+        horn([P(s * 0.6, 4.4, 10.1), P(s * 0.9, 5.8, 10.5), P(s * 1.05, 7.3, 10.9), P(s * 1.05, 8.6, 11.5)],
+             0.44, 0.08, G, hb, nseg=4)
+        horn([P(s * 1.05, 5.5, 9.9), P(s * 1.55, 6.9, 10.3), P(s * 1.85, 8.3, 10.9), P(s * 1.9, 9.3, 11.8)],
+             0.46, 0.08, G, hb, nseg=4)
+        horn([P(s * 1.2, 5.9, 9.0), P(s * 1.75, 7.3, 9.1), P(s * 2.1, 8.7, 9.6), P(s * 2.15, 9.7, 10.4)],
+             0.46, 0.08, G, hb, nseg=4)
+        # gold spikes along the lower jaw
+        horn([P(s * 0.85, 3.4, 7.1), P(s * 1.2, 4.3, 6.65)], 0.14, 0.04, G, jb, nseg=1, n=4)
+        horn([P(s * 0.95, 4.7, 7.25), P(s * 1.4, 5.7, 6.8)], 0.16, 0.04, G, jb, nseg=1, n=4)
         # gold cheek frill spikes
         horn([P(s * 1.25, 6.0, 8.3), P(s * 1.85, 7.1, 8.05), P(s * 2.25, 8.1, 8.4)], 0.24, 0.05, G, hb, nseg=3, n=5)
     horn([P(0, 4.9, 10.2), P(0, 5.35, 11.1), P(0, 5.9, 11.9)], 0.28, 0.06, G, hb, nseg=3, n=5)     # forehead crest
@@ -425,7 +428,7 @@ def build():
         if set(wd) <= {'Head', 'Jaw'}:
             if mb.co[i].y < HEAD_BACK:
                 mb.co[i].y = HEAD_BACK - (HEAD_BACK - mb.co[i].y) * 0.74
-            mb.co[i] = piv + (mb.co[i] - piv) * 1.32 + Vector((0, -0.4, 2.2))
+            mb.co[i] = piv + (mb.co[i] - piv) * 1.32 + Vector((0, -1.9, 4.6))
 
     # ================= neck / back spikes =================
     for l, z, bn, hgt in ((7.0, 9.35, 'Neck2', 1.1), (8.1, 8.8, 'Neck1', 1.3), (9.6, 8.3, 'Chest', 1.6),
@@ -454,7 +457,7 @@ def build():
              [{hd: 1}] * 3, lambda seg, k, nn, c: G if nn.z > 0.6 else C, n=8, p=2.8)
         for dx in (-0.62, 0.0, 0.62):
             x = s * (3.95 + dx * 1.6)
-            curved_cone([P(x, 6.9, 0.6), P(x, 6.0, 0.5), P(x * 1.0, 5.0, 0.1)], 0.28, H, hd, n=4)
+            curved_cone([P(x, 6.9, 0.65), P(x, 6.2, 0.55), P(x, 5.6, 0.12)], 0.44, H, hd, n=4)
         curved_cone([P(s * 3.95, 9.4, 0.6), P(s * 3.95, 9.8, 0.4), P(s * 3.95, 10.2, 0.08)], 0.2, H, hd, n=4)
     front_leg(1, '_L'); front_leg(-1, '_R')
 
@@ -471,7 +474,7 @@ def build():
              [{ft: 1}] * 3, lambda seg, k, nn, c: G if nn.z > 0.6 else C, n=8, p=2.8)
         for dx in (-0.6, 0.0, 0.6):
             x = s * (3.45 + dx * 1.6)
-            curved_cone([P(x, 12.9, 0.6), P(x, 12.0, 0.5), P(x, 11.0, 0.1)], 0.28, H, ft, n=4)
+            curved_cone([P(x, 12.9, 0.65), P(x, 12.2, 0.55), P(x, 11.6, 0.12)], 0.44, H, ft, n=4)
     rear_leg(1, '_L'); rear_leg(-1, '_R')
 
     # ================= wings: ribbed gold spars + smooth-outline studded membrane =================
@@ -481,14 +484,14 @@ def build():
         X = lambda p: P(p[0] * s, p[1], p[2])
         def W3(a, b, off=0.0):
             q = wing_plane_pt(a, b); return X(q) + N * off
-        horn([X(W_ROOT), X(W_WRIST)], 0.5, 0.45, G, w1b, nseg=2, tip=False)
-        horn([X(p) for p in W_LEAD], 0.5, 0.3, G, w2b, nseg=5, tip=False)
+        horn([X(W_ROOT), X(W_WRIST)], 0.66, 0.6, G, w1b, nseg=2, tip=False)
+        horn([X(p) for p in W_LEAD], 0.68, 0.42, G, w2b, nseg=5, tip=False)
         rim = []
         for k, p in enumerate(W_LEAD[:-1]):
             q2 = wing2d(p); rim.append(W3(q2[0], q2[1] + 0.4))
         horn(rim, 0.3, 0.2, C, w2b, nseg=3, n=5, tip=False)
         for i in range(3):
-            horn([X(p) for p in spar_path(i, 5)], 0.36, 0.24, G, w2b, nseg=3, n=5, tip=False)
+            horn([X(p) for p in spar_path(i, 5)], 0.5, 0.34, G, w2b, nseg=3, n=5, tip=False)
         for i in range(4):
             src = spar_path(i, 5) if i < 3 else W_LEAD
             p, q = X(src[-2]), X(src[-1]); d = (q - p).normalized()
@@ -514,8 +517,8 @@ def build():
 
 
 # ------------------------------------------------------------------ armature
-TAIL_PTS = [(16.4, 4.75), (18.4, 4.05), (20.5, 3.4), (22.6, 2.95), (24.7, 2.7), (26.8, 2.65), (28.9, 2.8),
-            (31.0, 3.1), (33.0, 3.5), (36.4, 4.2)]
+TAIL_PTS = [(16.4, 4.75), (18.4, 4.05), (20.5, 3.4), (22.6, 2.95), (24.7, 2.7), (26.8, 2.65), (28.9, 2.9),
+            (31.0, 3.5), (32.8, 4.5), (35.4, 7.4)]
 TAIL_BONES = ['Tail%d' % (i + 1) for i in range(9)]
 BONES = {
     'Root': ((0, 15.0, 0.0), (0, 13.0, 0.0), None),
@@ -523,9 +526,9 @@ BONES = {
     'Spine': ((0, 13.2, 5.5), (0, 10.8, 5.75), 'Hips'),
     'Chest': ((0, 10.8, 5.75), (0, 8.4, 6.8), 'Spine'),
     'Neck1': ((0, 8.4, 6.8), (0, 7.2, 7.8), 'Chest'),
-    'Neck2': ((0, 7.2, 7.8), (0, 6.0, 10.3), 'Neck1'),
-    'Head': ((0, 6.0, 10.3), (0, 0.5, 10.6), 'Neck2'),
-    'Jaw': ((0, 5.0, 9.4), (0, 1.0, 9.1), 'Head'),
+    'Neck2': ((0, 7.2, 7.8), (0, 4.9, 13.1), 'Neck1'),
+    'Head': ((0, 4.9, 13.1), (0, -1.3, 13.4), 'Neck2'),
+    'Jaw': ((0, 3.5, 12.1), (0, -0.8, 11.7), 'Head'),
 }
 for s, sf in ((1, '_L'), (-1, '_R')):
     BONES.update({
