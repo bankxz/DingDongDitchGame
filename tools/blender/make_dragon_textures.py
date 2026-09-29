@@ -185,8 +185,8 @@ for y in range(256):
             c = (clamp(150 - 130 * k), clamp(255 - 60 * k), clamp(255 - 25 * k))
         E.putpixel((x, y), c)
 de = ImageDraw.Draw(E)
-de.ellipse([128 - 15, 128 - 92, 128 + 15, 128 + 92], fill=(8, 16, 22))      # vertical slit pupil
-de.ellipse([128 - 7, 128 - 76, 128 + 7, 128 + 76], fill=(0, 0, 0))
+de.ellipse([128 - 9, 128 - 112, 128 + 9, 128 + 112], fill=(8, 16, 22))      # vertical slit pupil (thin: eyeball is stretched 1.75x wide)
+de.ellipse([128 - 4, 128 - 98, 128 + 4, 128 + 98], fill=(0, 0, 0))
 de.ellipse([74, 60, 104, 90], fill=(235, 255, 255))                          # specular highlight
 E = E.filter(ImageFilter.SMOOTH)
 E.save(os.path.join(OUT, "Dragon_Eye.png"))
