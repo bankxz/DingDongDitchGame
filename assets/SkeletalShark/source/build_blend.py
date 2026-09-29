@@ -112,7 +112,7 @@ for t, poly in enumerate(mesh.polygons):
     for c, li in enumerate(poly.loop_indices):
         UV[t, c] = uvl.data[li].uv
         POS[t, c] = vshark[mesh.loops[li].vertex_index]
-    NRM[t] = (poly.normal.x, poly.normal.y, poly.normal.z)
+    NRM[t] = (poly.normal.y, poly.normal.x, poly.normal.z)  # world (X=w, Y=i) -> shark (i, w, z)
 # height range per part (per tooth for teeth) for the painted gradient
 ZR = np.zeros((T, 2))
 for pi in range(len(parts)):
@@ -122,9 +122,18 @@ for pi in range(len(parts)):
             ZR[t] = (POS[t, :, 2].min(), POS[t, :, 2].max())
     else:
         ZR[sel] = (POS[sel, :, 2].min(), POS[sel, :, 2].max())
-img_arr, emis_arr, PPC = SB.bake(UV, POS, NRM, MT, isl_of, ZR, 1024)
-Image.fromarray(img_arr.astype(np.uint8)).save(color_path)
-Image.fromarray((emis_arr * 255).astype(np.uint8)).save(emis_path)
+# stud frames: world-aligned everywhere except the tilted pectorals (use the fin's own axes)
+FR = np.tile(np.eye(3), (T, 1, 1))
+for t, poly in enumerate(mesh.polygons):
+    bn = vbone[mesh.loops[poly.loop_indices[0]].vertex_index]
+    if bn in ("PectoralL", "PectoralR"):
+        FR[t] = G.pec_xf(1 if bn == "PectoralL" else -1)[:3, :3].T
+EYES = [(5.95, 4.6, 8.2), (5.95, -4.6, 8.2)]
+# bake at 2048 and downsample -> anti-aliased studs in the 1024 texture Roblox uses
+img_arr, emis_arr, PPC = SB.bake(UV, POS, NRM, MT, isl_of, ZR, FR, EYES, 2048)
+PPC /= 2
+Image.fromarray(img_arr.astype(np.uint8)).resize((1024, 1024), Image.LANCZOS).save(color_path)
+Image.fromarray((emis_arr * 255).astype(np.uint8)).resize((1024, 1024), Image.LANCZOS).save(emis_path)
 
 # ----------------------------------------------------------------------------- material
 mat = bpy.data.materials.new("M_SkeletalShark")

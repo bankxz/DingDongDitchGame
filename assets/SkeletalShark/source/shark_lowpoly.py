@@ -110,12 +110,18 @@ def build_skull(m):
     # eye socket (recessed dark panel framed by brow + cheekbone), glowing eye cube
     sock = [(4.4, 7.4), (4.9, 6.95), (7.6, 6.95), (8.2, 7.5), (8.2, 8.9), (7.5, 9.35), (4.9, 9.35), (4.4, 8.8)]
     side_prism(m, sock, lambda a, c: hw_at(a) - 0.6, lambda a, c: hw_at(a) + 0.04, SOCKET, "Head", "skull")
-    side_prism(m, [(4.2, 9.25), (8.6, 9.25), (8.4, 9.95), (4.6, 10.0)],
-               lambda a, c: hw_at(a) - 0.6, lambda a, c: hw_at(a) + 0.3, BONE, "Head", "skull")
-    side_prism(m, [(4.6, 6.45), (8.6, 6.45), (8.6, 7.0), (4.4, 7.0)],
-               lambda a, c: hw_at(a) - 0.6, lambda a, c: hw_at(a) + 0.25, BONE, "Head", "skull")
+    # thick bone frame around the socket so it reads as a deep recess (brow, cheekbone, front, back)
+    frame = lambda a, c: hw_at(a) + 0.45  # noqa: E731
+    side_prism(m, [(3.9, 9.2), (8.7, 9.2), (8.5, 10.0), (4.4, 10.05)], lambda a, c: hw_at(a) - 0.6, frame,
+               BONE, "Head", "skull")
+    side_prism(m, [(4.2, 6.35), (8.7, 6.35), (8.7, 7.05), (4.2, 7.05)], lambda a, c: hw_at(a) - 0.6, frame,
+               BONE, "Head", "skull")
+    side_prism(m, [(3.7, 6.6), (4.45, 6.6), (4.45, 9.6), (3.9, 9.6)], lambda a, c: hw_at(a) - 0.6, frame,
+               BONE, "Head", "skull")
+    side_prism(m, [(8.15, 6.6), (8.9, 6.6), (8.9, 9.6), (8.15, 9.6)], lambda a, c: hw_at(a) - 0.6, frame,
+               BONE, "Head", "skull")
     for sd in (1, -1):
-        box(m, (5.5, sd * 4.4 if sd > 0 else -4.88, 7.7), (6.6, 4.88 if sd > 0 else -4.4, 8.8), EYE, "Head", "skull")
+        box(m, (5.45, 4.2 if sd > 0 else -4.95, 7.7), (6.45, 4.95 if sd > 0 else -4.2, 8.7), EYE, "Head", "skull")
         # nostril pit, cheek slot
         box(m, (1.8, 2.75 if sd > 0 else -3.15, 8.3), (2.7, 3.15 if sd > 0 else -2.75, 9.05), SOCKET, "Head", "skull")
         box(m, (10.4, 4.45 if sd > 0 else -4.9, 5.4), (11.3, 4.9 if sd > 0 else -4.45, 7.0), SOCKET, "Head", "skull")
@@ -183,7 +189,7 @@ def ring(i, hw, zc, hh, n=10, e=2.2, lift=0.0):
 
 
 def build_core(m):
-    I = list(np.arange(12.0, 38.01, 1.3)) + [39.4]
+    I = list(np.arange(12.0, 38.01, 1.3)) + [39.6, 41.0]
     secs = []
     for i in I:
         top, bot, hw = float(G.core_top(i)), float(G.core_bot(i)), float(G.core_hw(i))
@@ -217,7 +223,7 @@ def build_ribs(m, n=16):
 def build_spine(m):
     # dorsal ridge bar following the back
     secs = []
-    for i in np.arange(12.5, 28.6, 1.3):
+    for i in list(np.arange(12.5, 36.6, 1.3)) + [37.5]:
         ct = float(G.core_top(i))
         secs.append(np.array([(i, 0.45, ct + 0.5), (i, 0.45, ct - 0.4), (i, -0.45, ct - 0.4), (i, -0.45, ct + 0.5)]))
     loft(m, secs, BONE, "SPINE", "spine")
@@ -241,14 +247,33 @@ PEC_BLUE = [(1.0, 0.95), (2.7, 0.85), (5.4, 0.45), (7.6, 0.1), (8.3, -0.05), (7.
             (2.7, -1.05), (1.0, -1.1)]
 
 
+def seat(poly, zcut, znew):
+    """Push every outline point at/below zcut down to znew so the fin is embedded in the body."""
+    return [(a, znew if c <= zcut else c) for a, c in poly]
+
+
 def build_fins(m):
-    fin(m, G.DORSAL_POLY, 0.45, BONE, "Dorsal", "dorsal")
-    fin(m, DORSAL_BLUE, 0.62, BLUE, "Dorsal", "dorsal")
-    # blue web flanks at the dorsal root (seen from the front / back)
-    prism(m, [(17.2, 9.3), (23.6, 9.3), (22.4, 11.0), (19.2, 11.6)],
-          lambda a, c, s: (a, s * (1.6 - 0.45 * (c - 9.3)), c), BLUE, "Dorsal", "dorsal")
+    # fins are sunk into the back so they grow out of the spine ridge (no floating seam)
+    fin(m, seat(G.DORSAL_POLY, 9.25, 8.3), 0.45, BONE, "Dorsal", "dorsal")
+    fin(m, seat(DORSAL_BLUE, 9.25, 8.4), 0.62, BLUE, "Dorsal", "dorsal")
+    # tapered blue root fairing: wide on the spine ridge, narrowing into the fin blade
+    secs = []
+    for i, k in ((15.9, 0.25), (17.4, 0.8), (19.5, 1.0), (21.6, 1.0), (23.3, 0.8), (24.4, 0.25)):
+        zb = float(G.core_top(i)) - 0.2
+        zt = 10.3 if 17 < i < 23.5 else 9.8
+        secs.append(np.array([(i, 0.62, zt), (i, 0.62 + 0.75 * k, zb + 0.5), (i, 0.5 + 0.75 * k, zb),
+                              (i, -0.5 - 0.75 * k, zb), (i, -0.62 - 0.75 * k, zb + 0.5), (i, -0.62, zt)]))
+    loft(m, secs, BLUE, "Dorsal", "dorsal")
     for name, poly in G.SPIKES.items():
-        fin(m, poly, 0.4, BONE, "SPINE", "spikes")
+        base_z = float(G.core_top(np.mean([p[0] for p in poly]))) if name != "V1" else None
+        if name == "S0":
+            fin(m, poly, 0.4, BONE, "Head", "spikes")
+        elif name == "V1":
+            fin(m, [(a, c if c < 3.5 else c + 0.8) for a, c in poly], 0.4, BONE, "SPINE", "spikes")
+        else:
+            fin(m, seat(poly, min(p[1] for p in poly) + 0.6, base_z - 0.6), 0.4, BONE, "SPINE", "spikes")
+    # collar where the tail stem enters the tail fin
+    box(m, (36.2, -0.95, 3.7), (38.6, 0.95, 6.3), BONE, "TailFin", "tail")
     for name, poly in G.BLUE_FINS.items():
         fin(m, poly, 0.4, BLUE, "SPINE", "ventral")
     fin(m, G.TAIL_POLY, 0.45, BONE, "TailFin", "tail")

@@ -4,7 +4,7 @@ A skeletal shark built in Blender 4.2 from the "Skeletal Shark – Rare Aquatic 
 
 | | |
 |---|---|
-| Triangles | **2,838**, under the 5k budget. One mesh and one material. |
+| Triangles | **3,030**, under the 5k budget. One mesh and one material. |
 | Texture | `textures/SkeletalShark_Color.png` (1024², baked colour, gradient and studs), `textures/SkeletalShark_Emissive.png` (glow mask) |
 | Rig | 11 bones. Max 2 influences per vertex. Every vertex is weighted. |
 | Animations | `Idle` (90 f, loop), `Walk` (40 f, loop, swim cycle), `Run` (24 f, loop, fast swim), `Attack` (41 f, lunge + bite). All at 30 fps. |
@@ -59,12 +59,19 @@ The body and rib vertices are blended along the spine chain, so the swim wave be
 
 ## Stud texture
 
-The stud is painted into the colour texture, not modelled. It follows the example meshes: sparse engraved squares with a dark inner shadow on two sides and a light lip on the other two. About 30% of them are partial corner marks.
+The stud is painted into the colour texture, not modelled. It follows the example meshes: engraved squares with a dark inner shadow on two sides and a light lip on the other two. About 28% of them are partial corner marks.
+
+**Uniform coverage:** studs are laid out on a grid in the model's own space, not in texture space. Every face uses the grid plane it faces most (the pectoral fins use their own tilted axes). As a result:
+- every stud is the same size (about 0.95 blocks) on every surface;
+- they are spaced evenly (1.8 blocks, about 62% of grid cells filled);
+- they line up with the model regardless of how the texture is laid out.
+
+**Anti-aliasing:** the texture is baked at 2048² and downsampled to the 1024² file Roblox uses, so the stud lines stay clean.
 
 The texture also has two finishing touches:
 - a soft painted gradient on every part, lighter on top and darker below;
 - a light bevel highlight along every hard edge.
 
-Studs are only placed where the whole square fits on a single UV island, so none are cut off at seams. The teeth, eyes, glow cores and sockets get flat colours and little texture space, which leaves more resolution for the studded surfaces.
+The teeth, glow cores and eyes are plain colours without studs. The eye sockets carry a cyan glow that fades out from the eye.
 
 The stud pattern is generated procedurally rather than downloaded. That keeps it licence-free and matched to the example look.

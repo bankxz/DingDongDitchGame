@@ -31,11 +31,38 @@ def _shade(mat, h, nz, t_tip):
     elif mat == 4:
         col[:] = IVORY[None] + (np.array((255, 250, 240.0)) - IVORY)[None] * t_tip[:, None]
     else:  # eye: cyan with a hot centre (centre handled by t_tip = distance-to-edge proxy)
-        col[:] = CYAN[None] + (np.array((235, 255, 255.0)) - CYAN)[None] * np.clip(t_tip * 1.6 - 0.4, 0, 1)[:, None]
+        col[:] = CYAN[None] * 0.9 + (np.array((190, 255, 255.0)) - CYAN * 0.9)[None] * np.clip(t_tip * 1.8 - 0.8, 0, 1)[:, None]
     return col
 
 
-def bake(uv, pos, nrm, mat, isl, zrange, size=1024, seed=5, stud_cubes=1.0, spacing_cubes=1.7):
+def _hash(a, b, seed):
+    h = (a.astype(np.int64) * 73856093) ^ (b.astype(np.int64) * 19349663) ^ np.int64(seed * 83492791)
+    h = (h ^ (h >> 13)) * 1274126177
+    return ((h ^ (h >> 16)) & 0xFFFF) / 65535.0
+
+
+def stud_pattern(a, b, spacing=1.8, size=0.95, lw=0.11, density=0.62, seed=3):
+    """World-space stud grid (cube units) -> (dark, light, inner) masks.
+    Every stud has the same size everywhere on the model; ~28% are partial corner marks."""
+    ca, cb = np.floor(a / spacing), np.floor(b / spacing)
+    present = _hash(ca, cb, seed) < density
+    ja = (_hash(ca, cb, seed + 1) - 0.5) * 0.35 * spacing
+    jb = (_hash(ca, cb, seed + 2) - 0.5) * 0.35 * spacing
+    s = 0.5 * size * (0.85 + 0.3 * _hash(ca, cb, seed + 3))
+    la = a - (ca + 0.5) * spacing - ja
+    lb = b - (cb + 0.5) * spacing - jb
+    ins = present & (np.abs(la) < s) & (np.abs(lb) < s)
+    partial = _hash(ca, cb, seed + 4) < 0.28
+    top, left = lb > s - lw, la < -s + lw
+    bot, right = lb < -s + lw, la > s - lw
+    dark = ins & (top | left)
+    dark &= ~partial | (((top) & (la < 0.2 * s)) | ((left) & (lb > -0.2 * s)))
+    light = ins & (bot | right) & ~dark & ~partial
+    inner = ins & ~dark & ~light & ~partial
+    return dark, light, inner
+
+
+def bake(uv, pos, nrm, mat, isl, zrange, frames=None, eyes=(), size=1024, seed=5):
     T = len(uv)
     img = np.zeros((size, size, 3))
     emis = np.zeros((size, size))
@@ -72,60 +99,45 @@ def bake(uv, pos, nrm, mat, isl, zrange, size=1024, seed=5, stud_cubes=1.0, spac
         h = np.clip((w[:, 2] - z0) / max(z1 - z0, 1e-6), 0, 1)
         tip = h if mat[t] != 5 else np.clip(1 - 2 * np.abs(h - 0.5), 0, 1)
         col = _shade(int(mat[t]), h, np.full(len(h), nrm[t][2]), tip)
+        if mat[t] == 3 and len(eyes):  # socket: cyan glow bleeding around the eye cube
+            dmin = np.min([np.linalg.norm(w - np.asarray(e)[None], axis=1) for e in eyes], axis=0)
+            g = 0.85 * np.exp(-np.maximum(dmin - 0.45, 0) / 0.9)[:, None]
+            col = col * (1 - g) + np.array((50, 170, 235.0))[None] * g
+        if mat[t] in STUDDED:
+            R = np.eye(3) if frames is None else frames[t]
+            wl = w @ R.T
+            nl = R @ nrm[t]
+            ax = int(np.argmax(np.abs(nl)))
+            if ax == 0:
+                sa, sb = wl[:, 1] * np.sign(nl[0]), wl[:, 2]
+            elif ax == 1:
+                sa, sb = -wl[:, 0] * np.sign(nl[1]), wl[:, 2]
+            else:
+                sa, sb = wl[:, 1], -wl[:, 0]
+            dk, lt, inn = stud_pattern(sa, sb, seed=seed + 17 * ax)
+            col[inn] *= 1.03
+            col[dk] *= 0.62
+            col[lt] += (255 - col[lt]) * 0.33
         px = q[inside].astype(int)
         img[px[:, 1], px[:, 0]] = col
         islmap[px[:, 1], px[:, 0]] = isl[t]
         matmap[px[:, 1], px[:, 0]] = mat[t]
         if mat[t] in (2, 5):
-            emis[px[:, 1], px[:, 0]] = 1.0
+            emis[px[:, 1], px[:, 0]] = 1.0 if mat[t] == 2 else 0.55
 
     filled = islmap >= 0
     # bevel-style highlight along island borders (real geometric edges on a low-poly mesh)
-    band = max(2, int(round(0.10 * k)))
+    band = max(2, int(round(0.07 * k)))
     edge = np.zeros_like(filled)
     for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
         for r in range(1, band + 1):
             sh = np.roll(np.roll(islmap, dy * r, 0), dx * r, 1)
             edge |= filled & (sh != islmap)
     stud_ok = np.isin(matmap, STUDDED)
-    img[edge & stud_ok] += (255 - img[edge & stud_ok]) * 0.16
+    img[edge & stud_ok] += (255 - img[edge & stud_ok]) * 0.14
 
-    # sparse engraved studs
-    rng = np.random.default_rng(seed)
-    sp = spacing_cubes * k
-    n = int(size / sp) + 2
-    lw = max(2, int(round(0.12 * k)))
-    for gy in range(n):
-        for gx in range(n):
-            if rng.random() > 0.7:
-                continue
-            half = 0.5 * stud_cubes * k * (0.8 + 0.4 * rng.random())
-            cx = (gx + 0.5 + (rng.random() - 0.5) * 0.35) * sp
-            cy = (gy + 0.5 + (rng.random() - 0.5) * 0.35) * sp
-            xa, xb = int(cx - half), int(cx + half)
-            ya, yb = int(cy - half), int(cy + half)
-            if xa - 2 * lw < 0 or ya - 2 * lw < 0 or xb + 2 * lw >= size or yb + 2 * lw >= size:
-                continue
-            reg = islmap[ya - 2 * lw:yb + 2 * lw + 1, xa - 2 * lw:xb + 2 * lw + 1]
-            if reg.min() < 0 or (reg != reg[0, 0]).any() or not stud_ok[cy.__int__(), cx.__int__()]:
-                continue
-            partial = rng.random() < 0.3
-            sub = img[ya:yb + 1, xa:xb + 1]
-            H, W = sub.shape[:2]
-            yy, xx = np.mgrid[0:H, 0:W]
-            top, left = yy < lw, xx < lw
-            bot, right = yy >= H - lw, xx >= W - lw
-            if partial:  # corner mark only (like the example meshes)
-                dark = (top & (xx < W * 0.6)) | (left & (yy < H * 0.6))
-                lite = np.zeros_like(dark)
-            else:
-                dark = top | left
-                lite = (bot | right) & ~dark
-                sub *= 1.0 + 0.03 * ((~dark) & (~lite))[..., None]
-            sub[dark] *= 0.70
-            sub[lite] += (255 - sub[lite]) * 0.34
     # dilate into the gutters so mip/linear filtering never samples black
-    for _ in range(6):
+    for _ in range(12):
         empty = islmap < 0
         if not empty.any():
             break

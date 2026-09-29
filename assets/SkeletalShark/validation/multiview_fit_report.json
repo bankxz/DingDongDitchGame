@@ -1,25 +1,25 @@
 {
  "left": {
-  "iou": 0.739,
-  "label_agreement": 0.705,
+  "iou": 0.74,
+  "label_agreement": 0.7,
   "ref_aspect": 3.232,
   "render_aspect": 3.074
  },
  "front": {
-  "iou": 0.586,
-  "label_agreement": 0.69,
+  "iou": 0.576,
+  "label_agreement": 0.692,
   "ref_aspect": 1.13,
   "render_aspect": 0.903
  },
  "back": {
   "iou": 0.332,
-  "label_agreement": 0.654,
+  "label_agreement": 0.651,
   "ref_aspect": 1.28,
   "render_aspect": 0.81
  },
  "top": {
-  "iou": 0.553,
-  "label_agreement": 0.703,
+  "iou": 0.555,
+  "label_agreement": 0.708,
   "ref_aspect": 3.274,
   "render_aspect": 2.261
  }
