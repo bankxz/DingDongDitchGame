@@ -171,4 +171,23 @@ rune(6, 19, 2)
 rune(27, 22, 2)
 M = M.filter(ImageFilter.SMOOTH)
 M.save(os.path.join(OUT, "Dragon_WingMembrane.png"))
+
+# ---------------------------------------------------------------- eyeball: glowing cyan iris, dark slit pupil, highlight
+E = Image.new("RGB", (256, 256), (0, 0, 0))
+for y in range(256):
+    for x in range(256):
+        dx, dy = (x - 128) / 128.0, (y - 128) / 128.0
+        r = (dx * dx + dy * dy) ** 0.5
+        if r > 0.93:
+            c = (6, 40, 52)                                   # dark limbal ring / back of the eye
+        else:
+            k = r / 0.93
+            c = (clamp(150 - 130 * k), clamp(255 - 60 * k), clamp(255 - 25 * k))
+        E.putpixel((x, y), c)
+de = ImageDraw.Draw(E)
+de.ellipse([128 - 15, 128 - 92, 128 + 15, 128 + 92], fill=(8, 16, 22))      # vertical slit pupil
+de.ellipse([128 - 7, 128 - 76, 128 + 7, 128 + 76], fill=(0, 0, 0))
+de.ellipse([74, 60, 104, 90], fill=(235, 255, 255))                          # specular highlight
+E = E.filter(ImageFilter.SMOOTH)
+E.save(os.path.join(OUT, "Dragon_Eye.png"))
 print("textures written to", OUT)

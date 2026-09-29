@@ -109,11 +109,15 @@ VIEWS = {
     "head_top": ((0, -4.0, 20), (0, -4.0, 8.0), 60, (400, 400)),
     "tail": ((10, 12, 4), (0, 12, 1.8), 45, (700, 300)),
     "claw": ((5, -9, 2.0), (2.6, -2.5, 0.6), 50, (500, 380)),
+    "eye": ((5.5, -9.0, 8.6), (0.9, -5.3, 8.2), 60, (500, 380)),
+    "mouth": ((3.2, -10.5, 6.6), (0.0, -5.6, 7.0), 45, (500, 380)),
+    "arm": ((12, -3, 3.2), (2.6, -0.3, 2.4), 35, (500, 380)),
+    "spine": ((9, 16, 13), (0, 5, 4.5), 30, (600, 380)),
 }
 # The reference TOP/BOTTOM panels show the wings spread flat (flight pose) while FRONT/BACK/SIDE show them
 # raised, so those two panels are rendered with the rig posing the wings flat (same mesh, rig-driven pose).
 SPREAD_VIEWS = ("top", "bottom", "topdown")
-OPEN_MOUTH_VIEWS = ("hero", "left", "right", "head_34", "head_side")
+OPEN_MOUTH_VIEWS = ("hero", "left", "right", "head_34", "head_side", "mouth")
 
 
 def set_wing_spread(on):
