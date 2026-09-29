@@ -13,6 +13,7 @@ plates, dark stud hooves, black/white block eyes, dark ears.
 | Rest pose | neutral square stance: legs straight and vertical, left/right symmetric (quadruped "T-pose") |
 | Animations | `Idle` (120 f @ 30 fps, 4 s loop), `Walk` (32 f @ 30 fps, 4-beat in-place loop) |
 | Studs | **painted into the texture, not modelled** (see `textures/stud_tile.png`) |
+| Attachment | build gate: no floating parts; every mane/tail plate is buried ≥0.1 in what it grows from, every armour rock ≥0.1 into the body |
 
 ## Files
 - `LavaHorse.blend` – rigged model; both actions stored (NLA tracks + fake users). Active action = Idle.

@@ -206,6 +206,7 @@ def switch_output(mats, key):
 
 def main():
     parts = build_geo.build_all()
+    build_geo.validate_attachment(parts)          # no floating mane/tail/armour pieces
     mats = {}
     for ob, cat, bone in parts:
         if cat not in mats:

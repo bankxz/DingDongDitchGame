@@ -26,6 +26,7 @@ def remap_z(z):
     return HOOF_TOP + (z - HOOF_TOP) * (LEG_TOP - HOOF_TOP + LIFT) / (LEG_TOP - HOOF_TOP)
 
 PARTS = []               # (obj, category, bone)
+TREES = {}               # part name -> (category, authored-space face planes [(point, normal)])
 
 
 def clear_scene():
@@ -102,9 +103,11 @@ def finish_part(name, bm, matrix, category, bone, chamfer=0.0, cuts=None, grad_a
     me.transform(matrix)
     me.update()
     pre = [v.co.copy() for v in me.vertices]        # authored coords (weights are defined on these)
+    TREES[name] = (category, _planes(pre, me))
     if rigid:
         cz = sum(c.z for c in pre) / len(pre)
-        dz = remap_z(cz) - cz
+        # parts hanging off the torso (mane/tail plates, armour) move exactly with it
+        dz = LIFT if category in ('flame', 'rock') and bone not in ('Ear.L', 'Ear.R') else remap_z(cz) - cz
         for v in me.vertices:
             v.co.z += dz
     else:
@@ -220,9 +223,14 @@ def build_head():
     for s in (1, -1):
         sd = 'L' if s > 0 else 'R'
         # eye in the forehead's front corner: black pupil, white rim along its back and bottom edges
-        # (wraps the corner: reads as a black square from the front too, like the reference)
-        hbox('EyeWhite' + sd, (s * 0.64, -3.84, 5.06), (0.26, 0.58, 0.52), 'eye_white', 'Head', chamfer=0.0)
-        hbox('EyeBlack' + sd, (s * 0.61, -3.93, 5.13), (0.34, 0.46, 0.46), 'eye_black', 'Head', chamfer=0.0)
+        # Flush corner patches (no protrusion): the black pupil hugs the forehead's front-side corner
+        # 0.005-0.01 proud of the surface, the white rim sits just behind it and shows as a thin
+        # L along the back+bottom edges from the side and the inner+bottom edges from the front.
+        def eye_box(name, x0, x1, y0, y1, z0, z1, cat):
+            hbox(name + sd, (s * (x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2),
+                 (x1 - x0, y1 - y0, z1 - z0), cat, 'Head', chamfer=0.0)
+        eye_box('EyeWhite', 0.39, 0.715, -4.126, -3.64, 4.83, 5.33, 'eye_white')
+        eye_box('EyeBlack', 0.46, 0.722, -4.132, -3.71, 4.9, 5.36, 'eye_black')
         # ears: dark pyramids, base y-3.6..-3.0 at z5.65, tip ~(y-3.4, z6.45)
         hbox('Ear' + sd, (s * 0.45, -3.3, 6.02), (0.46, 0.6, 0.82), 'rock', 'Ear.' + sd,
              rot=(0, s * 6, 0), chamfer=0.03, top_scale=(0.3, 0.3), top_off=(s * 0.02, -0.08))
@@ -270,7 +278,7 @@ def build_armour():
         (1.62, 2.4, 2.9, 0.92, 'HindUpper'), (1.55, 1.55, 3.0, 0.7, 'Hips'),
         (1.55, 3.3, 2.75, 0.7, 'HindUpper'), (1.45, 2.7, 2.1, 0.68, 'HindUpper'),
         (1.2, 1.5, 4.05, 0.62, 'Hips'), (1.25, 3.25, 3.95, 0.55, 'Hips'),
-        (1.5, 1.2, 2.35, 0.5, 'Hips'),
+        (1.38, 1.2, 2.4, 0.5, 'Hips'),
     ]
     ridge = [(0.35, 1.25, 4.25, 0.75), (-0.35, 1.3, 4.2, 0.72), (0.2, 2.05, 4.5, 0.78),
              (-0.25, 2.25, 4.45, 0.7), (0.0, 0.6, 4.0, 0.6), (0.3, 2.75, 4.25, 0.55),
@@ -287,10 +295,76 @@ def build_armour():
 
 
 # ---------------------------------------------------------------- flame mane / tail shards
+def _planes(co, me):
+    """Face planes (point, outward normal) of a convex part from vertex coords `co`."""
+    out = []
+    for p in me.polygons:
+        vs = [co[i] for i in p.vertices]
+        n = (vs[1] - vs[0]).cross(vs[2] - vs[0])
+        if n.length < 1e-9:
+            continue
+        out.append((vs[0], n.normalized()))
+    return out
+
+
+def _depth(planes, p):
+    """Signed depth of p inside a convex part (positive = inside, distance to nearest face)."""
+    return min(-(p - c).dot(n) for c, n in planes)
+
+
+ROOT_DEPTH = 0.15       # every mane/tail plate's base is buried at least this deep in what it grows from
+
+
+def _embed_depth(p):
+    """How deep point p sits inside any finished (non-eye) part; -1 when it is in open air."""
+    best = -1.0
+    for cat, planes in TREES.values():
+        if cat in ('eye_white', 'eye_black'):
+            continue
+        d = _depth(planes, p)
+        if d > 0:
+            best = max(best, d)
+    return best
+
+
 def shard(name, base, direction_deg, length, width, thick, bone, roll=0.0, yaw=0.0, weights=None):
-    """Flat stud-covered plate with an angled, pointed tip. Built along local +Z (grad axis)."""
-    L, W, T = length, width * 1.3, thick * 1.8
-    prof = [(-W / 2, 0), (W / 2, 0), (W / 2, L * 0.62), (W * 0.1, L), (-W / 2, L * 0.8)]
+    """Flat stud-covered plate with an angled, pointed tip. Built along local +Z (grad axis).
+    The plate is rooted: its base is slid back along its own axis (tip fixed, plate lengthened)
+    until it is buried ROOT_DEPTH inside the body/neck/head/rocks or an earlier plate, so no piece
+    of the mane or tail floats."""
+    rot_x = -(90 - direction_deg)
+    R = Matrix.Rotation(math.radians(yaw), 4, 'Z') @ Matrix.Rotation(math.radians(rot_x), 4, 'X') @ \
+        Matrix.Rotation(math.radians(roll), 4, 'Y')
+    axis = (R.to_3x3() @ Vector((0, 0, 1))).normalized()
+    base = Vector(base)
+    ext = 0.0
+    if _embed_depth(base) < ROOT_DEPTH:
+        for k in range(1, 81):                      # search up to 3.2 units back along the plate
+            p = base - axis * (0.04 * k)
+            if _embed_depth(p) >= ROOT_DEPTH:
+                ext = 0.04 * k
+                break
+        else:                                       # fallback: slide the plate onto the nearest part
+            from mathutils.bvhtree import BVHTree   # (only spots that really end up buried count)
+            best = None
+            for o, cat, _ in PARTS:
+                if cat in ('eye_white', 'eye_black'):
+                    continue
+                co = [v.co for v in o.data.vertices]
+                loc, nrm, _, dist = BVHTree.FromPolygons(co, [tuple(q.vertices) for q in o.data.polygons]) \
+                    .find_nearest(base + Vector((0, 0, LIFT)))
+                if loc is None:
+                    continue
+                for d in (ROOT_DEPTH, 0.12, 0.1):
+                    cand = loc - nrm * d - Vector((0, 0, LIFT))
+                    if _embed_depth(cand) >= 0.1 and (best is None or dist < best[0]):
+                        best = (dist, cand)
+                        break
+            base = best[1]
+    base = base - axis * ext
+    L, W, T = length + ext, width * 1.3, thick * 1.8
+    tipL = length                                   # keep the visible tip shape unchanged
+    prof = [(-W / 2, 0), (W / 2, 0), (W / 2, L - tipL * 0.38), (W * 0.1, L), (-W / 2, L - tipL * 0.2)]
     bm = bmesh.new()
     front = [bm.verts.new((T / 2, x, z)) for x, z in prof]
     back = [bm.verts.new((-T / 2, x, z)) for x, z in prof]
@@ -301,12 +375,17 @@ def shard(name, base, direction_deg, length, width, thick, bone, roll=0.0, yaw=0
         j = (i + 1) % n
         bm.faces.new([front[j], front[i], back[i], back[j]])
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
-    # direction_deg: angle in the YZ plane measured from +Y (backwards) toward +Z (up)
-    rot_x = -(90 - direction_deg)          # local +Z -> rotate about X
-    # roll = outward splay (about the plate's width axis), yaw = turn about world Z
-    m = M(base, (0, 0, 0)) @ Matrix.Rotation(math.radians(yaw), 4, 'Z') @ \
-        Matrix.Rotation(math.radians(rot_x), 4, 'X') @ Matrix.Rotation(math.radians(roll), 4, 'Y')
-    return finish_part(name, bm, m, 'flame', bone, chamfer=0.0, grad_axis=2, weights=weights)
+    # direction_deg: angle in the YZ plane from +Y (backwards) toward +Z (up); roll = outward splay
+    # (about the plate's width axis); yaw = turn about world Z
+    m = Matrix.Translation(base) @ R
+    ob = finish_part(name, bm, m, 'flame', bone, chamfer=0.0, grad_axis=2, weights=weights)
+    # re-map the flame gradient so the colour ramp runs over the visible length only
+    g = ob.data.attributes['grad'].data
+    if ext > 0:
+        f = ext / L
+        for d in g:
+            d.value = max(0.0, (d.value - f) / (1 - f))
+    return ob
 
 
 def build_mane():
@@ -360,5 +439,83 @@ def build_tail():
 def build_all():
     clear_scene()
     PARTS.clear()
+    TREES.clear()
     build_body(); build_head(); build_legs(); build_armour(); build_mane(); build_tail()
     return PARTS
+
+
+# ---------------------------------------------------------------- connectivity gate
+
+
+def floating_parts(parts, anchor='Body'):
+    """Return names of parts not connected (by surface overlap or containment, possibly through a
+    chain of other parts) to the anchor part. Every mane/tail plate must reach the body."""
+    from mathutils.bvhtree import BVHTree
+    objs = [p[0] for p in parts]
+    trees, verts, planes = {}, {}, {}
+    for o in objs:
+        me = o.data
+        vs = [v.co.copy() for v in me.vertices]
+        trees[o.name] = BVHTree.FromPolygons(vs, [tuple(p.vertices) for p in me.polygons])
+        verts[o.name] = vs
+        planes[o.name] = _planes(vs, me)
+    names = [o.name for o in objs]
+    adj = {n: set() for n in names}
+    for i, a in enumerate(names):
+        for b in names[i + 1:]:
+            ta, tb = trees[a], trees[b]
+            touch = bool(ta.overlap(tb)) or any(_depth(planes[b], v) > 0 for v in verts[a]) \
+                or any(_depth(planes[a], v) > 0 for v in verts[b])
+            if touch:
+                adj[a].add(b); adj[b].add(a)
+    seen, stack = {anchor}, [anchor]
+    while stack:
+        n = stack.pop()
+        for m in adj[n] - seen:
+            seen.add(m); stack.append(m)
+    return sorted(set(names) - seen)
+
+
+def unrooted_flames(parts, depth=0.08):
+    """Stricter gate for mane/tail plates: the centre of each plate's base edge (grad == 0) must be
+    buried at least `depth` inside the body/neck/head/rocks or inside another plate."""
+    trees = {}
+    for o, cat, _ in parts:
+        trees[o.name] = (cat, _planes([v.co.copy() for v in o.data.vertices], o.data))
+    bad = []
+    for o, cat, _ in parts:
+        if cat != 'flame':
+            continue
+        g = o.data.attributes['grad'].data
+        base = [o.data.vertices[i].co for i in range(len(g)) if g[i].value < 1e-4]
+        c = sum(base, Vector()) / len(base)
+        best = -1.0
+        for name, (ocat, pl) in trees.items():
+            if name == o.name or ocat in ('eye_white', 'eye_black'):
+                continue
+            best = max(best, _depth(pl, c))
+        if best < depth:
+            bad.append((o.name, round(best, 3)))
+    return bad
+
+
+def weak_rocks(parts, depth=0.1):
+    """Armour rocks must sink at least `depth` into the body/legs or a neighbouring rock."""
+    pl = {o.name: (c, _planes([v.co.copy() for v in o.data.vertices], o.data)) for o, c, _ in parts}
+    weak = []
+    for o, c, _ in parts:
+        if c != 'rock' or o.name.startswith('Ear'):
+            continue
+        best = max(_depth(p2, v.co) for n, (c2, p2) in pl.items()
+                   if n != o.name and c2 not in ('eye_white', 'eye_black') for v in o.data.vertices)
+        if best < depth:
+            weak.append((o.name, round(best, 3)))
+    return weak
+
+
+def validate_attachment(parts):
+    """Hard gate: nothing floats. Raises before any bake/export if a piece is detached."""
+    fl, ur, wr = floating_parts(parts), unrooted_flames(parts, 0.1), weak_rocks(parts)
+    print('ATTACH floating=%d unrooted_flames=%d weak_rocks=%d' % (len(fl), len(ur), len(wr)))
+    if fl or ur or wr:
+        raise RuntimeError(f'detached parts: floating={fl} unrooted={ur} weak_rocks={wr}')
