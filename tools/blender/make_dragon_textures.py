@@ -1,9 +1,8 @@
 """Generate the stud textures for the Ancient Dragon model.
 
-Every colour gets a seamless 256x256 tile of 4x4 "voxel block" cells, each with a
-raised square stud in the middle (the look of the reference model and of the
-stud examples: square stud, light top/left bevel, dark bottom/right bevel,
-thin darker seams between blocks).  The wing membrane and glow textures are
+Every colour gets a seamless 256x256 tile of 4x4 studs in the Roblox stud style of
+the supplied examples: a smooth flat surface (no block seams) with small square
+studs recessed into it (dark top/left inner walls, lit bottom/right walls).  The wing membrane and glow textures are
 painted non-tiling sheets.
 
 Run: python3 tools/blender/make_dragon_textures.py <out_dir>
@@ -26,6 +25,7 @@ PALETTE = {
     "Gold": (246, 172, 50),
     "Tan": (216, 178, 136),
     "Bone": (242, 218, 162),
+    "Mouth": (118, 30, 40),
 }
 
 
@@ -37,59 +37,48 @@ def shade(c, f):
     return tuple(clamp(x * f) for x in c)
 
 
-def draw_stud_cell(d, x0, y0, size, base, rnd, stud_frac=0.40):
-    """One voxel cell: slightly varied block face, seam lines, raised square stud."""
-    var = 1.0 + rnd.uniform(-0.035, 0.035)
-    face = shade(base, var)
-    d.rectangle([x0, y0, x0 + size - 1, y0 + size - 1], fill=face)
-    # block bevel: light top/left, dark bottom/right, dark seam on the outside
-    b = max(2, size // 22)
-    d.rectangle([x0, y0, x0 + size - 1, y0 + b - 1], fill=shade(face, 1.14))
-    d.rectangle([x0, y0, x0 + b - 1, y0 + size - 1], fill=shade(face, 1.10))
-    d.rectangle([x0, y0 + size - b, x0 + size - 1, y0 + size - 1], fill=shade(face, 0.74))
-    d.rectangle([x0 + size - b, y0, x0 + size - 1, y0 + size - 1], fill=shade(face, 0.78))
-    d.rectangle([x0, y0, x0 + size - 1, y0], fill=shade(face, 0.55))
-    d.rectangle([x0, y0, x0, y0 + size - 1], fill=shade(face, 0.55))
-    # raised square stud
+STUD_FRAC = 0.42  # stud square size relative to the stud pitch
+
+
+def draw_stud_cell(d, x0, y0, size, base, rnd=None, stud_frac=STUD_FRAC):
+    """Roblox stud style (per the stud examples): smooth flat surface, no block seams, with a small
+    square stud recessed into it - dark top/left inner walls, light bottom/right inner walls."""
+    d.rectangle([x0, y0, x0 + size - 1, y0 + size - 1], fill=base)
     s = int(size * stud_frac)
     sx = x0 + (size - s) // 2
     sy = y0 + (size - s) // 2
     e = max(2, s // 6)
-    d.rectangle([sx + e // 2, sy + e // 2, sx + s + e // 2, sy + s + e // 2], fill=shade(face, 0.70))  # drop shadow
-    d.rectangle([sx, sy, sx + s, sy + s], fill=shade(face, 1.04))
-    d.polygon([(sx, sy), (sx + s, sy), (sx + s - e, sy + e), (sx + e, sy + e)], fill=shade(face, 1.22))
-    d.polygon([(sx, sy), (sx + e, sy + e), (sx + e, sy + s - e), (sx, sy + s)], fill=shade(face, 1.14))
-    d.polygon([(sx, sy + s), (sx + e, sy + s - e), (sx + s - e, sy + s - e), (sx + s, sy + s)], fill=shade(face, 0.80))
-    d.polygon([(sx + s, sy), (sx + s, sy + s), (sx + s - e, sy + s - e), (sx + s - e, sy + e)], fill=shade(face, 0.86))
+    d.rectangle([sx, sy, sx + s, sy + s], fill=shade(base, 0.94))                       # pocket floor
+    d.polygon([(sx, sy), (sx + s, sy), (sx + s - e, sy + e), (sx + e, sy + e)], fill=shade(base, 0.66))  # top wall
+    d.polygon([(sx, sy), (sx + e, sy + e), (sx + e, sy + s - e), (sx, sy + s)], fill=shade(base, 0.74))  # left wall
+    d.polygon([(sx, sy + s), (sx + e, sy + s - e), (sx + s - e, sy + s - e), (sx + s, sy + s)],
+              fill=shade(base, 1.14))                                                   # bottom wall (lit)
+    d.polygon([(sx + s, sy), (sx + s, sy + s), (sx + s - e, sy + s - e), (sx + s - e, sy + e)],
+              fill=shade(base, 1.08))                                                   # right wall (lit)
 
 
-def stud_tile(base, seed):
-    rnd = random.Random(seed)
+def stud_tile(base, seed=0):
     im = Image.new("RGB", (TILE, TILE), base)
     d = ImageDraw.Draw(im)
     for cy in range(CELLS):
         for cx in range(CELLS):
-            draw_stud_cell(d, cx * CELL, cy * CELL, CELL, base, rnd)
+            draw_stud_cell(d, cx * CELL, cy * CELL, CELL, base)
     return im.filter(ImageFilter.SMOOTH)
 
 
-def stud_normal(strength=6.0):
-    """tangent-space normal map of the same block/stud layout (Roblox SurfaceAppearance NormalMap)"""
+def stud_normal(strength=5.0):
+    """tangent-space normal map of the recessed studs (Roblox SurfaceAppearance NormalMap)"""
     import numpy as np
-    h = np.zeros((TILE, TILE), np.float32)
-    s = int(CELL * 0.40)
+    h = np.ones((TILE, TILE), np.float32)
+    s = int(CELL * STUD_FRAC)
+    e = max(2, s // 6)
+    yy, xx = np.mgrid[0:CELL, 0:CELL]
+    sx0 = (CELL - s) // 2
+    inside = np.minimum(np.minimum(xx - sx0, sx0 + s - xx), np.minimum(yy - sx0, sx0 + s - yy)).astype(np.float32)
+    cell = 1.0 - np.clip(inside / e, 0, 1) * np.where(inside >= 0, 1.0, 0.0)   # pocket depth ramps down the walls
     for cy in range(CELLS):
         for cx in range(CELLS):
-            x0, y0 = cx * CELL, cy * CELL
-            yy, xx = np.mgrid[0:CELL, 0:CELL]
-            # block face: bevelled edges (height falls off toward the seam)
-            edge = np.minimum(np.minimum(xx, CELL - 1 - xx), np.minimum(yy, CELL - 1 - yy)).astype(np.float32)
-            block = np.clip(edge / 4.0, 0, 1) * 0.5
-            # raised square stud with bevel
-            sx0 = (CELL - s) // 2
-            sd = np.minimum(np.minimum(xx - sx0, sx0 + s - xx), np.minimum(yy - sx0, sx0 + s - yy)).astype(np.float32)
-            stud = np.clip((sd + 1) / 3.0, 0, 1) * 0.5
-            h[y0:y0 + CELL, x0:x0 + CELL] = block + stud
+            h[cy * CELL:(cy + 1) * CELL, cx * CELL:(cx + 1) * CELL] = cell
     gy, gx = np.gradient(h)
     nx, ny, nz = -gx * strength, gy * strength, np.ones_like(h)
     ln = np.sqrt(nx * nx + ny * ny + nz * nz)
@@ -148,9 +137,8 @@ for j in range(NC):
     for i in range(NC):
         v = 1.0 - (j + 0.5) / NC           # image row 0 is v=1 (top)
         t = max(0.0, min(1.0, (1.0 - v) ** 0.85))  # brighter toward trailing edge
-        t = max(0.0, min(1.0, t + rnd.uniform(-0.12, 0.12)))
         col = tuple(clamp(deep[k] + (bright[k] - deep[k]) * t) for k in range(3))
-        draw_stud_cell(d, i * cs, j * cs, cs, col, rnd, stud_frac=0.36)
+        draw_stud_cell(d, i * cs, j * cs, cs, col)
 
 
 def rune(cx, cy, s):
