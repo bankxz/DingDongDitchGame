@@ -1062,7 +1062,11 @@ if rightBody then
 	local hatchB = rightBody:FindFirstChild("Right/HatchingToggle")
 	local petsB = rightBody:FindFirstChild("Right/PetsToggle")
 	-- big screens start with both panels open, phones with them tucked away
-	local startOpen = not touchOnly() and math.max(gui.AbsoluteSize.X, workspace.CurrentCamera.ViewportSize.X) >= 1100
+	local t0 = os.clock()
+	while gui.AbsoluteSize.X < 10 and os.clock() - t0 < 3 do
+		task.wait()
+	end
+	local startOpen = not touchOnly() and gui.AbsoluteSize.X >= 1100
 	if eggPanel then
 		eggPanel.Visible = startOpen
 		panelOpen[eggPanel] = startOpen
