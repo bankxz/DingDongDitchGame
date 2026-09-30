@@ -561,10 +561,19 @@ local function bindStat(statName, rowName, fmt, color)
 	label.TextXAlignment = Enum.TextXAlignment.Left
 	local counter = Instance.new("NumberValue")
 	counter.Value = stat.Value
+	local plus = row:FindFirstChild("PlusButton")
+	local function placePlus()
+		if plus then
+			local k = label.AbsoluteSize.X > 0 and label.Size.X.Offset / label.AbsoluteSize.X or 1
+			plus.Position = UDim2.fromOffset(label.Position.X.Offset + label.TextBounds.X * k + 10, plus.Position.Y.Offset)
+		end
+	end
+	label:GetPropertyChangedSignal("TextBounds"):Connect(placePlus)
 	counter.Changed:Connect(function(v)
 		label.Text = fmt(v)
 	end)
 	label.Text = fmt(stat.Value)
+	task.defer(placePlus)
 	stat.Changed:Connect(function(v)
 		local diff = v - counter.Value
 		tween(counter, 0.45, { Value = v })
@@ -1065,6 +1074,33 @@ headerButton(petPanel, function()
 end)
 
 ---------------------------------------------------------------- Active Pets panel
+-- shrink/grow a HUD panel's list to its rows (up to the Figma height), moving the footers under it
+local function fitPanel(panel, maxH, footers)
+	local body = panel and panel:FindFirstChild("Body")
+	local list = body and body:FindFirstChild("List")
+	local layout = list and list:FindFirstChildOfClass("UIListLayout")
+	if not layout then
+		return
+	end
+	task.defer(function()
+		local k = list.AbsoluteSize.Y > 0 and list.Size.Y.Offset / list.AbsoluteSize.Y or 1
+		local content = math.ceil(layout.AbsoluteContentSize.Y * k) + 4
+		local h = math.clamp(content, 84, maxH)
+		list.Size = UDim2.fromOffset(list.Size.X.Offset, h)
+		list.CanvasSize = UDim2.fromOffset(0, content)
+		local y = list.Position.Y.Offset + h
+		for _, f in footers do
+			local fr = body:FindFirstChild(f.Name)
+			if fr then
+				local fh = f.Height and f.Height() or fr.Size.Y.Offset
+				fr.Position = UDim2.fromOffset(fr.Position.X.Offset, y)
+				fr.Visible = fh > 0
+				y += fh
+			end
+		end
+		body.Size = UDim2.fromOffset(body.Size.X.Offset, y + 5)
+	end)
+end
 local petList = find(petPanel, "Body.List")
 local petRows = {}
 local function renderPets()
@@ -1143,6 +1179,12 @@ local function renderPets()
 			end
 		end
 	end
+	fitPanel(petPanel, 360, {
+		{ Name = "Footer" },
+		{ Name = "RobuxSlots", Height = function()
+			return (buy1 and buy1.Visible) and 62 or 0
+		end },
+	})
 end
 if petPanel then
 	hookButton(find(petPanel, "Body.Footer.EquipBestButton"), function()
@@ -1233,6 +1275,7 @@ local function renderEggPanel()
 		local price = find(ga, "RobuxPrice")
 		setText(price and text(price), tostring(C.Products.GrowAll and C.Products.GrowAll.Price or ""))
 	end
+	fitPanel(eggPanel, 276, { { Name = "GrowFooter" } })
 end
 if eggPanel then
 	hookButton(find(eggPanel, "Body.GrowFooter.GrowAllButton"), function()
