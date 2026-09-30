@@ -430,6 +430,18 @@ local function rescale()
 			sc.Scale = s
 		end
 		local home = UDim2.new(g:GetAttribute("AX"), g:GetAttribute("OX") * s, g:GetAttribute("AY"), g:GetAttribute("OY") * s)
+		-- touch: lift the bottom-corner HUD clear of the thumbstick (left) and jump button (right)
+		if touchOnly() and kind ~= "window" and kind ~= "modal" and kind ~= "overlay" and g:GetAttribute("AY") == 1 then
+			local small = math.min(size.X, size.Y) <= 500
+			local ax = g:GetAttribute("AX")
+			local lift = 0
+			if ax == 0 then
+				lift = small and size.Y * 0.3 or 190
+			elseif ax == 1 then
+				lift = small and 95 or 150
+			end
+			home += UDim2.fromOffset(0, -lift)
+		end
 		g:SetAttribute("HomeX", home.X.Offset)
 		g:SetAttribute("HomeY", home.Y.Offset)
 		if not g:GetAttribute("Sliding") then
