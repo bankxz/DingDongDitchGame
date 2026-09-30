@@ -1062,25 +1062,33 @@ if rightBody then
 	local hatchB = rightBody:FindFirstChild("Right/HatchingToggle")
 	local petsB = rightBody:FindFirstChild("Right/PetsToggle")
 	-- big screens start with both panels open, phones with them tucked away
-	local t0 = os.clock()
-	while gui.AbsoluteSize.X < 10 and os.clock() - t0 < 3 do
-		task.wait()
-	end
-	local startOpen = not touchOnly() and gui.AbsoluteSize.X >= 1100
-	if eggPanel then
-		eggPanel.Visible = startOpen
-		panelOpen[eggPanel] = startOpen
-		local d = hatchB and onDot(hatchB)
-		if d then
-			d.Visible = startOpen
+	local userToggled = false
+	local function applyStart()
+		if userToggled then
+			return
+		end
+		local startOpen = not touchOnly() and gui.AbsoluteSize.X >= 1100
+		for _, pair in { { eggPanel, hatchB }, { petPanel, petsB } } do
+			local panel, btn = pair[1], pair[2]
+			if panel then
+				panel.Visible = startOpen
+				panelOpen[panel] = startOpen
+				local d = btn and onDot(btn)
+				if d then
+					d.Visible = startOpen
+				end
+			end
 		end
 	end
-	if petPanel then
-		petPanel.Visible = startOpen
-		panelOpen[petPanel] = startOpen
-		local d = petsB and onDot(petsB)
-		if d then
-			d.Visible = startOpen
+	applyStart()
+	-- the viewport can still be settling on the first frames: decide again once it has
+	task.delay(1, applyStart)
+	task.delay(3, applyStart)
+	for _, b in { hatchB, petsB } do
+		if b and b:IsA("GuiButton") then
+			b.Activated:Connect(function()
+				userToggled = true
+			end)
 		end
 	end
 	hookButton(hatchB, function()
