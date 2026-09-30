@@ -16,8 +16,10 @@ import numpy as np
 # L: part length, R: mean radius, flip: a = (1 - t) * L (flow toward loft start)
 # ca / cb: lock length / width, chev: (centre angle, shear) for V-shaped rows
 FUR = {
-    'torso': dict(L=1.40, R=0.30, flip=True, ca=0.20, cb=0.16, chev=(0.0, 0.55), seed=1.0),       # flows to the rear, V along the spine
-    'neck': dict(L=0.60, R=0.22, flip=True, ca=0.16, cb=0.13, chev=(np.pi, 0.75), seed=2.0),     # flows down to the chest, V down the chest
+    'torso': dict(L=1.40, R=0.30, flip=True, ca=0.20, cb=0.16, chev=(0.0, 0.55, 0.9), seed=1.0,   # flows to the rear, V along the spine
+                  jit=0.2, size=(0.85, 0.25)),
+    'neck': dict(L=0.60, R=0.22, flip=True, ca=0.18, cb=0.15, chev=(np.pi, 0.75, 1.1), seed=2.0,  # flows back/down; V only on the chest
+                  jit=0.08, size=(0.92, 0.14)),
     'head': dict(L=0.50, R=0.16, flip=True, ca=0.11, cb=0.09, chev=None, seed=3.0),              # flows back from the face
     'leg_f': dict(L=0.80, R=0.09, flip=False, ca=0.12, cb=0.085, chev=None, seed=5.0),           # flows down
     'leg_h': dict(L=0.90, R=0.10, flip=False, ca=0.13, cb=0.095, chev=None, seed=6.0),
@@ -44,12 +46,12 @@ def fur_coords(part, t, th):
     a = ((1.0 - t) if f['flip'] else t) * f['L']
     b = th * f['R']
     if f['chev'] is not None:
-        c0, k = f['chev']
-        a = a - k * f['R'] * np.abs(wrap_pi(th - c0))
+        c0, k, cap = f['chev']
+        a = a - k * f['R'] * np.minimum(np.abs(wrap_pi(th - c0)), cap)
     return a, b
 
 
-def lock_field(a, b, ca, cb, seed=0.0):
+def lock_field(a, b, ca, cb, seed=0.0, jit=0.3, size=(0.75, 0.45)):
     """Layered, pointed fur locks (shingles).  Returns
     h     0..1 sculpt height (0 at the lock root, max near the pointed tip)
     ridge 0..1 across-lock profile (1 on the lock's centre line)
@@ -58,10 +60,10 @@ def lock_field(a, b, ca, cb, seed=0.0):
     A = a / ca
     row = np.floor(A)
     v = A - row
-    Bc = b / cb + 0.5 * np.mod(row, 2) + 0.3 * _hash2(row, 0.0, seed)
+    Bc = b / cb + 0.5 * np.mod(row, 2) + jit * _hash2(row, 0.0, seed)
     col = np.floor(Bc)
     u = 2 * (Bc - col) - 1
-    size = 0.75 + 0.45 * _hash2(row, col, seed + 1)
+    size = size[0] + size[1] * _hash2(row, col, seed + 1)
     w = np.maximum((1.0 - v) ** 0.6, 1e-3)
     ridge = np.clip(1.0 - (u / w) ** 2, 0, 1)
     h = np.sqrt(ridge) * (v ** 0.65) * size
@@ -73,10 +75,11 @@ def amplitude(part, t, th):
     c = np.cos(th)
     s = np.abs(np.sin(th))
     if part == 'torso':
-        return (0.026 + 0.030 * smoothstep(0.45, 0.90, c) + 0.042 * smoothstep(-0.50, -0.85, c)
-                + 0.016 * smoothstep(0.70, 0.90, t) * smoothstep(0.5, 0.8, s))
+        # softer along the back / belly silhouette lines (no blocky dents)
+        return (0.022 + 0.014 * smoothstep(0.45, 0.90, c) + 0.020 * smoothstep(-0.50, -0.85, c)
+                + 0.014 * smoothstep(0.70, 0.90, t) * smoothstep(0.5, 0.8, s))
     if part == 'neck':
-        return 0.050 + 0.024 * smoothstep(0.4, 0.9, c) + 0.020 * smoothstep(-0.5, -0.9, c)
+        return 0.040 + 0.016 * smoothstep(0.4, 0.9, c) + 0.020 * smoothstep(-0.5, -0.9, c)
     if part == 'head':
         back = 0.026 * smoothstep(0.55, 0.28, t)
         cheek = 0.034 * smoothstep(0.55, 0.80, s) * smoothstep(0.55, 0.35, t) * smoothstep(0.08, 0.2, t) * (c < 0.35)
@@ -94,5 +97,21 @@ def sculpt_height(part, t, th):
         return np.zeros_like(t)
     f = FUR[part]
     a, b = fur_coords(part, t, th)
-    h, ridge, v = lock_field(a, b, f['ca'], f['cb'], f['seed'])
-    return h * amplitude(part, t, th)
+    h, ridge, v = lock_field(a, b, f['ca'], f['cb'], f['seed'], **lock_opts(part))
+    # raised floor: crevices between locks stay shallow, silhouette stays smooth
+    return (0.3 + 0.7 * h) * amplitude(part, t, th)
+
+
+def lock_opts(part):
+    f = FUR[part]
+    return {k: f[k] for k in ('jit', 'size') if k in f}
+
+
+SYM_PARTS = ('torso', 'neck', 'head', 'leg_f', 'leg_h')
+
+
+def mirror_th(part_names, X, th):
+    """Right-side samples use the left side's loft angle (th -> -th), so fur and
+    markings are exact mirror images left/right."""
+    m = np.isin(part_names, SYM_PARTS) & (X < 0)
+    return np.where(m, -th, th)

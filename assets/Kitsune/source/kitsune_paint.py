@@ -131,8 +131,10 @@ def paint_samples(s, ctx):
     def sel(*names):
         return np.isin(s.part, [P[k] for k in names])
 
-    t, th = s.t, s.th
     X, Y, Z = s.P[:, 0], s.P[:, 1], s.P[:, 2]
+    inv_p = {v: k for k, v in P.items()}
+    t = s.t
+    th = kf.mirror_th(np.array([inv_p[int(q)] for q in s.part]), X, s.th)     # exact left/right mirror
     nz = s.N[:, 2]
     phi = np.arccos(np.clip(np.cos(th), -1, 1))          # 0 dorsal .. pi ventral
     toplight = 0.88 + 0.16 * nz
@@ -143,7 +145,7 @@ def paint_samples(s, ctx):
         lit ridge toward each lock tip, dark crevice just past the tip."""
         f = kf.FUR[part]
         a, b = kf.fur_coords(part, t[m], th[m] if th_override is None else th_override)
-        hh, ridge, v = kf.lock_field(a, b, f['ca'], f['cb'], f['seed'])
+        hh, ridge, v = kf.lock_field(a, b, f['ca'], f['cb'], f['seed'], **kf.lock_opts(part))
         sh = np.clip(0.35 + 0.55 * np.clip(hh, 0, 1) + 0.15 * ridge, 0, 1)
         sh = 1 - contrast * (1 - sh)
         c = lerp3(PURPLE_DK, base, 0.25 + 0.75 * sh)
@@ -212,9 +214,10 @@ def paint_samples(s, ctx):
         mk = np.maximum(mk, soft_in(x / 0.040 + np.abs(y - (ey + 0.080)) / 0.075) * topw)
         mk = np.maximum(mk, soft_in(x / 0.022 + np.abs(y - (ey + 0.175)) / 0.036) * topw)
         # bold almond outline around the eye with a pointed extension off the outer corner
-        e = (u / 0.068) ** 2 + ((vv + 0.003) / 0.036) ** 2
+        vv_c = vv + 0.004 + 0.011 * np.clip(-u / 0.078, 0, 1) ** 1.5 - 0.004 * np.clip(u / 0.078, 0, 1)
+        e = (u / 0.089) ** 2 + (vv_c / 0.027) ** 2
         mk = np.maximum(mk, smoothstep(0.98, 1.10, e) * smoothstep(1.80, 1.62, e) * near)
-        mk = np.maximum(mk, stroke_mask(u, vv, [(0.066, 0.008), (0.13, 0.030)], 0.017, 0.006, seed=22) * near)
+        mk = np.maximum(mk, stroke_mask(u, vv, [(0.084, 0.002), (0.15, 0.022)], 0.014, 0.005, seed=22) * near)
         # bold brow wedge above the eye, rising toward the ear (V toward the forehead)
         mk = np.maximum(mk, stroke_mask(u, vv, [(-0.065, 0.050), (0.025, 0.066), (0.120, 0.096)], 0.018, 0.007, seed=21)
                         * (np.abs(ww) < 0.08))

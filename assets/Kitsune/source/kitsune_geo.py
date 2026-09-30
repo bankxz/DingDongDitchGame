@@ -65,6 +65,7 @@ class MeshData:
         self.face_island = []
         self.island_parts = {}
         self._island = -1
+        self.hug = []          # accessory pieces to seat onto the sculpted surface
 
     # ------------------------------------------------------------------ basics
     def new_island(self, part):
@@ -214,6 +215,7 @@ def build_tube(md, part, pts, radius, n, weight_fn, closed=False, radii=None, ca
     """Rope / string tube through pts."""
     pts = [np.asarray(p, float) for p in pts]
     P = len(pts)
+    v_start = len(md.verts)
     isl = md.new_island(part)
     first = len(md.faces)
     Ts = []
@@ -279,6 +281,7 @@ def build_tube(md, part, pts, radius, n, weight_fn, closed=False, radii=None, ca
     if score < 0:
         for fi in range(first, len(md.faces)):
             md.faces[fi].reverse(); md.face_uv[fi].reverse(); md.face_at[fi].reverse()
+    return dict(rings=rings, pts=pts, v0=v_start, v1=len(md.verts), radius=radius, closed=closed)
 
 
 def build_sphere(md, part, center, radii, seg, rings, weight, axis_up=None, axis_side=None):
@@ -566,7 +569,7 @@ def smooth_rows(keys, n):
 def eye_frame(head, sx):
     """Analytic eye centre / normal / slanted long axis on the source head."""
     p, n, T = head.point(EYE_S, sx * EYE_TH, 0.0)
-    ref_ax = v3(sx * 0.75, 0.55, 0.65)          # outer corner out, back and up -> inner corner low
+    ref_ax = v3(sx * 0.75, 0.55, 0.75)          # outer corner out, back and up -> inner corner low (aggressive)
     along = norm(ref_ax - np.dot(ref_ax, n) * n)
     acr = np.cross(n, along)
     acr = norm(acr) * (1 if acr[2] > 0 else -1)
@@ -681,38 +684,49 @@ def build_kitsune():
         tails.append((spec, loft, jt))
 
     # ---------------------------------------------------------------- harness
-    # (clearances allow for the sculpted fur depth)
+    # Built on the source surfaces, then SEATED onto the sculpted fur after the
+    # sculpt (kitsune_sculpt.hug_accessories): every rope ring / rigid group is
+    # pulled to  surface + normal * (clearance + designed lift).
     rope_r = 0.025
     coll_s = 0.14
     coll = [neck.point(coll_s, TAU * k / 16, rope_r * 2.2 + 0.05)[0] for k in range(16)]
-    build_tube(ma, 'rope', coll, rope_r, 6, lambda i, t, p: {'Neck1': 0.5, 'Chest': 0.5}, closed=True)
+    tb = build_tube(ma, 'rope', coll, rope_r, 6, lambda i, t, p: {'Neck1': 0.5, 'Chest': 0.5}, closed=True)
+    ma.hug.append(dict(kind='tube', tube=tb, lift=[0.0] * len(tb['rings'])))
     back_pt = lambda y, deg, off: torso.point(torso_s(y), math.radians(deg), off)[0]
     F0 = neck.point(coll_s, 0.0, rope_r * 2.2 + 0.05)[0]
     LOOP_Y0, LOOP_Y1 = -0.42, KNOT[1] - 0.02
     for sx in (1, -1):
-        pts = []
+        pts, lifts = [], []
         for k in range(20):
             a = TAU * k / 20
             f = 0.5 - 0.5 * math.cos(a)
             y = LOOP_Y0 + (LOOP_Y1 - LOOP_Y0) * f
             up = math.sin(a)
             deg = sx * (8 + 20 * math.sin(math.pi * f) * (1.0 if up > 0 else 0.55))
-            clear = 0.055 + 0.075 * max(0.0, up) * math.sin(math.pi * f) ** 0.6
-            pts.append(back_pt(y, deg, clear))
-        build_tube(ma, 'rope', pts, rope_r, 6, lambda i, t, p: {'Chest': 1.0}, closed=True)
+            lift = 0.035 * max(0.0, up) * math.sin(math.pi * f) ** 0.6       # gentle rise of the upper arc
+            pts.append(back_pt(y, deg, 0.06 + lift))
+            lifts.append(lift)
+        tb = build_tube(ma, 'rope', pts, rope_r, 6, lambda i, t, p: {'Chest': 1.0}, closed=True)
+        ma.hug.append(dict(kind='tube', tube=tb, lift=lifts))
     front = back_pt(LOOP_Y0, 0.0, 0.06)
-    build_tube(ma, 'rope', catmull_open([F0, (F0 + front) / 2 + v3(0, 0, 0.03), front], 3), rope_r * 0.9, 6,
-               lambda i, t, p: {'Chest': 0.6, 'Neck1': 0.4})
+    cord = catmull_open([F0, (F0 + front) / 2 + v3(0, 0, 0.03), front], 3)
+    tb = build_tube(ma, 'rope', cord, rope_r * 0.9, 6, lambda i, t, p: {'Chest': 0.6, 'Neck1': 0.4})
+    ma.hug.append(dict(kind='tube', tube=tb, lift=[0.0] * len(tb['rings'])))
+    v0 = len(ma.verts)
     build_sphere(ma, 'knot', KNOT + v3(0, 0, 0.04), (0.060, 0.050, 0.040), 6, 3, {'Spine': 0.5, 'Chest': 0.5})
+    ma.hug.append(dict(kind='rigid', v0=v0, v1=len(ma.verts), anchor=KNOT + v3(0, 0, 0.04), clear=0.030))
     ks = torso_s(KNOT[1])
+    tassel_tops = {sx: torso.point(ks, sx * math.radians(82), rope_r * 1.4 + 0.05)[0] for sx in (1, -1)}
     for sx in (1, -1):
         pts = catmull_open([KNOT + v3(sx * 0.03, 0, 0.02),
                             torso.point(ks, sx * math.radians(45), rope_r * 1.4 + 0.03)[0],
                             torso.point(ks, sx * math.radians(78), rope_r * 1.4 + 0.03)[0]], 3)
-        build_tube(ma, 'rope', pts, rope_r * 0.85, 5, lambda i, t, p: {'Spine': 0.5, 'Chest': 0.5})
-    tassel_tops = {sx: torso.point(ks, sx * math.radians(82), rope_r * 1.4 + 0.05)[0] for sx in (1, -1)}
-    gem_p, gem_n, _ = neck.point(0.0, math.pi, 0.09)
-    gem_p = gem_p + v3(0, -0.02, -0.03)
+        tb = build_tube(ma, 'rope', pts, rope_r * 0.85, 5, lambda i, t, p: {'Spine': 0.5, 'Chest': 0.5})
+        ma.hug.append(dict(kind='tube', tube=tb, lift=[0.0] * len(tb['rings'])))
+    # chest gem: raised onto the collar front / upper chest
+    gv0 = len(ma.verts)
+    gem_p, gem_n, _ = neck.point(0.13, math.pi, 0.09)
+    gem_p = gem_p + v3(0, -0.01, -0.035)
     for sx in (1, -1):
         a = neck.point(coll_s, sx * math.radians(150), rope_r * 2.2 + 0.05)[0]
         build_tube(ma, 'rope', [a, gem_p + v3(sx * 0.07, -0.01, 0.09)], rope_r * 0.9, 5,
@@ -740,10 +754,13 @@ def build_kitsune():
         build_tube(ma, 'rope', [gem_p + fr_side * sx * 0.08, bp], 0.008, 4, lambda i, t, p: frw)
         build_sphere(ma, 'bead', bp + v3(0, 0, -0.016), (0.022, 0.022, 0.022), 6, 3, frw)
         build_cone(ma, 'tassel', bp + v3(0, 0, -0.04), bp + v3(0, 0, -0.12), 0.019, 5, frw)
+    # the whole ornament moves as one piece so its back plate rests on the chest fur
+    ma.hug.append(dict(kind='rigid', v0=gv0, v1=len(ma.verts), anchor=gem_p - fwd * 0.04, clear=0.004))
     for sx in (1, -1):
         S = '_L' if sx > 0 else '_R'
         top = tassel_tops[sx]
         tw_ = {'Tassel' + S: 1.0}
+        tv0 = len(ma.verts)
         build_tube(ma, 'rope', [top + v3(0, 0, 0.01), top + v3(0, 0, -0.10)], 0.010, 4,
                    lambda i, t, p, S=S: {'Spine': 0.5, 'Chest': 0.5} if i == 0 else {'Tassel' + S: 1.0})
         build_sphere(ma, 'bead', top + v3(0, 0, -0.14), (0.040, 0.040, 0.043), 6, 3, tw_)
@@ -752,6 +769,8 @@ def build_kitsune():
         build_sphere(ma, 'tassel', top + v3(0, 0, -0.31), (0.028, 0.028, 0.022), 6, 3, tw_)
         tq = [top + v3(0, 0, -0.31), top + v3(0, 0, -0.38), top + v3(0, 0, -0.52)]
         build_tube(ma, 'tassel', tq, 0.032, 6, lambda i, t, p: tw_, radii=[0.028, 0.034, 0.038], cap_ends=True)
+        # tassel hangs plumb from where the side strand meets the flank
+        ma.hug.append(dict(kind='rigid', v0=tv0, v1=len(ma.verts), anchor=top, clear=0.045, horizontal_only=True))
 
     info = dict(torso=torso, neck=neck, head=head, tails=tails, toe_tips=toe_tips, tassel_tops=tassel_tops,
                 eye=(EYE_S, EYE_TH))

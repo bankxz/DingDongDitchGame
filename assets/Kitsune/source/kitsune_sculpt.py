@@ -151,6 +151,8 @@ def build_sculpted_body(md, info, S, target_tris, voxel=0.0085, smooth_iters=5, 
     idx, bary = src.nearest(co)
     part, t, th = src.params(idx, bary)
     disp = np.zeros(len(co))
+    names = np.array([INV_PART[int(p)] for p in part])
+    th = kf.mirror_th(names, co[:, 0], th)                # left/right mirror-symmetric fur
     for p in np.unique(part):
         m = part == p
         name = INV_PART[int(p)]
@@ -161,12 +163,24 @@ def build_sculpted_body(md, info, S, target_tris, voxel=0.0085, smooth_iters=5, 
     me1.update()
     ob1 = link(me1, 'KS_sculpted')
 
-    # 5 decimate to budget
+    # 5 exact left/right symmetry, light post-sculpt smoothing (no blocky dents
+    #   on the silhouette), then a symmetric decimate to the budget
+    mir = ob1.modifiers.new('Mirror', 'MIRROR')
+    mir.use_axis = (True, False, False)
+    mir.use_bisect_axis = (True, False, False)
+    mir.use_clip = True
+    mir.use_mirror_merge = True
+    mir.merge_threshold = 0.002 * S
+    sm2 = ob1.modifiers.new('Smooth', 'SMOOTH')
+    sm2.factor = 0.5
+    sm2.iterations = 2
     cur = sum(len(p.vertices) - 2 for p in me1.polygons)
     dec = ob1.modifiers.new('Decimate', 'DECIMATE')
     dec.decimate_type = 'COLLAPSE'
     dec.ratio = min(1.0, target_tris / cur)
     dec.use_collapse_triangulate = True
+    dec.use_symmetry = True
+    dec.symmetry_axis = 'X'
     me2 = evaluated_copy(ob1, 'Kitsune_Body')
     log('SCULPT decimated tris', sum(len(p.vertices) - 2 for p in me2.polygons), 'from', cur)
     for o in (ob0, ob1):
@@ -359,8 +373,9 @@ def add_eyes(ma, info, body_ob, S):
             for k in range(K):
                 a = kg.TAU * k / K
                 ca_, sa_ = math.cos(a), math.sin(a)
-                h = 0.030 * abs(sa_) ** 1.05 * (1.0 if sa_ > 0 else 0.62)
-                q = c + (along * 0.058 * ca_ + acr * h * np.sign(sa_) - acr * 0.010 * max(0.0, -ca_)) * sc_
+                # narrower + wider almond, pinched sharp outer corner, inner corner angled down
+                h = 0.021 * abs(sa_) ** 1.3 * (1.0 if sa_ > 0 else 0.66) * (1.0 - 0.45 * max(0.0, ca_) ** 3)
+                q = c + (along * 0.078 * ca_ + acr * h * np.sign(sa_) - acr * 0.017 * max(0.0, -ca_) ** 1.5) * sc_
                 l2, n2, _, _ = bvh.find_nearest(Vector(q * S))
                 ring.append(ma.add_vert(np.array(l2) / S + np.array(n2) * lift, {'Head': 1.0}))
             rings.append((ring, sc_))
@@ -381,3 +396,56 @@ def add_eyes(ma, info, body_ob, S):
             ma.add_face([rl[k], rl[k2], cvt], [uvp(a, sl), uvp(b, sl), (.5, .5)], [(sl, a), (sl, b), (0, 0)], 'eye', isl)
         ma.orient_piece(first, c - sn * 0.05)
     return frames
+
+
+def body_bvh(body_ob):
+    me = body_ob.data
+    co = np.zeros(len(me.vertices) * 3); me.vertices.foreach_get('co', co)
+    tris = []
+    for p in me.polygons:
+        vs = list(p.vertices)
+        for j in range(1, len(vs) - 1):
+            tris.append((vs[0], vs[j], vs[j + 1]))
+    return BVHTree.FromPolygons([tuple(v) for v in co.reshape(-1, 3)], tris)
+
+
+def hug_accessories(ma, body_ob, S, gap=0.004):
+    """Seat the harness on the sculpted fur: every rope ring is moved so its
+    centre sits at  surface + normal * (rope radius + gap + designed lift);
+    rigid pieces (knot, chest ornament, tassels) move as one block."""
+    bvh = body_bvh(body_ob)
+
+    def target(p_unit, clear):
+        loc, n, _, _ = bvh.find_nearest(Vector(np.asarray(p_unit) * S))
+        return np.array(loc) / S + np.array(n) * clear
+
+    moved = 0
+    for h in ma.hug:
+        if h['kind'] == 'tube':
+            tb = h['tube']
+            rings, pts = tb['rings'], tb['pts']
+            d = np.array([target(pts[i], tb['radius'] + gap + h['lift'][i]) - pts[i] for i in range(len(rings))])
+            # smooth the offsets along the rope so it follows the fur without kinks
+            for _ in range(3):
+                if tb['closed']:
+                    d = 0.25 * np.roll(d, 1, 0) + 0.5 * d + 0.25 * np.roll(d, -1, 0)
+                else:
+                    d[1:-1] = 0.25 * d[:-2] + 0.5 * d[1:-1] + 0.25 * d[2:]
+            in_ring = set()
+            for ring, dd in zip(rings, d):
+                for vi in ring:
+                    ma.verts[vi] = ma.verts[vi] + dd
+                    in_ring.add(vi)
+            for vi in range(tb['v0'], tb['v1']):          # cap vertices follow the nearest end ring
+                if vi not in in_ring:
+                    near = 0 if np.linalg.norm(ma.verts[vi] - pts[0]) < np.linalg.norm(ma.verts[vi] - pts[-1]) else -1
+                    ma.verts[vi] = ma.verts[vi] + d[near]
+            moved += 1
+        else:
+            dd = target(h['anchor'], h['clear']) - np.asarray(h['anchor'])
+            if h.get('horizontal_only'):
+                dd[2] = 0.0
+            for vi in range(h['v0'], h['v1']):
+                ma.verts[vi] = ma.verts[vi] + dd
+            moved += 1
+    return moved

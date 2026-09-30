@@ -155,12 +155,7 @@ def gather_triangles(ob):
 def paint_textures(ob, lofts, outdir):
     tri = gather_triangles(ob)
     head = lofts['head']
-    eye_c, eye_n, _ = head.point(lofts['eye'][0], lofts['eye'][1], 0.0)
-    ref = np.array([0.75, 0.55, 0.65]) * np.array([np.sign(eye_c[0]) or 1, 1, 1])
-    along = ref - np.dot(ref, eye_n) * eye_n
-    along /= np.linalg.norm(along)
-    acr = np.cross(eye_n, along)
-    acr = acr / np.linalg.norm(acr) * (1 if acr[2] > 0 else -1)
+    eye_c, eye_n, along, acr = kg.eye_frame(head, 1)       # same frame the eyes are built with
     ctx = {'eye_center': eye_c, 'eye_n': eye_n, 'eye_along': along, 'eye_acr': acr,
            'head_line': np.array([[c[1], c[2]] for c in head.c]), 'nose_y': float(kg.HEAD_KEYS[-1, 0]) - 0.033}
     img, em, ro, nrm, face_reg, has = kp.paint_all(tri['uv'], tri['t'], tri['th'], tri['P'], tri['N'], tri['part'],
@@ -254,6 +249,7 @@ def main():
     body_target = TRI_BUDGET - md_acc.tri_count() - 2 * 60
     body = ks.build_sculpted_body(md_body, lofts, WORLD_SCALE, body_target)
     ks.scale_uv_islands(body, UV_IMPORTANCE, WORLD_SCALE)
+    print('HUG seated accessory pieces', ks.hug_accessories(md_acc, body, WORLD_SCALE))
     ks.add_eyes(md_acc, lofts, body, WORLD_SCALE)
     acc = build_mesh(md_acc, 'Kitsune_Acc')
     ob = join_objects([body, acc], 'Kitsune')
