@@ -119,7 +119,7 @@ def eye_sculpt(co_unit, part, head):
     for sx in (1, -1):
         p, n, along, acr = kg.eye_frame(head, sx)
         d = np.linalg.norm(co_unit - p, axis=1)
-        sock = -0.016 * np.clip(1 - d / 0.080, 0, 1) ** 2
+        sock = -0.020 * np.clip(1 - (d / 0.090) ** 2, 0, 1) ** 1.5
         B = p + acr * 0.058 + along * 0.02 + n * 0.0
         db = np.linalg.norm(co_unit - B, axis=1)
         brow = 0.016 * np.clip(1 - db / 0.060, 0, 1) ** 2
@@ -315,22 +315,34 @@ def add_eyes(ma, info, body_ob, S):
         frames[sx] = (c, sn, along, acr)
         isl = ma.new_island('eye')
         first = len(ma.faces)
-        rim = []
         K = 12
-        for k in range(K):
-            a = kg.TAU * k / K
-            ca_, sa_ = math.cos(a), math.sin(a)
-            h = 0.030 * abs(sa_) ** 1.05 * (1.0 if sa_ > 0 else 0.62)
-            q = c + along * 0.058 * ca_ + acr * h * np.sign(sa_) - acr * 0.010 * max(0.0, -ca_)
-            l2, n2, _, _ = bvh.find_nearest(Vector(q * S))
-            qq = np.array(l2) / S + np.array(n2) * 0.003
-            rim.append(ma.add_vert(qq, {'Head': 1.0}))
-        cvt = ma.add_vert(c + sn * 0.011 + along * 0.004, {'Head': 1.0})
+        rings = []
+        # (scale of the almond outline, lift above the surface): the lens follows the
+        # socket surface everywhere, so the head can never poke through it
+        for sc_, lift in ((1.0, 0.004), (0.68, 0.008), (0.36, 0.010)):
+            ring = []
+            for k in range(K):
+                a = kg.TAU * k / K
+                ca_, sa_ = math.cos(a), math.sin(a)
+                h = 0.030 * abs(sa_) ** 1.05 * (1.0 if sa_ > 0 else 0.62)
+                q = c + (along * 0.058 * ca_ + acr * h * np.sign(sa_) - acr * 0.010 * max(0.0, -ca_)) * sc_
+                l2, n2, _, _ = bvh.find_nearest(Vector(q * S))
+                ring.append(ma.add_vert(np.array(l2) / S + np.array(n2) * lift, {'Head': 1.0}))
+            rings.append((ring, sc_))
+        l2, n2, _, _ = bvh.find_nearest(Vector(c * S))
+        cvt = ma.add_vert(np.array(l2) / S + np.array(n2) * 0.011, {'Head': 1.0})
+        uvp = lambda a, r: (.5 + .5 * r * math.cos(a), .5 + .5 * r * math.sin(a))
+        for ri in range(len(rings) - 1):
+            (ra, sa), (rb, sb) = rings[ri], rings[ri + 1]
+            for k in range(K):
+                k2 = (k + 1) % K
+                a, b = kg.TAU * k / K, kg.TAU * k2 / K
+                ma.add_face([ra[k], ra[k2], rb[k2], rb[k]], [uvp(a, sa), uvp(b, sa), uvp(b, sb), uvp(a, sb)],
+                            [(sa, a), (sa, b), (sb, b), (sb, a)], 'eye', isl)
+        rl, sl = rings[-1]
         for k in range(K):
             k2 = (k + 1) % K
             a, b = kg.TAU * k / K, kg.TAU * k2 / K
-            ma.add_face([rim[k], rim[k2], cvt], [(.5 + .5 * math.cos(a), .5 + .5 * math.sin(a)),
-                                                 (.5 + .5 * math.cos(b), .5 + .5 * math.sin(b)), (.5, .5)],
-                        [(1, a), (1, b), (0, 0)], 'eye', isl)
+            ma.add_face([rl[k], rl[k2], cvt], [uvp(a, sl), uvp(b, sl), (.5, .5)], [(sl, a), (sl, b), (0, 0)], 'eye', isl)
         ma.orient_piece(first, c - sn * 0.05)
     return frames

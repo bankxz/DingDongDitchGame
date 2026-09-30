@@ -27,7 +27,7 @@ import kitsune_sculpt as ks       # noqa: E402
 
 WORLD_SCALE = 4.0                 # shoulder height in Blender units (= studs in Roblox)
 TRI_BUDGET = 9900                 # hard limit 10k
-TEX_SIZE = 1024
+TEX_SIZE = 2048
 FPS = 30
 
 MATERIAL_SLOTS = [                # (slot name, region id)
@@ -44,7 +44,7 @@ PART_DEFAULT_REGION = {
     'tuft_tip': kp.REG_FUR, 'tuft_cheek': kp.REG_FUR,
 }
 UV_IMPORTANCE = {
-    'head': 3.2, 'eye': 3.5, 'gem': 2.5, 'frame': 2.0, 'ear': 1.8, 'neck': 1.2, 'torso': 1.1, 'tail': 0.95,
+    'head': 3.4, 'eye': 4.0, 'gem': 2.5, 'frame': 2.0, 'ear': 1.8, 'neck': 1.3, 'torso': 1.2, 'tail': 0.75,
     'leg_f': 1.1, 'leg_h': 1.1, 'paw': 1.4, 'claw': 0.6, 'tuft': 0.8, 'tuft_cyan': 1.3, 'spike': 0.8,
     'tail_tuft': 0.8, 'tuft_tip': 1.0, 'tuft_cheek': 1.2, 'rope': 0.9, 'knot': 0.9, 'bead': 1.3, 'tassel': 1.2,
 }
@@ -251,7 +251,7 @@ def main():
     md_body, md_acc, lofts = kg.build_kitsune()
     kg.add_claws(md_acc, lofts['toe_tips'])
     # budget: body gets whatever the accessories (+ eyes) leave under the limit
-    body_target = TRI_BUDGET - md_acc.tri_count() - 60
+    body_target = TRI_BUDGET - md_acc.tri_count() - 2 * 60
     body = ks.build_sculpted_body(md_body, lofts, WORLD_SCALE, body_target)
     ks.scale_uv_islands(body, UV_IMPORTANCE)
     ks.add_eyes(md_acc, lofts, body, WORLD_SCALE)

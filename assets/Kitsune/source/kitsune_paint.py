@@ -70,6 +70,11 @@ def seg_dist(px, py, ax, ay, bx, by):
     return np.hypot(px - ax - h * dx, py - ay - h * dy), h
 
 
+def soft_in(v, w=0.10):
+    """Anti-aliased 'v < 1' (soft edge of relative width w)."""
+    return smoothstep(1.0 + w * 0.5, 1.0 - w * 0.5, v)
+
+
 def stroke_mask(px, py, pts, w0, w1, jag=0.0, seed=0.0):
     """Tapered polyline stroke (lightning / flame). Returns 0..1 coverage."""
     L = [0.0]
@@ -85,7 +90,7 @@ def stroke_mask(px, py, pts, w0, w1, jag=0.0, seed=0.0):
         if jag:
             w = w * (1.0 + jag * (vnoise(px * 60, py * 60, seed) - 0.5))
         best = np.minimum(best, d / np.maximum(w, 1e-5))
-    return 1.0 - smoothstep(0.85, 1.05, best)
+    return 1.0 - smoothstep(0.88, 1.08, best)
 
 
 def fur_clumps(a, b, ca, cb, seed=0.0):
@@ -161,7 +166,7 @@ def paint_samples(s, ctx):
         ]
         for i, (pts, w) in enumerate(strokes):
             mk = np.maximum(mk, stroke_mask(ps, pp, pts, w, w * 0.45, jag=0.1, seed=i))
-        mk = np.maximum(mk, ((np.abs(ps - 0.14) / 0.055 + np.abs(pp) / 0.04) < 1).astype(float))    # rump diamond
+        mk = np.maximum(mk, soft_in(np.abs(ps - 0.14) / 0.055 + np.abs(pp) / 0.04))    # rump diamond
         c = lerp3(c, CYAN, mk)
         col[m], hgt[m] = c * toplight[m][:, None], h
         emi[m] = mk
@@ -199,15 +204,16 @@ def paint_samples(s, ctx):
         u = d @ A
         vv = d @ C
         ww = d @ Nn
-        near = np.abs(ww) < 0.05
+        near = smoothstep(0.06, 0.045, np.abs(ww))
         # cyan nose tip
         mk = np.maximum(mk, smoothstep(ctx['nose_y'] + 0.030, ctx['nose_y'] + 0.020, y))    # just the nose tip
         # bold forehead diamond + crest diamond (centred)
-        mk = np.maximum(mk, ((x / 0.040 + np.abs(y - (ey + 0.080)) / 0.075) < 1) & top)
-        mk = np.maximum(mk, ((x / 0.022 + np.abs(y - (ey + 0.175)) / 0.036) < 1) & top)
+        topw = smoothstep(0.15, 0.35, nzh)
+        mk = np.maximum(mk, soft_in(x / 0.040 + np.abs(y - (ey + 0.080)) / 0.075) * topw)
+        mk = np.maximum(mk, soft_in(x / 0.022 + np.abs(y - (ey + 0.175)) / 0.036) * topw)
         # bold almond outline around the eye with a pointed extension off the outer corner
         e = (u / 0.068) ** 2 + ((vv + 0.003) / 0.036) ** 2
-        mk = np.maximum(mk, ((e > 1.05) & (e < 1.70) & near).astype(float))
+        mk = np.maximum(mk, smoothstep(0.98, 1.10, e) * smoothstep(1.80, 1.62, e) * near)
         mk = np.maximum(mk, stroke_mask(u, vv, [(0.066, 0.008), (0.13, 0.030)], 0.017, 0.006, seed=22) * near)
         # bold brow wedge above the eye, rising toward the ear (V toward the forehead)
         mk = np.maximum(mk, stroke_mask(u, vv, [(-0.065, 0.050), (0.025, 0.066), (0.120, 0.096)], 0.018, 0.007, seed=21)
@@ -288,7 +294,7 @@ def paint_samples(s, ctx):
         dia = np.zeros(m.sum())
         for tc, ac in ((0.46, 0.0), (0.46, np.pi)):
             da = np.abs(((a - ac + np.pi) % (2 * np.pi)) - np.pi)
-            dia = np.maximum(dia, ((np.abs(tt - tc) / 0.035 + da / 0.25) < 1).astype(float))
+            dia = np.maximum(dia, soft_in(np.abs(tt - tc) / 0.035 + da / 0.25))
         base = lerp3(base, CYAN, dia * (1 - cy))
         c = lerp3(base, cc, cy)
         col[m], hgt[m] = c, np.where(cy > 0.5, h * 0.5, h)
