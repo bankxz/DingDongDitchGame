@@ -139,21 +139,20 @@ def paint_samples(s, ctx):
         sh = 1 - contrast * (1 - sh)
         c = lerp3(PURPLE_DK, base, 0.30 + 0.70 * sh)
         c = lerp3(c, PURPLE_LT, np.clip(sh - 0.7, 0, 1) * 1.3)
-        c = lerp3(c, PURPLE_DK * 0.7, gap * 0.6 * contrast)
+        c = lerp3(c, PURPLE_DK * 0.8, gap * 0.35 * contrast)
         return c, h
 
     # torso -----------------------------------------------------------------
     # metric loft coordinates: ps = 0 (rump) .. 1.25 (chest), pp = 0 (spine) .. 0.94 (belly)
     m = sel('torso')
     if m.any():
-        c, h = fur(m, 1.40, 0.25, -1, seed=1, ca=0.22, cb=0.17)
-        ps, pp = t[m] * 1.40, phi[m] * 0.25       # ps: 0 rump .. 1.4 chest, pp: 0 spine .. 0.79 belly
+        c, h = fur(m, 1.45, 0.25, -1, seed=1, ca=0.22, cb=0.17)
+        ps, pp = t[m] * 1.45, phi[m] * 0.25       # ps: 0 rump .. 1.4 chest, pp: 0 spine .. 0.79 belly
         mk = np.zeros(m.sum())
         strokes = [   # clean lightning bolts (correction sheet side panels)
             ([(1.25, 0.50), (1.12, 0.40), (1.02, 0.44), (0.86, 0.34), (0.74, 0.38), (0.58, 0.30)], 0.032),  # flank bolt
             ([(1.22, 0.30), (1.15, 0.22), (1.20, 0.14)], 0.030),                                              # shoulder
             ([(0.36, 0.44), (0.28, 0.34), (0.33, 0.26), (0.25, 0.17)], 0.034),                                # haunch
-            ([(1.34, 0.66), (1.26, 0.58), (1.31, 0.50)], 0.030),                                              # chest side
         ]
         for i, (pts, w) in enumerate(strokes):
             mk = np.maximum(mk, stroke_mask(ps, pp, pts, w, w * 0.45, jag=0.1, seed=i))
@@ -181,32 +180,39 @@ def paint_samples(s, ctx):
     # face mask designed relative to the eye centre E (reference close-ups)
     m = sel('head')
     if m.any():
-        c, h = fur(m, 0.52, 0.16, -1, base=PURPLE_HEAD, seed=3, ca=0.12, cb=0.09, contrast=0.35)
+        c, h = fur(m, 0.55, 0.16, -1, base=PURPLE_HEAD, seed=3, ca=0.14, cb=0.10, contrast=0.15)
         x, y, z = np.abs(X[m]), Y[m], Z[m]
         nzh = s.N[m, 2]
         E = ctx['eye_center']
         ex, ey, ez = abs(E[0]), E[1], E[2]
         mk = np.zeros(m.sum())
         top = nzh > 0.25
+        # eye-local frame (mirrored to the left side): u toward the back/up along the
+        # slanted eye, v across it (up), w out of the surface
+        A, C, Nn = ctx['eye_along'], ctx['eye_acr'], ctx['eye_n']
+        d = np.stack([x - ex, y - ey, z - ez], 1)
+        u = d @ A
+        vv = d @ C
+        ww = d @ Nn
+        near = np.abs(ww) < 0.05
         # cyan nose tip
-        mk = np.maximum(mk, smoothstep(0.950, 0.962, t[m]))
-        # forehead diamond + small crest diamond (clean, centred)
-        mk = np.maximum(mk, ((x / 0.026 + np.abs(y - (ey + 0.070)) / 0.052) < 1) & top)
-        mk = np.maximum(mk, ((x / 0.016 + np.abs(y - (ey + 0.160)) / 0.026) < 1) & top)
-        # brow wedge: rises from above the inner eye corner out toward the ear
-        mk = np.maximum(mk, stroke_mask(x, y, [(0.030, ey - 0.005), (0.095, ey + 0.045), (0.160, ey + 0.100)],
-                                        0.011, 0.005, seed=21) * (nzh > 0.05))
-        # almond eye outline (thick at the outer corner) + streak sweeping back
-        de = np.sqrt(((y - ey) / 0.066) ** 2 + ((z - ez) / 0.042) ** 2 + ((x - ex) / 0.07) ** 2)
-        mk = np.maximum(mk, ((de > 1.02) & (de < 1.17 + 0.10 * (y > ey))).astype(float))
-        mk = np.maximum(mk, stroke_mask(y, z, [(ey + 0.05, ez + 0.015), (ey + 0.11, ez + 0.045), (ey + 0.16, ez + 0.06)],
-                                        0.010, 0.004, seed=22) * (x > ex - 0.03))
-        # mask lines: from under the inner eye corner down the snout toward the nose
-        mk = np.maximum(mk, stroke_mask(y, z, [(ey - 0.035, ez - 0.03), (ey - 0.11, ez - 0.075), (ey - 0.19, ez - 0.115)],
-                                        0.010, 0.004, seed=23) * (x > 0.03))
-        # cheek streak under the eye into the cheek ruff
-        mk = np.maximum(mk, stroke_mask(y, z, [(ey + 0.01, ez - 0.055), (ey + 0.08, ez - 0.075), (ey + 0.14, ez - 0.06)],
-                                        0.009, 0.004, seed=24) * (x > ex - 0.02))
+        mk = np.maximum(mk, smoothstep(0.968, 0.978, t[m]))
+        # forehead diamond + small crest diamond (centred)
+        mk = np.maximum(mk, ((x / 0.026 + np.abs(y - (ey + 0.075)) / 0.055) < 1) & top)
+        mk = np.maximum(mk, ((x / 0.016 + np.abs(y - (ey + 0.165)) / 0.028) < 1) & top)
+        # sharp eye outline following the slanted lens, open-ended streak off the outer corner
+        e = (u / 0.064) ** 2 + ((vv + 0.004) / 0.030) ** 2
+        mk = np.maximum(mk, ((e > 1.05) & (e < 1.55) & near).astype(float))
+        mk = np.maximum(mk, stroke_mask(u, vv, [(0.062, 0.006), (0.12, 0.022), (0.18, 0.040)], 0.011, 0.004, seed=22) * near)
+        # brow slash parallel above the eye, rising toward the ear
+        mk = np.maximum(mk, stroke_mask(u, vv, [(-0.050, 0.050), (0.040, 0.066), (0.130, 0.092)], 0.011, 0.004, seed=21)
+                        * (np.abs(ww) < 0.07))
+        # mask line from under the inner corner down the snout toward the nose
+        mk = np.maximum(mk, stroke_mask(u, vv, [(-0.050, -0.030), (-0.120, -0.052), (-0.200, -0.070)], 0.010, 0.004,
+                                        seed=23) * (np.abs(ww) < 0.08) * (x > 0.025))
+        # cheek line under the eye into the cheek ruff
+        mk = np.maximum(mk, stroke_mask(u, vv, [(0.000, -0.045), (0.070, -0.062), (0.140, -0.058)], 0.009, 0.004,
+                                        seed=24) * (np.abs(ww) < 0.08))
         mk = np.clip(mk, 0, 1)
         c = lerp3(c, CYAN, mk)
         col[m], hgt[m], emi[m] = c * toplight[m][:, None], h * 0.5, mk
@@ -227,7 +233,7 @@ def paint_samples(s, ctx):
         col[m], hgt[m], emi[m] = c, h, mk
 
     # legs ------------------------------------------------------------------
-    for part, L, tb, seed in (('leg_f', 0.80, 0.50, 5), ('leg_h', 0.90, 0.46, 6)):
+    for part, L, tb, seed in (('leg_f', 0.80, 0.53, 5), ('leg_h', 0.90, 0.50, 6)):
         m = sel(part)
         if not m.any():
             continue

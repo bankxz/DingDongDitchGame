@@ -511,19 +511,34 @@ def catmull_open(pts, n_per):
     return out
 
 
-# ------------------------------------------------ v3 anatomy (correction sheet)
-# Measured on the correction sheet's side panels (withers = 1.0): long lean torso,
-# deep chest (0.42) and tucked waist (0.58), long diagonal neck, head carried
-# high (nose -1.03 / 1.11, ear tips 1.61), slim tapered athletic legs.
-FRONT_LEG = [v3(0.24, -0.30, 0.80), v3(0.27, -0.27, 0.45), v3(0.28, -0.33, 0.12), v3(0.28, -0.345, 0.085)]
-HIND_LEG = [v3(0.23, 0.60, 0.82), v3(0.27, 0.48, 0.52), v3(0.28, 0.78, 0.24), v3(0.28, 0.75, 0.085)]
-FRONT_PAW = [v3(0.28, -0.29, 0.07), v3(0.285, -0.39, 0.065), v3(0.29, -0.49, 0.045)]
-HIND_PAW = [v3(0.28, 0.81, 0.07), v3(0.285, 0.71, 0.065), v3(0.29, 0.61, 0.045)]
-EAR_BASE = v3(0.135, -0.66, 1.43)
-EAR_TIP = v3(0.245, -0.64, 1.73)
-TORSO_Y = [0.80, 0.66, 0.48, 0.30, 0.12, -0.06, -0.24, -0.40, -0.52]
-KNOT = v3(0.0, 0.16, 1.02)
-TASSEL_TOP = v3(0.33, 0.16, 0.84)
+# ------------------------------------------------ v4 anatomy (correction sheet)
+# Measured on the correction sheet's side panels (withers = 1.0): long athletic
+# torso with a deep chest and smooth tuck to the hips, long diagonal neck, head
+# carried high with a long smooth fox snout, slim tapered legs.  v4 spends the
+# triangle budget on dense spline-interpolated rings (smooth head / body) and
+# sculpts most of the fur as relief in the surface instead of loose chunks.
+FRONT_LEG = [v3(0.23, -0.30, 0.82), v3(0.26, -0.27, 0.46), v3(0.275, -0.33, 0.13), v3(0.28, -0.345, 0.085)]
+HIND_LEG = [v3(0.22, 0.58, 0.84), v3(0.265, 0.47, 0.53), v3(0.28, 0.78, 0.24), v3(0.28, 0.75, 0.085)]
+FRONT_PAW = [v3(0.28, -0.28, 0.07), v3(0.285, -0.39, 0.068), v3(0.29, -0.50, 0.048)]
+HIND_PAW = [v3(0.28, 0.82, 0.07), v3(0.285, 0.71, 0.068), v3(0.29, 0.60, 0.048)]
+EAR_BASE = v3(0.135, -0.66, 1.45)
+EAR_TIP = v3(0.245, -0.645, 1.75)
+KNOT = v3(0.0, 0.14, 1.03)
+TASSEL_TOP = v3(0.33, 0.14, 0.84)
+
+# torso key profile (y, top z, bottom z, half width)
+TORSO_KEYS = np.array([
+    [0.90, 0.90, 0.64, 0.22], [0.76, 0.935, 0.575, 0.29], [0.58, 0.945, 0.55, 0.29], [0.40, 0.945, 0.54, 0.28],
+    [0.24, 0.95, 0.53, 0.285], [0.08, 0.97, 0.48, 0.31], [-0.08, 0.995, 0.45, 0.335], [-0.24, 1.00, 0.43, 0.345],
+    [-0.38, 0.99, 0.44, 0.335], [-0.50, 0.95, 0.49, 0.30], [-0.58, 0.88, 0.57, 0.22]])
+TORSO_Y = list(np.linspace(TORSO_KEYS[0, 0], TORSO_KEYS[-1, 0], 12))
+# head key profile (y, centre z, half width, top r, bottom r)
+HEAD_KEYS_TB = np.array([   # y, top z, bottom z, half width  (domed skull, stop at the eyes, tapered snout)
+    [-0.58, 1.44, 1.23, 0.150], [-0.64, 1.48, 1.21, 0.205], [-0.71, 1.475, 1.20, 0.220], [-0.77, 1.44, 1.18, 0.198],
+    [-0.82, 1.370, 1.160, 0.138], [-0.88, 1.330, 1.145, 0.104], [-0.94, 1.300, 1.140, 0.086], [-1.00, 1.272, 1.140, 0.070],
+    [-1.05, 1.248, 1.143, 0.054], [-1.09, 1.228, 1.150, 0.038]])
+HEAD_KEYS = np.c_[HEAD_KEYS_TB[:, 0], (HEAD_KEYS_TB[:, 1] + HEAD_KEYS_TB[:, 2]) / 2, HEAD_KEYS_TB[:, 3],
+                  (HEAD_KEYS_TB[:, 1] - HEAD_KEYS_TB[:, 2]) / 2 * 0.92, (HEAD_KEYS_TB[:, 1] - HEAD_KEYS_TB[:, 2]) / 2 * 1.08]
 
 
 def mx(p, sx):
@@ -535,18 +550,36 @@ def torso_s(y):
     return float(np.interp(-y, [-t for t in TORSO_Y], np.linspace(0, 1, len(TORSO_Y))))
 
 
+def smooth_rows(keys, n):
+    """Resample a key table (first column = y, descending) with a monotone cubic."""
+    ys = keys[:, 0]
+    out_y = np.linspace(ys[0], ys[-1], n)
+    cols = []
+    for c in range(1, keys.shape[1]):
+        # Catmull-Rom through the keys, sampled by y
+        pts = [np.array([ys[i], keys[i, c]]) for i in range(len(ys))]
+        dense = catmull_open(pts, 12)
+        dy = np.array([p[0] for p in dense]); dv = np.array([p[1] for p in dense])
+        order = np.argsort(-dy)
+        cols.append(np.interp(-out_y, -dy[order], dv[order]))
+    return out_y, cols
+
+
 def build_kitsune():
     md = MeshData()
     X = v3(1, 0, 0)
 
     # ------------------------------------------------------------------ torso
-    top = [0.90, 0.92, 0.92, 0.93, 0.95, 0.98, 1.00, 0.98, 0.93]
-    bot = [0.66, 0.60, 0.58, 0.56, 0.50, 0.45, 0.42, 0.45, 0.54]
-    trw = [0.19, 0.25, 0.22, 0.215, 0.24, 0.28, 0.30, 0.29, 0.23]
-    tz = [(a + b) / 2 for a, b in zip(top, bot)]
-    trt = [(a - b) / 2 for a, b in zip(top, bot)]
-    torso = Loft([v3(0, y, z) for y, z in zip(TORSO_Y, tz)], trw, trt, trt, X, 16)
-    torso_j = [(0.0, 'Hips'), (0.28, 'Hips'), (0.50, 'Spine'), (0.62, 'Spine'), (0.80, 'Chest'), (1.0, 'Chest')]
+    ty, (top, bot, hw) = smooth_rows(TORSO_KEYS, 12)
+    tz = (top + bot) / 2
+    tr = (top - bot) / 2
+
+    def torso_relief(i, th):
+        # sculpted fur layers on the back and flanks (shallow, flowing to the rear)
+        up = max(0.0, math.cos(th) + 0.35)
+        return 0.035 * up * math.cos(3 * th + (i % 2) * math.pi)
+    torso = Loft([v3(0, y, z) for y, z in zip(ty, tz)], hw, tr, tr, X, 18)
+    torso_j = [(0.0, 'Hips'), (0.26, 'Hips'), (0.48, 'Spine'), (0.62, 'Spine'), (0.80, 'Chest'), (1.0, 'Chest')]
 
     def torso_w(i, t, p):
         w = blend_chain(t, torso_j)
@@ -559,42 +592,47 @@ def build_kitsune():
                 nm = bone + ('_L' if sx > 0 else '_R')
                 w[nm] = w.get(nm, 0) + f
         return w
-    torso.build(md, 'torso', torso_w, cap_start=v3(0, 0.87, 0.78), cap_end=v3(0, -0.60, 0.73))
+    torso.build(md, 'torso', torso_w, cap_start=v3(0, 0.95, 0.77), cap_end=v3(0, -0.625, 0.73))
 
     # ------------------------------------------------------------------- neck
-    neck_c = [v3(0, -0.36, 0.84), v3(0, -0.49, 1.01), v3(0, -0.59, 1.16), v3(0, -0.655, 1.28)]
-    neck = Loft(neck_c, [0.235, 0.20, 0.17, 0.15], [0.20, 0.17, 0.15, 0.13], [0.25, 0.20, 0.165, 0.14], X, 12)
+    # long diagonal neck with a sculpted, layered ruff (relief rows pointing down/back)
+    nkeys = [v3(0, -0.36, 0.84), v3(0, -0.46, 0.97), v3(0, -0.545, 1.09), v3(0, -0.61, 1.20), v3(0, -0.655, 1.29)]
+    neck_c = catmull_open(nkeys, 2)[:7]
+    nr = np.linspace(0, 1, len(neck_c))
+    nrw = list(np.interp(nr, [0, 1], [0.29, 0.185]))
+    nrt = list(np.interp(nr, [0, 1], [0.24, 0.155]))
+    nrb = list(np.interp(nr, [0, 1], [0.30, 0.165]))
+
+    def neck_relief(i, th):
+        return 0.075 * max(0.0, math.cos(4 * th + (i % 2) * math.pi / 4 * 2)) - 0.02
+    neck = Loft(neck_c, nrw, nrt, nrb, X, 14)
     neck_j = [(0.0, 'Chest'), (0.30, 'Neck1'), (0.70, 'Neck2'), (1.0, 'Head')]
     neck.build(md, 'neck', lambda i, t, p: blend_chain(t, neck_j))
 
     # ------------------------------------------------------------------- head
-    # long, smooth fox head: round snout sections (rt ~ rb), tapered to a clear nose
-    hc = [v3(0, -0.60, 1.345), v3(0, -0.66, 1.35), v3(0, -0.73, 1.325), v3(0, -0.80, 1.28),
-          v3(0, -0.87, 1.225), v3(0, -0.94, 1.18), v3(0, -1.00, 1.148)]
-    hrw = [0.160, 0.215, 0.225, 0.160, 0.100, 0.074, 0.056]
-    hrt = [0.110, 0.125, 0.112, 0.088, 0.066, 0.056, 0.046]
-    hrb = [0.110, 0.140, 0.140, 0.112, 0.080, 0.062, 0.049]
-    head = Loft(hc, hrw, hrt, hrb, X, 12)
+    hy, (hz, hrw, hrt, hrb) = smooth_rows(HEAD_KEYS, 11)
+    head = Loft([v3(0, y, z) for y, z in zip(hy, hz)], hrw, hrt, hrb, X, 16)
     head.build(md, 'head', lambda i, t, p: {'Head': 1.0} if i > 0 else {'Head': 0.8, 'Neck2': 0.2},
-               cap_start=v3(0, -0.56, 1.345), cap_end=v3(0, -1.045, 1.135))
+               cap_start=v3(0, -0.54, 1.335), cap_end=v3(0, -1.125, 1.192))
 
     # ------------------------------------------------------------------- eyes
-    # large sharp almond eyes, outer corner raised (aggressive slant)
-    eye_s, eye_th = 0.42, math.radians(46)
+    # sharp, slanted, flat-set eyes: long lens with pointed corners, outer corner high
+    eye_s, eye_th = 0.36, math.radians(44)
     for sx in (1, -1):
         p, n, T = head.point(eye_s, sx * eye_th, 0.0)
-        along = norm(v3(0, 1.0, 0.55) - np.dot(v3(0, 1.0, 0.55), n) * n)     # toward the back, rising
-        acr = norm(np.cross(n, along)) * (1 if np.cross(n, along)[2] > 0 else -1)
+        along = norm(v3(0, 1.0, 0.62) - np.dot(v3(0, 1.0, 0.62), n) * n)      # toward the back, rising
+        acr = np.cross(n, along)
+        acr = norm(acr) * (1 if acr[2] > 0 else -1)
         isl = md.new_island('eye')
         first = len(md.faces)
         rim = []
         for k in range(10):
             a = TAU * k / 10
             ca_, sa_ = math.cos(a), math.sin(a)
-            h = 0.030 * abs(sa_) ** 0.8 * (1.0 if sa_ > 0 else 0.75)          # pointed corners
-            q = p + n * 0.006 + along * 0.050 * ca_ + acr * h * np.sign(sa_) + acr * 0.010 * ca_
+            h = 0.028 * abs(sa_) ** 1.1 * (1.0 if sa_ > 0 else 0.62)            # sharp corners
+            q = p + n * 0.004 + along * 0.060 * ca_ + acr * h * np.sign(sa_) - acr * 0.010 * (ca_ < 0) * (-ca_)
             rim.append(md.add_vert(q, {'Head': 1.0}))
-        cvt = md.add_vert(p + n * 0.016, {'Head': 1.0})
+        cvt = md.add_vert(p + n * 0.007 + along * 0.004, {'Head': 1.0})
         for k in range(10):
             k2 = (k + 1) % 10
             a, b = TAU * k / 10, TAU * (k + 1) / 10
@@ -608,9 +646,9 @@ def build_kitsune():
     for sx in (1, -1):
         base, tip = mx(EAR_BASE, sx), mx(EAR_TIP, sx)
         ax = norm(tip - base)
-        pts = [base - ax * 0.05, base + (tip - base) * 0.30, base + (tip - base) * 0.62, base + (tip - base) * 0.86]
-        ref = norm(v3(sx * 1.0, 0.15, 0))
-        ear = Loft(pts, [0.125, 0.105, 0.066, 0.030], [0.060, 0.050, 0.034, 0.018], [0.042, 0.034, 0.024, 0.012], ref, 8)
+        pts = [base - ax * 0.06, base + (tip - base) * 0.28, base + (tip - base) * 0.58, base + (tip - base) * 0.84]
+        ref = norm(v3(sx * 1.0, 0.12, 0))
+        ear = Loft(pts, [0.132, 0.112, 0.074, 0.034], [0.080, 0.066, 0.044, 0.022], [0.046, 0.040, 0.028, 0.014], ref, 8)
         nm = 'Ear' + ('_L' if sx > 0 else '_R')
         ear.build(md, 'ear', lambda i, t, p, nm=nm: {'Head': 0.6, nm: 0.4} if i == 0 else {nm: 1.0},
                   cap_end=tip)
@@ -619,28 +657,47 @@ def build_kitsune():
     for sx in (1, -1):
         S = '_L' if sx > 0 else '_R'
         fl = [mx(p, sx) for p in FRONT_LEG]
-        pts = [fl[0], fl[0] * 0.5 + fl[1] * 0.5, fl[1], fl[1] * 0.55 + fl[2] * 0.45, fl[2], fl[3]]
-        lf = Loft(pts, [0.125, 0.105, 0.078, 0.058, 0.050, 0.052], [0.140, 0.120, 0.085, 0.062, 0.052, 0.056],
-                  [0.140, 0.120, 0.085, 0.062, 0.052, 0.056], X, 8)
+        pts = catmull_open([fl[0], fl[1], fl[2], fl[3]], 2)[:6]
+        lf = Loft(pts, [0.130, 0.110, 0.084, 0.064, 0.054, 0.052], [0.150, 0.125, 0.090, 0.066, 0.056, 0.056],
+                  [0.150, 0.125, 0.090, 0.066, 0.056, 0.056], X, 8)
         jf = [(0.0, 'FrontLegUpper' + S), (0.42, 'FrontLegUpper' + S), (0.52, 'FrontLegLower' + S),
               (0.86, 'FrontLegLower' + S), (0.96, 'FrontPaw' + S)]
         lf.build(md, 'leg_f', lambda i, t, p, jf=jf: blend_chain(t, jf))
         hl = [mx(p, sx) for p in HIND_LEG]
-        pts = [hl[0], hl[0] * 0.45 + hl[1] * 0.55, hl[1], hl[1] * 0.5 + hl[2] * 0.5, hl[2], hl[2] * 0.5 + hl[3] * 0.5, hl[3]]
-        lh = Loft(pts, [0.165, 0.150, 0.100, 0.068, 0.054, 0.050, 0.052], [0.185, 0.170, 0.110, 0.074, 0.056, 0.052, 0.056],
-                  [0.185, 0.170, 0.110, 0.074, 0.056, 0.052, 0.056], X, 8)
+        pts = catmull_open([hl[0], hl[1], hl[2], hl[3]], 2)[:7]
+        lh = Loft(pts, [0.170, 0.140, 0.100, 0.072, 0.056, 0.052, 0.052], [0.195, 0.160, 0.110, 0.078, 0.058, 0.054, 0.056],
+                  [0.195, 0.160, 0.110, 0.078, 0.058, 0.054, 0.056], X, 8)
         jh = [(0.0, 'HindLegUpper' + S), (0.33, 'HindLegUpper' + S), (0.42, 'HindLegLower' + S),
               (0.66, 'HindLegLower' + S), (0.74, 'HindFoot' + S), (0.93, 'HindFoot' + S), (1.0, 'HindPaw' + S)]
         lh.build(md, 'leg_h', lambda i, t, p, jh=jh: blend_chain(t, jh))
+        # paws: wide, domed, with four toe lobes on the front edge and curved claws
         for pawpts, bone, lower in ((FRONT_PAW, 'FrontPaw' + S, 'FrontPaw' + S), (HIND_PAW, 'HindPaw' + S, 'HindFoot' + S)):
             pp = [mx(p, sx) for p in pawpts]
-            paw = Loft(pp, [0.080, 0.108, 0.104], [0.064, 0.070, 0.044], [0.040, 0.042, 0.032], X, 8)
+
+            def toes(i, th):
+                return 0.10 * max(0.0, math.cos(4 * th)) * (1 if i == 2 else 0.4 if i == 1 else 0) * (math.cos(th) > -0.3)
+            paw = Loft(pp, [0.078, 0.108, 0.112], [0.064, 0.070, 0.046], [0.040, 0.042, 0.032], X, 8, bulge=toes)
             paw.build(md, 'paw', lambda i, t, p, b=bone, lo=lower: {b: 1.0} if i else {b: 0.6, lo: 0.4},
                       cap_start=pp[0] + norm(pp[0] - pp[1]) * 0.035 + v3(0, 0, 0.005),
-                      cap_end=pp[2] + v3(0, -0.032, -0.010))
-            for cx in (-0.068, -0.023, 0.023, 0.068):
-                b = pp[2] + v3(cx, 0.0, -0.010)
-                build_cone(md, 'claw', b + v3(0, 0.018, 0.010), b + v3(cx * 0.2, -0.078, -0.036), 0.025, 4, {bone: 1.0})
+                      cap_end=pp[2] + v3(0, -0.030, -0.010))
+            for cx in (-0.066, -0.022, 0.022, 0.066):
+                b = pp[2] + v3(cx, -0.012, -0.004)
+                # two-segment curved claw
+                isl = md.new_island('claw')
+                first = len(md.faces)
+                ring0 = [b + v3(0.021 * math.cos(TAU * k / 3 + 0.5), 0.012, 0.017 * math.sin(TAU * k / 3 + 0.5)) for k in range(3)]
+                ring1 = [b + v3(0.012 * math.cos(TAU * k / 3 + 0.5) + cx * 0.08, -0.040, -0.012 + 0.010 * math.sin(TAU * k / 3 + 0.5)) for k in range(3)]
+                tipc = b + v3(cx * 0.15, -0.068, -0.040)
+                v0 = [md.add_vert(q, {bone: 1.0}) for q in ring0]
+                v1 = [md.add_vert(q, {bone: 1.0}) for q in ring1]
+                vt = md.add_vert(tipc, {bone: 1.0})
+                for k in range(3):
+                    k2 = (k + 1) % 3
+                    md.add_face([v0[k], v0[k2], v1[k2], v1[k]], [(k / 3, 0), ((k + 1) / 3, 0), ((k + 1) / 3, .5), (k / 3, .5)],
+                                [(0, TAU * k / 3), (0, TAU * k2 / 3), (0.5, TAU * k2 / 3), (0.5, TAU * k / 3)], 'claw', isl)
+                    md.add_face([v1[k], v1[k2], vt], [(k / 3, .5), ((k + 1) / 3, .5), ((k + .5) / 3, 1)],
+                                [(0.5, TAU * k / 3), (0.5, TAU * k2 / 3), (1, 0)], 'claw', isl)
+                md.orient_piece(first, b + v3(0, 0.02, 0))
 
     # ------------------------------------------------------------------ tails (unchanged design)
     tails = []
@@ -657,96 +714,94 @@ def build_kitsune():
         loft.build(md, 'tail', lambda i, t, p, jt=jt: blend_chain(t, jt), cap_end=tip, t_range=(0.0, 0.97))
         tails.append((spec, loft, jt))
 
-    # ------------------------------------------------------ layered fur clumps
-    def clump_on(loft, s, th, part, L, W, flow, wfn, lift=0.25, thick=0.5, curl=0.35):
+    # --------------------------------------------- intentional layered clumps
+    # every clump in a group shares one flow direction, clumps sit in rows and
+    # overlap the row behind them (sculpted layers, not scattered chunks)
+    def clump_on(loft, s, th, part, L, W, flow, wfn, lift=0.18, thick=0.40, curl=0.40):
         p, n, T = loft.point(s, th)
         build_leaf_clump(md, part, p, n, flow(p, n, T), L, W, wfn(s, p), lift=lift, thick=thick, curl=curl)
 
-    down_back = lambda p, n, T: v3(0, 0.55, -1)
-    back_down = lambda p, n, T: v3(0, 1, -0.45)
-    neck_flow = lambda p, n, T: -T + v3(0, 0.45, -0.1)
     tw = lambda s, p: torso_w(0, s, p)
     nw = lambda s, p: blend_chain(s, neck_j)
     hw = lambda s, p: {'Head': 1.0}
+    neck_flow = lambda p, n, T: -T + v3(0, 0.55, -0.15)
 
-    # cheek ruff: thick layered clumps sweeping back from the sides of the face (cyan tips)
+    # cheek ruff: two neat rows sweeping back/out, cyan tipped
     for sx in (1, -1):
-        for s, deg, L, W in ((0.34, 100, 0.20, 0.11), (0.26, 122, 0.22, 0.12), (0.22, 85, 0.19, 0.10),
-                             (0.14, 110, 0.20, 0.12), (0.40, 125, 0.15, 0.09), (0.10, 140, 0.18, 0.11)):
-            clump_on(head, s, sx * math.radians(deg), 'tuft_tip', L * 1.30, W * 1.15,
-                     lambda p, n, T, sx=sx: v3(sx * 1.6, 0.75, -0.10), hw, lift=0.60, curl=0.15)
-        # layered crest between/behind the ears
-    for deg in (0, 38, -38):
-        clump_on(head, 0.08, math.radians(deg), 'tuft', 0.19, 0.12, back_down, hw, lift=0.35)
-    # neck mane: shingled rows flowing back and down the neck
-    for s, L in ((0.92, 0.21), (0.70, 0.23), (0.48, 0.24), (0.26, 0.24), (0.06, 0.22)):
-        off = 18 if s in (0.70, 0.26) else 0
-        for deg in (0, 50, -50, 100, -100):
-            clump_on(neck, s, math.radians(deg + off), 'tuft', L, 0.15, neck_flow, nw, lift=0.28)
-    # chest: layered purple clumps with cyan underlayer tips, flowing down
-    for s, L in ((0.02, 0.21), (0.24, 0.22), (0.46, 0.20)):
-        for deg in (180, 145, -145):
-            clump_on(neck, s, math.radians(deg), 'tuft_tip', L, 0.15, lambda p, n, T: v3(0, 0.25, -1), nw, lift=0.22)
+        cheek_flow = lambda p, n, T, sx=sx: v3(sx * 0.62, 1.0, -0.12)
+        for s, deg, L in ((0.34, 98, 0.21), (0.27, 112, 0.23), (0.20, 126, 0.22)):          # front row
+            clump_on(head, s, sx * math.radians(deg), 'tuft_tip', L, 0.115, cheek_flow, hw, lift=0.35, thick=0.32)
+        for s, deg, L in ((0.18, 96, 0.21), (0.11, 112, 0.22), (0.05, 128, 0.20)):          # back row
+            clump_on(head, s, sx * math.radians(deg), 'tuft_tip', L, 0.12, cheek_flow, hw, lift=0.35, thick=0.32)
+    # crest behind the ears
+    # neck mane: three rows over the nape, all flowing back and down the neck
+    for s in (0.82, 0.55, 0.28):
+        for deg in (0, 48, -48):
+            clump_on(neck, s, math.radians(deg + (12 if s == 0.55 else 0)), 'tuft', 0.24, 0.16, neck_flow, nw)
+    # chest ruff: two rows flowing down, cyan under-tips
+    for s in (0.30, 0.06):
+        for deg in (180, 148, -148):
+            clump_on(neck, s, math.radians(deg), 'tuft_tip', 0.23, 0.16, lambda p, n, T: v3(0, 0.3, -1), nw, lift=0.15)
     for sx in (1, -1):
         S = '_L' if sx > 0 else '_R'
-        # shoulders / flanks / hips: two layered rows each
-        for y, deg, L in ((-0.44, 75, 0.21), (-0.36, 105, 0.21), (-0.22, 70, 0.20), (-0.12, 100, 0.20),
-                          (0.58, 80, 0.20), (0.70, 105, 0.20), (0.46, 100, 0.17), (0.74, 70, 0.18)):
-            clump_on(torso, torso_s(y), sx * math.radians(deg), 'tuft', L, 0.15, down_back, tw, lift=0.25)
-        # belly fringe under the deep chest
-        for y, L in ((-0.34, 0.17), (-0.18, 0.17), (-0.02, 0.15)):
-            clump_on(torso, torso_s(y), sx * math.radians(150), 'tuft', L, 0.13, lambda p, n, T: v3(0, 0.4, -1), tw, lift=0.2)
-        # elbow tuft
-        e = mx(FRONT_LEG[1], sx) + v3(sx * 0.02, 0.07, 0.04)
+        # belly fringe under the deep chest (one aligned row)
+        for y in (-0.30, -0.12, 0.06, 0.22):
+            clump_on(torso, torso_s(y), sx * math.radians(152), 'tuft', 0.18, 0.15,
+                     lambda p, n, T: v3(0, 0.45, -1), tw, lift=0.15)
+        # shoulder row
+        for y, deg in ((-0.34, 100), (-0.18, 92)):
+            clump_on(torso, torso_s(y), sx * math.radians(deg), 'tuft', 0.21, 0.15,
+                     lambda p, n, T: v3(0, 0.55, -1), tw)
+        # elbow and thigh tufts
+        e = mx(FRONT_LEG[1], sx) + v3(sx * 0.02, 0.07, 0.05)
         build_leaf_clump(md, 'tuft', e, v3(sx * 0.3, 1, 0.1), v3(0, 0.6, -1), 0.17, 0.10,
-                         {'FrontLegUpper' + S: 0.5, 'FrontLegLower' + S: 0.5}, lift=0.25)
-        # purple fur overlapping the cyan lower legs (jagged, pointing down)
-        for leg, t_b, bone, r in ((FRONT_LEG, 0.12, 'FrontLegUpper' + S, 0.085), (HIND_LEG, 0.35, 'HindLegLower' + S, 0.085)):
+                         {'FrontLegUpper' + S: 0.5, 'FrontLegLower' + S: 0.5}, lift=0.2, thick=0.4)
+        h = mx(HIND_LEG[0], sx) * 0.4 + mx(HIND_LEG[1], sx) * 0.6 + v3(sx * 0.05, 0.10, 0)
+        build_leaf_clump(md, 'tuft', h, v3(sx * 0.4, 1, 0.1), v3(0, 0.5, -1), 0.19, 0.12, {'HindLegUpper' + S: 1.0},
+                         lift=0.2, thick=0.4)
+        # fur cuffs where purple meets cyan: three even clumps per leg, flowing straight down
+        for leg, t_b, bone, r in ((FRONT_LEG, 0.10, 'FrontLegUpper' + S, 0.090), (HIND_LEG, 0.30, 'HindLegLower' + S, 0.085)):
             a, b = mx(leg[1], sx), mx(leg[2], sx)
             c = a + (b - a) * t_b
-            for ang in (0, 90, 180, 270):
-                dirn = v3(math.sin(math.radians(ang)) * sx, math.cos(math.radians(ang)), 0)
-                build_leaf_clump(md, 'tuft', c + dirn * r * 0.8, dirn, norm(b - a), 0.15, 0.09, {bone: 1.0}, lift=0.2)
-        # thigh
-        h = mx(HIND_LEG[0], sx) * 0.4 + mx(HIND_LEG[1], sx) * 0.6 + v3(sx * 0.05, 0.10, 0)
-        build_leaf_clump(md, 'tuft', h, v3(sx * 0.4, 1, 0.1), v3(0, 0.5, -1), 0.20, 0.12, {'HindLegUpper' + S: 1.0}, lift=0.25)
-    # spine: row of clumps along the back flowing toward the tails
-    for y in (-0.30, -0.12, 0.30, 0.50):
-        s = torso_s(y)
-        clump_on(torso, s, 0.0, 'tuft', 0.20, 0.15, lambda p, n, T: v3(0, 1, 0.1), tw, lift=0.35)
+            for ang in (-60, 60, 180):
+                dirn = v3(math.sin(math.radians(ang)) * sx, -math.cos(math.radians(ang)), 0)
+                build_leaf_clump(md, 'tuft', c + dirn * r * 0.85, dirn, norm(b - a), 0.14, 0.10, {bone: 1.0},
+                                 lift=0.10, thick=0.35, curl=0.5)
+    # spine: a row of clumps along the back flowing toward the tails
+    for y in (-0.28, 0.34, 0.56):
+        clump_on(torso, torso_s(y), 0.0, 'tuft', 0.20, 0.15, lambda p, n, T: v3(0, 1, 0.05), tw, lift=0.2)
 
     # ---------------------------------------------------------------- harness
-    # clean route (correction sheet overlay): collar with chest gem, two loops
-    # from the collar up over the withers to a knot on the back, side tassels.
-    rope_r = 0.026
+    # collar + chest gem, a compact loop that hugs the back from the collar to a
+    # knot behind the withers, strands down the barrel to neat side tassels
+    rope_r = 0.025
     coll_s = 0.14
-    coll = [neck.point(coll_s, TAU * k / 12, rope_r * 2.4)[0] for k in range(12)]
+    coll = [neck.point(coll_s, TAU * k / 12, rope_r * 2.2 + 0.03)[0] for k in range(12)]
     build_tube(md, 'rope', coll, rope_r, 5, lambda i, t, p: {'Neck1': 0.5, 'Chest': 0.5}, closed=True)
-    back_z = lambda y: torso.point(torso_s(y), 0.0, 0.0)[0][2]
-    for sx, w_off in ((1, 0.0), (-1, 0.03)):
-        F = neck.point(coll_s, sx * math.radians(38), rope_r * 2.4)[0]
-        # big oval loop: collar -> high arch over the withers -> knot -> back along the spine
-        pts = [F,
-               v3(sx * 0.17, -0.44, 1.34 + w_off),
-               v3(sx * 0.14, -0.24, 1.52 + w_off),
-               v3(sx * 0.10, 0.00, 1.47 + w_off),
-               v3(sx * 0.06, KNOT[1] - 0.02, KNOT[2] + 0.10),
-               v3(sx * 0.10, -0.04, back_z(-0.04) + 0.07),
-               v3(sx * 0.15, -0.26, back_z(-0.26) + 0.08)]
-        build_tube(md, 'rope', catmull_loop(pts, 2), rope_r, 5, lambda i, t, p: {'Chest': 1.0}, closed=True)
-    build_sphere(md, 'knot', KNOT + v3(0, 0, 0.03), (0.065, 0.055, 0.045), 6, 3, {'Spine': 0.5, 'Chest': 0.5})
-    # knot -> side strands down the barrel to the tassels
+    back_pt = lambda y, deg, off: torso.point(torso_s(y), math.radians(deg), off)[0]
     for sx in (1, -1):
-        S = '_L' if sx > 0 else '_R'
-        s = torso_s(KNOT[1])
-        mid = torso.point(s, sx * math.radians(50), rope_r * 1.5)[0]
-        pts = catmull_open([KNOT + v3(sx * 0.03, 0, 0.02), mid, mx(TASSEL_TOP, sx) + v3(0, 0, 0.02)], 3)
+        F = neck.point(coll_s, sx * math.radians(34), rope_r * 2.2 + 0.03)[0]
+        pts = [F,
+               back_pt(-0.40, sx * 20, 0.20),
+               back_pt(-0.16, sx * 10, 0.24),
+               back_pt(0.06, sx * 6, 0.16),
+               KNOT + v3(sx * 0.03, 0, 0.02),
+               back_pt(-0.06, sx * 16, 0.05),
+               back_pt(-0.30, sx * 22, 0.05)]
+        build_tube(md, 'rope', catmull_loop(pts, 2), rope_r, 5, lambda i, t, p: {'Chest': 1.0}, closed=True)
+    build_sphere(md, 'knot', KNOT + v3(0, 0, 0.02), (0.060, 0.050, 0.040), 6, 3, {'Spine': 0.5, 'Chest': 0.5})
+    ks = torso_s(KNOT[1])
+    for sx in (1, -1):
+        pts = catmull_open([KNOT + v3(sx * 0.03, 0, 0.0),
+                            torso.point(ks, sx * math.radians(45), rope_r * 1.4)[0],
+                            torso.point(ks, sx * math.radians(78), rope_r * 1.4)[0]], 3)
         build_tube(md, 'rope', pts, rope_r * 0.85, 5, lambda i, t, p: {'Spine': 0.5, 'Chest': 0.5})
-    # chest gem on the collar front, framed by two short cords
-    gem_p, gem_n, _ = neck.point(0.0, math.pi, 0.06)
+    tassel_tops = {sx: torso.point(ks, sx * math.radians(82), rope_r * 1.4 + 0.02)[0] for sx in (1, -1)}
+    # chest gem centred on the collar front
+    gem_p, gem_n, _ = neck.point(0.0, math.pi, 0.07)
     gem_p = gem_p + v3(0, -0.02, -0.03)
     for sx in (1, -1):
-        a = neck.point(coll_s, sx * math.radians(150), rope_r * 2.4)[0]
+        a = neck.point(coll_s, sx * math.radians(150), rope_r * 2.2 + 0.03)[0]
         build_tube(md, 'rope', [a, gem_p + v3(sx * 0.07, -0.01, 0.09)], rope_r * 0.9, 5,
                    lambda i, t, p: {'Neck1': 0.4, 'Chest': 0.6})
     fwd = norm(gem_n * v3(1, 1, 0.25))
@@ -772,21 +827,21 @@ def build_kitsune():
         build_tube(md, 'rope', [gem_p + fr_side * sx * 0.08, bp], 0.008, 4, lambda i, t, p: frw)
         build_sphere(md, 'bead', bp + v3(0, 0, -0.016), (0.022, 0.022, 0.022), 6, 3, frw)
         build_cone(md, 'tassel', bp + v3(0, 0, -0.04), bp + v3(0, 0, -0.12), 0.019, 5, frw)
-    # side tassels: 2 beads + tassel hanging neatly from the side strands
+    # side tassels: hang plumb, just clear of the flank
     for sx in (1, -1):
         S = '_L' if sx > 0 else '_R'
-        top = mx(TASSEL_TOP, sx)
+        top = tassel_tops[sx]
         tw_ = {'Tassel' + S: 1.0}
-        build_tube(md, 'rope', [top + v3(0, 0, 0.02), top + v3(0, 0, -0.10)], 0.010, 4,
+        build_tube(md, 'rope', [top + v3(0, 0, 0.01), top + v3(0, 0, -0.10)], 0.010, 4,
                    lambda i, t, p, S=S: {'Spine': 0.5, 'Chest': 0.5} if i == 0 else {'Tassel' + S: 1.0})
-        build_sphere(md, 'bead', top + v3(0, 0, -0.14), (0.042, 0.042, 0.045), 6, 4, tw_)
-        build_sphere(md, 'bead', top + v3(0, 0, -0.26), (0.040, 0.040, 0.042), 6, 4, tw_)
-        build_tube(md, 'rope', [top + v3(0, 0, -0.18), top + v3(0, 0, -0.22)], 0.009, 4, lambda i, t, p: tw_)
-        build_sphere(md, 'tassel', top + v3(0, 0, -0.33), (0.030, 0.030, 0.024), 6, 3, tw_)
-        tq = [top + v3(0, 0, -0.33), top + v3(0, 0, -0.40), top + v3(0, 0, -0.55)]
-        build_tube(md, 'tassel', tq, 0.034, 6, lambda i, t, p: tw_, radii=[0.030, 0.036, 0.040], cap_ends=True)
+        build_sphere(md, 'bead', top + v3(0, 0, -0.14), (0.040, 0.040, 0.043), 6, 3, tw_)
+        build_sphere(md, 'bead', top + v3(0, 0, -0.25), (0.038, 0.038, 0.040), 6, 3, tw_)
+        build_tube(md, 'rope', [top + v3(0, 0, -0.18), top + v3(0, 0, -0.21)], 0.009, 4, lambda i, t, p: tw_)
+        build_sphere(md, 'tassel', top + v3(0, 0, -0.31), (0.028, 0.028, 0.022), 6, 3, tw_)
+        tq = [top + v3(0, 0, -0.31), top + v3(0, 0, -0.38), top + v3(0, 0, -0.52)]
+        build_tube(md, 'tassel', tq, 0.032, 6, lambda i, t, p: tw_, radii=[0.028, 0.034, 0.038], cap_ends=True)
 
-    return md, dict(torso=torso, neck=neck, head=head, tails=tails, eye=(eye_s, eye_th))
+    return md, dict(torso=torso, neck=neck, head=head, tails=tails, eye=(eye_s, eye_th), tassel_tops=tassel_tops)
 
 
 if __name__ == '__main__':
