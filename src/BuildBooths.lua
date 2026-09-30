@@ -142,8 +142,8 @@ local function booth(root, def)
 	part(m, "CounterPanel", Vector3.new(W - 5, 1.5, 0.3), O * CFrame.new(0, 2.1, -D / 2 + 0.55), c2)
 	-- posts
 	for _, x in { -W / 2 + 0.6, W / 2 - 0.6 } do
-		part(m, "Post", Vector3.new(1.2, 11, 1.2), O * CFrame.new(x, 6.5, -D / 2 + 0.9), Color3.fromRGB(245, 245, 245))
-		part(m, "PostCap", Vector3.new(1.6, 0.6, 1.6), O * CFrame.new(x, 12.2, -D / 2 + 0.9), trim, Enum.Material.Neon, false)
+		part(m, "Post", Vector3.new(1.2, 12.5, 1.2), O * CFrame.new(x, 7.25, -D / 2 + 0.9), Color3.fromRGB(245, 245, 245))
+		part(m, "PostCap", Vector3.new(1.6, 0.6, 1.6), O * CFrame.new(x, 13.7, -D / 2 + 0.9), trim, Enum.Material.Neon, false)
 	end
 	-- striped awning (sloped down to the front) + scalloped edge
 	local slats = 8
@@ -151,8 +151,8 @@ local function booth(root, def)
 	for i = 0, slats - 1 do
 		local x = -W / 2 + W / slats / 2 + i * W / slats
 		local col = (i % 2 == 0) and c1 or Color3.fromRGB(250, 250, 250)
-		part(m, "Awning", Vector3.new(W / slats, 0.6, D + 1.5), O * CFrame.new(x, 12.7, -0.4) * CFrame.Angles(-tilt, 0, 0), col)
-		local front = O * CFrame.new(x, 12.7 - math.sin(tilt) * (D + 1.5) / 2, -0.4 - math.cos(tilt) * (D + 1.5) / 2)
+		part(m, "Awning", Vector3.new(W / slats, 0.6, D + 1.5), O * CFrame.new(x, 14.2, -0.4) * CFrame.Angles(-tilt, 0, 0), col)
+		local front = O * CFrame.new(x, 14.2 - math.sin(tilt) * (D + 1.5) / 2, -0.4 - math.cos(tilt) * (D + 1.5) / 2)
 		local sc = part(m, "Scallop", Vector3.new(W / slats - 0.1, 1.2, 0.5), front * CFrame.new(0, -0.5, 0), col)
 		local c = Instance.new("Part")
 		c.Shape = Enum.PartType.Cylinder
@@ -167,12 +167,12 @@ local function booth(root, def)
 		local _ = sc
 	end
 	-- sign board above the awning
-	local board = part(m, "SignBoard", Vector3.new(12, 3.4, 0.6), O * CFrame.new(0, 15.4, -D / 2 + 1.2) * CFrame.Angles(0, math.rad(180), 0), dark)
-	part(m, "SignFrame", Vector3.new(12.8, 4.2, 0.4), O * CFrame.new(0, 15.4, -D / 2 + 1.6), trim, Enum.Material.Neon, false)
-	board.CFrame = O * CFrame.new(0, 15.4, -D / 2 + 1.2) -- Front face = -Z (towards the players)
+	local board = part(m, "SignBoard", Vector3.new(12, 3.4, 0.6), O * CFrame.new(0, 16.9, -D / 2 + 1.2) * CFrame.Angles(0, math.rad(180), 0), dark)
+	part(m, "SignFrame", Vector3.new(12.8, 4.2, 0.4), O * CFrame.new(0, 16.9, -D / 2 + 1.6), trim, Enum.Material.Neon, false)
+	board.CFrame = O * CFrame.new(0, 16.9, -D / 2 + 1.2) -- Front face = -Z (towards the players)
 	sign(board, def.Title, def.Sub, def.Color1, def.IconImage, def.Icon)
-	part(m, "SignLegL", Vector3.new(0.6, 2.4, 0.6), O * CFrame.new(-4.5, 13.2, -D / 2 + 1.6), dark)
-	part(m, "SignLegR", Vector3.new(0.6, 2.4, 0.6), O * CFrame.new(4.5, 13.2, -D / 2 + 1.6), dark)
+	part(m, "SignLegL", Vector3.new(0.6, 2.4, 0.6), O * CFrame.new(-4.5, 14.7, -D / 2 + 1.6), dark)
+	part(m, "SignLegR", Vector3.new(0.6, 2.4, 0.6), O * CFrame.new(4.5, 14.7, -D / 2 + 1.6), dark)
 	-- props on the counter
 	for i, p in def.Props or {} do
 		local pp = part(m, "Prop" .. i, p.Size, O * CFrame.new(p.X, 4.0 + p.Size.Y / 2, -D / 2 + 2) * CFrame.Angles(0, p.Rot or 0, 0), p.Color, p.Material, p.Material == nil)
@@ -234,6 +234,14 @@ local function booth(root, def)
 			hrp.CFrame = CFrame.lookAt(pos, Vector3.new(look.X, pos.Y, look.Z))
 			npc:PivotTo(hrp.CFrame)
 			local _ = size
+		end
+		pcall(function()
+			npc:ScaleTo(1.25)
+		end)
+		if hrp then
+			-- keep the feet on the riser after scaling
+			local hip2 = hum and hum.HipHeight or 2
+			npc:PivotTo(npc:GetPivot() + Vector3.new(0, (2.2 + hip2 + hrp.Size.Y / 2) - hrp.Position.Y, 0))
 		end
 		npc:SetAttribute("MerchantIdle", true)
 		nameTag(npc, def.NPCTitle, def.Color1)
