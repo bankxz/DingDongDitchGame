@@ -6,3 +6,7 @@
 /*.rbxl.lock
 
 sourcemap.json
+
+# Python bytecode
+__pycache__/
+*.pyc
