@@ -436,7 +436,7 @@ local function rescale()
 			local ax = g:GetAttribute("AX")
 			local lift = 0
 			if ax == 0 then
-				lift = small and size.Y * 0.3 or 190
+				lift = small and size.Y * 0.26 or 190
 			elseif ax == 1 then
 				lift = small and 95 or 150
 			end
@@ -2040,6 +2040,14 @@ if shopWin then
 					end
 				else
 					slot.Visible = false
+				end
+			end
+			-- a regular odds card that runs under the SECRET card would have its % cut off
+			local secret = slots[#slots]
+			for i = 1, #slots - 1 do
+				local s = slots[i]
+				if secret and s.Position.X.Offset + s.Size.X.Offset > secret.Position.X.Offset + 4 then
+					s.Visible = false
 				end
 			end
 		end
