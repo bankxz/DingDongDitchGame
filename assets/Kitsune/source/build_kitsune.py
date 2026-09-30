@@ -44,7 +44,7 @@ PART_DEFAULT_REGION = {
     'tuft_tip': kp.REG_FUR, 'tuft_cheek': kp.REG_FUR,
 }
 UV_IMPORTANCE = {
-    'head': 3.4, 'eye': 4.0, 'gem': 2.5, 'frame': 2.0, 'ear': 1.8, 'neck': 1.3, 'torso': 1.2, 'tail': 0.75,
+    'head': 2.4, 'eye': 3.0, 'gem': 2.5, 'frame': 2.0, 'ear': 1.5, 'neck': 1.3, 'torso': 1.2, 'tail': 0.85,
     'leg_f': 1.1, 'leg_h': 1.1, 'paw': 1.4, 'claw': 0.6, 'tuft': 0.8, 'tuft_cyan': 1.3, 'spike': 0.8,
     'tail_tuft': 0.8, 'tuft_tip': 1.0, 'tuft_cheek': 1.2, 'rope': 0.9, 'knot': 0.9, 'bead': 1.3, 'tassel': 1.2,
 }
@@ -122,7 +122,7 @@ def pack_uvs(ob):
     bpy.ops.object.mode_set(mode='EDIT')
     bpy.ops.mesh.select_all(action='SELECT')
     bpy.ops.uv.select_all(action='SELECT')
-    bpy.ops.uv.pack_islands(rotate=True, scale=True, margin=0.004, shape_method='CONCAVE')
+    bpy.ops.uv.pack_islands(rotate=True, scale=True, margin=0.0025, shape_method='CONCAVE')
     bpy.ops.object.mode_set(mode='OBJECT')
 
 
@@ -253,7 +253,7 @@ def main():
     # budget: body gets whatever the accessories (+ eyes) leave under the limit
     body_target = TRI_BUDGET - md_acc.tri_count() - 2 * 60
     body = ks.build_sculpted_body(md_body, lofts, WORLD_SCALE, body_target)
-    ks.scale_uv_islands(body, UV_IMPORTANCE)
+    ks.scale_uv_islands(body, UV_IMPORTANCE, WORLD_SCALE)
     ks.add_eyes(md_acc, lofts, body, WORLD_SCALE)
     acc = build_mesh(md_acc, 'Kitsune_Acc')
     ob = join_objects([body, acc], 'Kitsune')

@@ -197,6 +197,7 @@ def build_sculpted_body(md, info, S, target_tris, voxel=0.0085, smooth_iters=5, 
             lth[li] = ref + ((lth[li] - ref + math.pi) % (2 * math.pi) - math.pi)
     vidx, vb = src.nearest(co)
     vweights = src.blend_weights(vidx, vb)
+    _, _, vth = src.params(vidx, vb)
 
     for nm_, ty_, dom_ in (('k_t', 'FLOAT', 'CORNER'), ('k_th', 'FLOAT', 'CORNER'), ('k_len', 'FLOAT', 'CORNER'),
                            ('k_part', 'INT', 'FACE')):
@@ -210,8 +211,9 @@ def build_sculpted_body(md, info, S, target_tris, voxel=0.0085, smooth_iters=5, 
     ob = link(me2, 'Kitsune_Body')
     assign_groups(ob, vweights)
 
-    # 7 UVs
-    smart_uv(ob)
+    # 7 UVs: one large island per part, cut only at part borders and along the
+    # loft's underside seam (few seams, high atlas coverage, crisp texture)
+    seam_unwrap(ob, fpart, vth)
     return ob
 
 
@@ -222,6 +224,38 @@ def assign_groups(ob, weights):
             g = groups.get(bone) or ob.vertex_groups.new(name=bone)
             groups[bone] = g
             g.add([vi], float(val), 'REPLACE')
+
+
+def seam_unwrap(ob, fpart, vth):
+    me = ob.data
+    bm = bmesh.new()
+    bm.from_mesh(me)
+    bm.faces.ensure_lookup_table()
+    nseam = 0
+    for e in bm.edges:
+        lf = e.link_faces
+        seam = len(lf) != 2
+        if not seam and fpart[lf[0].index] != fpart[lf[1].index]:
+            seam = True
+        if not seam:
+            a, b = e.verts
+            if abs(vth[a.index] - vth[b.index]) > math.pi:          # wrap of the loft angle
+                seam = True
+        e.seam = seam
+        nseam += seam
+    bm.to_mesh(me)
+    bm.free()
+    if not me.uv_layers:
+        me.uv_layers.new(name='UVMap')
+    bpy.context.view_layer.objects.active = ob
+    for o in bpy.context.view_layer.objects:
+        o.select_set(o == ob)
+    bpy.ops.object.mode_set(mode='EDIT')
+    bpy.ops.mesh.select_all(action='SELECT')
+    bpy.ops.uv.unwrap(method='ANGLE_BASED', fill_holes=True, margin=0.002)
+    bpy.ops.object.mode_set(mode='OBJECT')
+    me.uv_layers[0].name = 'UVMap'
+    return nseam
 
 
 def smart_uv(ob):
@@ -237,7 +271,7 @@ def smart_uv(ob):
     ob.data.uv_layers[0].name = 'UVMap'
 
 
-def scale_uv_islands(ob, importance, part_attr='k_part'):
+def scale_uv_islands(ob, importance, S=1.0, part_attr='k_part'):
     """Give every UV island the same texel density as the accessory islands
     (UV length == 3D length) times a per-part importance factor."""
     me = ob.data
@@ -269,8 +303,9 @@ def scale_uv_islands(ob, importance, part_attr='k_part'):
     islands = {}
     for f in bm.faces:
         islands.setdefault(find(f.index), []).append(f)
+    print('UV body islands', len(islands))
     for faces in islands.values():
-        a3 = sum(f.calc_area() for f in faces)
+        a3 = sum(f.calc_area() for f in faces) / (S * S)        # unit-space area (matches accessory islands)
         auv = 0.0
         acc = {}
         cu = Vector((0, 0))

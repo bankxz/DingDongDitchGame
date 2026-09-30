@@ -454,27 +454,53 @@ def height_to_normal(h, filled, strength=2.5):
     return n * 0.5 + 0.5
 
 
-def paint_all(tri_uv, tri_t, tri_th, tri_P, tri_N, tri_part, tri_face, tri_ropelen, n_faces, ctx, size=1024):
+def paint_all(tri_uv, tri_t, tri_th, tri_P, tri_N, tri_part, tri_face, tri_ropelen, n_faces, ctx, size=1024, ss=2,
+              chunk=1_500_000):
+    """Paint at size*ss (supersampled), in chunks, then box-filter down to size
+    (coverage weighted) and dilate: smooth, anti-aliased texture edges."""
     attrs = {'t': tri_t, 'th': tri_th, 'P': tri_P, 'N': tri_N, 'part': tri_part.astype(float),
              'face': tri_face.astype(float), 'rl': tri_ropelen}
-    rr, cc, A = rasterize(tri_uv, attrs, size)
-    Nn = A['N'] / np.maximum(np.linalg.norm(A['N'], axis=1, keepdims=True), 1e-9)
-    S = Samples(A['t'], A['th'], A['P'], Nn, np.rint(A['part']).astype(int), np.rint(A['face']).astype(int))
-    ctx = dict(ctx)
-    ctx['rope_len'] = A['rl']
-    col, emi, rough, hgt, reg = paint_samples(S, ctx)
-    H = W = size
-    img = np.zeros((H, W, 3)); em = np.zeros((H, W)); ro = np.full((H, W), 0.85); hh = np.zeros((H, W))
-    filled = np.zeros((H, W), bool)
+    HS = size * ss
+    rr, cc, A = rasterize(tri_uv, attrs, HS)
+    n = len(rr)
+    col = np.zeros((n, 3)); emi = np.zeros(n); rough = np.zeros(n); hgt = np.zeros(n)
+    reg = np.zeros(n, dtype=np.int32)
+    faces = np.rint(A['face']).astype(int)
+    for s0 in range(0, n, chunk):
+        sl = slice(s0, min(n, s0 + chunk))
+        Nn = A['N'][sl] / np.maximum(np.linalg.norm(A['N'][sl], axis=1, keepdims=True), 1e-9)
+        S = Samples(A['t'][sl], A['th'][sl], A['P'][sl], Nn, np.rint(A['part'][sl]).astype(int), faces[sl])
+        c2 = dict(ctx)
+        c2['rope_len'] = A['rl'][sl]
+        col[sl], emi[sl], rough[sl], hgt[sl], reg[sl] = paint_samples(S, c2)
+    img = np.zeros((HS, HS, 3)); em = np.zeros((HS, HS)); ro = np.zeros((HS, HS)); hh = np.zeros((HS, HS))
+    filled = np.zeros((HS, HS), bool)
     img[rr, cc] = col; em[rr, cc] = emi; ro[rr, cc] = rough; hh[rr, cc] = hgt
     filled[rr, cc] = True
-    nrm = height_to_normal(hh, filled)
-    img = dilate(img, filled); em = dilate(em, filled); ro = dilate(ro, filled)
-    nrm = dilate(nrm, filled)
-    # per-face region by majority vote of its texels
+    nrm_hi = height_to_normal(hh, filled, strength=2.5 * ss) - 0.5
+
+    def down(a):
+        """coverage-weighted ss x ss box filter"""
+        f = filled.astype(float)
+        if a.ndim == 3:
+            num = (a * f[..., None]).reshape(size, ss, size, ss, a.shape[2]).sum((1, 3))
+        else:
+            num = (a * f).reshape(size, ss, size, ss).sum((1, 3))
+        den = f.reshape(size, ss, size, ss).sum((1, 3))
+        out = num / np.maximum(den, 1e-9)[..., None] if a.ndim == 3 else num / np.maximum(den, 1e-9)
+        return out, den > 0
+    img, filled_lo = down(img)
+    em, _ = down(em)
+    ro, _ = down(ro)
+    nrm, _ = down(nrm_hi)
+    nrm /= np.maximum(np.linalg.norm(nrm, axis=-1, keepdims=True), 1e-9)
+    nrm = nrm * 0.5 + 0.5
+    ro[~filled_lo] = 0.85
+    img = dilate(img, filled_lo); em = dilate(em, filled_lo); ro = dilate(ro, filled_lo)
+    nrm = dilate(nrm, filled_lo)
     face_reg = np.zeros(n_faces, dtype=np.int32)
     votes = np.zeros((n_faces, 6))
-    np.add.at(votes, (S.face, reg), 1)
+    np.add.at(votes, (faces, reg), 1)
     has = votes.sum(1) > 0
     face_reg[has] = votes[has].argmax(1)
     return img, em, ro, nrm, face_reg, has
