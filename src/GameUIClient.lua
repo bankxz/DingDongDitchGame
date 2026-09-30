@@ -404,8 +404,12 @@ local function touchOnly()
 end
 -- the on-screen thumbstick / jump button are showing (touch device, or a touchscreen laptop being used by touch)
 local function touchControls()
-	return UserInputService.TouchEnabled
-		and (not UserInputService.KeyboardEnabled or UserInputService:GetLastInputType() == Enum.UserInputType.Touch)
+	local tg = player.PlayerGui:FindFirstChild("TouchGui")
+	local frame = tg and tg:FindFirstChild("TouchControlFrame")
+	if tg and tg:IsA("ScreenGui") then
+		return tg.Enabled and (frame == nil or frame.Visible)
+	end
+	return touchOnly()
 end
 local function rescale()
 	local size = gui.AbsoluteSize
@@ -456,13 +460,26 @@ local function rescale()
 end
 gui:GetPropertyChangedSignal("AbsoluteSize"):Connect(rescale)
 local lastTouch = touchControls()
-UserInputService.LastInputTypeChanged:Connect(function()
+local function recheckTouch()
 	local t = touchControls()
 	if t ~= lastTouch then
 		lastTouch = t
 		rescale()
 	end
+end
+UserInputService.LastInputTypeChanged:Connect(recheckTouch)
+player.PlayerGui.ChildAdded:Connect(function(c)
+	if c.Name == "TouchGui" then
+		task.wait(0.5)
+		recheckTouch()
+		local frame = c:FindFirstChild("TouchControlFrame")
+		if frame then
+			frame:GetPropertyChangedSignal("Visible"):Connect(recheckTouch)
+		end
+		c:GetPropertyChangedSignal("Enabled"):Connect(recheckTouch)
+	end
 end)
+task.delay(2, recheckTouch)
 task.defer(rescale)
 local function homeOf(g)
 	return UDim2.new(g:GetAttribute("AX"), g:GetAttribute("HomeX") or 0, g:GetAttribute("AY"), g:GetAttribute("HomeY") or 0)
