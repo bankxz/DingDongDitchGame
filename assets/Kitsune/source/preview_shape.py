@@ -14,7 +14,8 @@ out = sys.argv[-1]
 os.makedirs(out, exist_ok=True)
 bpy.ops.wm.read_factory_settings(use_empty=True)
 
-md, _ = kg.build_kitsune()
+_b, _a, _ = kg.build_kitsune()
+md = kg.combined(_b, _a)
 me = bpy.data.meshes.new('shape')
 me.from_pydata([tuple(v) for v in md.verts], [], md.faces)
 me.update()

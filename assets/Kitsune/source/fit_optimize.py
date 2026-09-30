@@ -42,7 +42,8 @@ ob = None
 def score(tune):
     global ob
     kg.TAIL_TUNE.update(tune)
-    md, _ = kg.build_kitsune()
+    _b, _a, _ = kg.build_kitsune()
+    md = kg.combined(_b, _a)
     me = bpy.data.meshes.new('fit')
     me.from_pydata([tuple(v) for v in md.verts], [], md.faces)
     if ob is None:

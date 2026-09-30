@@ -17,6 +17,7 @@ slot assignment.
 import math
 import numpy as np
 from kitsune_geo import PART_IDS
+import kitsune_fur as kf
 
 P = PART_IDS
 
@@ -132,21 +133,25 @@ def paint_samples(s, ctx):
     toplight = 0.88 + 0.16 * nz
 
     # ---------------------------------------------------------- body fur
-    def fur(m, L, R, flow_sign, base=PURPLE, seed=0.0, ca=0.16, cb=0.12, contrast=0.7):
-        a = flow_sign * t[m] * L
-        b = th[m] * R
-        sh, h, gap = fur_clumps(a, b, ca, cb, seed)
+    def fur(m, part, base=PURPLE, contrast=0.8):
+        """Shading of the sculpted fur locks (same field as kitsune_sculpt):
+        lit ridge toward each lock tip, dark crevice just past the tip."""
+        f = kf.FUR[part]
+        a, b = kf.fur_coords(part, t[m], th[m])
+        hh, ridge, v = kf.lock_field(a, b, f['ca'], f['cb'], f['seed'])
+        sh = np.clip(0.35 + 0.55 * np.clip(hh, 0, 1) + 0.15 * ridge, 0, 1)
         sh = 1 - contrast * (1 - sh)
-        c = lerp3(PURPLE_DK, base, 0.30 + 0.70 * sh)
-        c = lerp3(c, PURPLE_LT, np.clip(sh - 0.7, 0, 1) * 1.3)
-        c = lerp3(c, PURPLE_DK * 0.8, gap * 0.35 * contrast)
-        return c, h
+        c = lerp3(PURPLE_DK, base, 0.25 + 0.75 * sh)
+        c = lerp3(c, PURPLE_LT, smoothstep(0.55, 0.95, hh * ridge) * 0.55 * contrast)
+        crev = smoothstep(0.10, 0.0, v) * contrast
+        c = lerp3(c, PURPLE_DK * 0.8, crev * 0.5)
+        return c, np.clip(hh, 0, 1)
 
     # torso -----------------------------------------------------------------
     # metric loft coordinates: ps = 0 (rump) .. 1.25 (chest), pp = 0 (spine) .. 0.94 (belly)
     m = sel('torso')
     if m.any():
-        c, h = fur(m, 1.45, 0.25, -1, seed=1, ca=0.22, cb=0.17)
+        c, h = fur(m, 'torso')
         ps, pp = t[m] * 1.45, phi[m] * 0.25       # ps: 0 rump .. 1.4 chest, pp: 0 spine .. 0.79 belly
         mk = np.zeros(m.sum())
         strokes = [   # clean lightning bolts (correction sheet side panels)
@@ -165,7 +170,7 @@ def paint_samples(s, ctx):
     # neck ------------------------------------------------------------------
     m = sel('neck')
     if m.any():
-        c, h = fur(m, 0.45, 0.24, -1, seed=2, ca=0.17, cb=0.14)
+        c, h = fur(m, 'neck')
         ps, pp = t[m] * 0.45, phi[m] * 0.24
         mk = np.zeros(m.sum())
         for i, (pts, w) in enumerate([
@@ -180,7 +185,7 @@ def paint_samples(s, ctx):
     # face mask designed relative to the eye centre E (reference close-ups)
     m = sel('head')
     if m.any():
-        c, h = fur(m, 0.55, 0.16, -1, base=PURPLE_HEAD, seed=3, ca=0.14, cb=0.10, contrast=0.15)
+        c, h = fur(m, 'head', base=PURPLE_HEAD, contrast=0.35)
         x, y, z = np.abs(X[m]), Y[m], Z[m]
         nzh = s.N[m, 2]
         E = ctx['eye_center']
@@ -201,14 +206,14 @@ def paint_samples(s, ctx):
         mk = np.maximum(mk, ((x / 0.040 + np.abs(y - (ey + 0.080)) / 0.075) < 1) & top)
         mk = np.maximum(mk, ((x / 0.022 + np.abs(y - (ey + 0.175)) / 0.036) < 1) & top)
         # bold almond outline around the eye with a pointed extension off the outer corner
-        e = (u / 0.096) ** 2 + ((vv + 0.004) / 0.045) ** 2
-        mk = np.maximum(mk, ((e > 1.02) & (e < 1.75) & near).astype(float))
-        mk = np.maximum(mk, stroke_mask(u, vv, [(0.085, 0.010), (0.15, 0.034)], 0.020, 0.006, seed=22) * near)
+        e = (u / 0.068) ** 2 + ((vv + 0.003) / 0.036) ** 2
+        mk = np.maximum(mk, ((e > 1.05) & (e < 1.70) & near).astype(float))
+        mk = np.maximum(mk, stroke_mask(u, vv, [(0.066, 0.008), (0.13, 0.030)], 0.017, 0.006, seed=22) * near)
         # bold brow wedge above the eye, rising toward the ear (V toward the forehead)
-        mk = np.maximum(mk, stroke_mask(u, vv, [(-0.080, 0.058), (0.030, 0.078), (0.140, 0.110)], 0.020, 0.008, seed=21)
+        mk = np.maximum(mk, stroke_mask(u, vv, [(-0.065, 0.050), (0.025, 0.066), (0.120, 0.096)], 0.018, 0.007, seed=21)
                         * (np.abs(ww) < 0.08))
         # bold mask edge from under the inner eye corner down the muzzle toward the nose
-        mk = np.maximum(mk, stroke_mask(u, vv, [(-0.075, -0.040), (-0.140, -0.062), (-0.210, -0.080)], 0.019, 0.007,
+        mk = np.maximum(mk, stroke_mask(u, vv, [(-0.060, -0.032), (-0.130, -0.056), (-0.200, -0.076)], 0.017, 0.007,
                                         seed=23) * (np.abs(ww) < 0.09) * (x > 0.025))
         mk = np.clip(mk, 0, 1)
         c = lerp3(c, CYAN, mk)
@@ -217,7 +222,7 @@ def paint_samples(s, ctx):
     # ears ------------------------------------------------------------------
     m = sel('ear')
     if m.any():
-        c, h = fur(m, 0.3, 0.05, -1, base=PURPLE_HEAD, seed=4, ca=0.08, cb=0.05, contrast=0.5)
+        c, h = fur(m, 'ear', base=PURPLE_HEAD, contrast=0.4)
         edge = np.abs(np.sin(th[m]))
         front = np.cos(th[m]) < -0.2
         rim = smoothstep(0.84, 0.92, edge + 0.08 * (vnoise(t[m] * 25, th[m] * 3, 3) - 0.5))
@@ -234,7 +239,7 @@ def paint_samples(s, ctx):
         m = sel(part)
         if not m.any():
             continue
-        c, h = fur(m, L, 0.07, 1, seed=seed, ca=0.12, cb=0.08)
+        c, h = fur(m, part)
         k = 7
         saw = 1 - np.abs(2 * (((th[m] * k / (2 * np.pi)) + 0.25 * vnoise(th[m] * 2, t[m] * 3, seed)) % 1.0) - 1)
         bound = tb - 0.10 * saw ** 2.5

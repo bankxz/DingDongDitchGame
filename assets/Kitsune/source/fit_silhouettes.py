@@ -20,7 +20,8 @@ argv = sys.argv[sys.argv.index('--') + 1:]
 refdir, out = argv[0], argv[1]
 os.makedirs(out, exist_ok=True)
 bpy.ops.wm.read_factory_settings(use_empty=True)
-md, _ = kg.build_kitsune()
+_b, _a, _ = kg.build_kitsune()
+md = kg.combined(_b, _a)
 me = bpy.data.meshes.new('fit')
 me.from_pydata([tuple(v) for v in md.verts], [], md.faces)
 ob = bpy.data.objects.new('fit', me)

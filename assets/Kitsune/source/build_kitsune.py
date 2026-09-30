@@ -23,8 +23,10 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import kitsune_geo as kg          # noqa: E402
 import kitsune_paint as kp        # noqa: E402
+import kitsune_sculpt as ks       # noqa: E402
 
 WORLD_SCALE = 4.0                 # shoulder height in Blender units (= studs in Roblox)
+TRI_BUDGET = 9900                 # hard limit 10k
 TEX_SIZE = 1024
 FPS = 30
 
@@ -96,6 +98,19 @@ def build_mesh(md, name='Kitsune'):
         p.use_smooth = True
     ob = bpy.data.objects.new(name, me)
     bpy.context.scene.collection.objects.link(ob)
+    ks.assign_groups(ob, [dict(sorted(w.items(), key=lambda kv: -kv[1])[:4]) for w in md.weights])
+    return ob
+
+
+def join_objects(objs, name):
+    bpy.ops.object.select_all(action='DESELECT')
+    for o in objs:
+        o.select_set(True)
+    bpy.context.view_layer.objects.active = objs[0]
+    bpy.ops.object.join()
+    ob = bpy.context.view_layer.objects.active
+    ob.name = name
+    ob.data.name = name + '_Mesh'
     return ob
 
 
@@ -112,7 +127,13 @@ def pack_uvs(ob):
 
 
 # ============================================================ textures
-def gather_triangles(ob, md):
+def face_parts(ob):
+    fp = np.zeros(len(ob.data.polygons), dtype=np.int32)
+    ob.data.attributes['k_part'].data.foreach_get('value', fp)
+    return fp
+
+
+def gather_triangles(ob):
     me = ob.data
     me.calc_loop_triangles()
     S = WORLD_SCALE
@@ -126,13 +147,13 @@ def gather_triangles(ob, md):
     vidx = np.zeros(len(me.loops), dtype=np.int64); me.loops.foreach_get('vertex_index', vidx)
     co = np.zeros(len(me.vertices) * 3); me.vertices.foreach_get('co', co); co = co.reshape(-1, 3) / S
     nrm = np.array([cn.vector[:] for cn in me.corner_normals])
-    part = np.array(md.face_part)[faces]
+    part = face_parts(ob)[faces]
     return dict(uv=uv[loops], t=t[loops], th=th[loops], P=co[vidx[loops]], N=nrm[loops], part=part,
                 face=faces, rl=rl[loops])
 
 
-def paint_textures(ob, md, lofts, outdir):
-    tri = gather_triangles(ob, md)
+def paint_textures(ob, lofts, outdir):
+    tri = gather_triangles(ob)
     head = lofts['head']
     eye_c, eye_n, _ = head.point(lofts['eye'][0], lofts['eye'][1], 0.0)
     ref = np.array([0.75, 0.55, 0.65]) * np.array([np.sign(eye_c[0]) or 1, 1, 1])
@@ -145,8 +166,9 @@ def paint_textures(ob, md, lofts, outdir):
     img, em, ro, nrm, face_reg, has = kp.paint_all(tri['uv'], tri['t'], tri['th'], tri['P'], tri['N'], tri['part'],
                                                    tri['face'], tri['rl'], len(ob.data.polygons), ctx, TEX_SIZE)
     inv = {v: k for k, v in kg.PART_IDS.items()}
+    fp = face_parts(ob)
     for fi in np.where(~has)[0]:
-        face_reg[fi] = PART_DEFAULT_REGION.get(inv[md.face_part[fi]], kp.REG_FUR)
+        face_reg[fi] = PART_DEFAULT_REGION.get(inv[int(fp[fi])], kp.REG_FUR)
     from PIL import Image
     os.makedirs(outdir, exist_ok=True)
     paths = {
@@ -226,11 +248,20 @@ def main():
     sc.unit_settings.scale_length = 0.01          # Roblox: 1 Blender unit = 1 stud with FBX Units Scale
     sc.render.fps = FPS
 
-    md, lofts = kg.build_kitsune()
-    print('KITSUNE tris', md.tri_count(), 'verts', len(md.verts))
-    ob = build_mesh(md)
+    md_body, md_acc, lofts = kg.build_kitsune()
+    kg.add_claws(md_acc, lofts['toe_tips'])
+    # budget: body gets whatever the accessories (+ eyes) leave under the limit
+    body_target = TRI_BUDGET - md_acc.tri_count() - 60
+    body = ks.build_sculpted_body(md_body, lofts, WORLD_SCALE, body_target)
+    ks.scale_uv_islands(body, UV_IMPORTANCE)
+    ks.add_eyes(md_acc, lofts, body, WORLD_SCALE)
+    acc = build_mesh(md_acc, 'Kitsune_Acc')
+    ob = join_objects([body, acc], 'Kitsune')
+    ntri = sum(len(p.vertices) - 2 for p in ob.data.polygons)
+    print('KITSUNE tris', ntri, 'verts', len(ob.data.vertices), '(body', body_target, 'target)')
+    md = None
     pack_uvs(ob)
-    paths, face_reg = paint_textures(ob, md, lofts, os.path.join(out, 'Textures'))
+    paths, face_reg = paint_textures(ob, lofts, os.path.join(out, 'Textures'))
     make_materials(ob, paths, face_reg)
     if args.stage == 'model':
         bpy.ops.wm.save_as_mainfile(filepath=os.path.join(out, '_model_stage.blend'))
