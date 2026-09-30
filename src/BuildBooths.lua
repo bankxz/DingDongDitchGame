@@ -240,8 +240,8 @@ local function booth(root, def)
 		end)
 		if hrp then
 			-- keep the feet on the riser after scaling
-			local hip2 = hum and hum.HipHeight or 2
-			npc:PivotTo(npc:GetPivot() + Vector3.new(0, (2.2 + hip2 + hrp.Size.Y / 2) - hrp.Position.Y, 0))
+			local bcf, bsz = npc:GetBoundingBox()
+			npc:PivotTo(npc:GetPivot() + Vector3.new(0, 2.2 - (bcf.Position.Y - bsz.Y / 2), 0))
 		end
 		npc:SetAttribute("MerchantIdle", true)
 		nameTag(npc, def.NPCTitle, def.Color1)
