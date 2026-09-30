@@ -39,12 +39,12 @@ MATERIAL_SLOTS = [                # (slot name, region id)
 PART_DEFAULT_REGION = {
     'rope': kp.REG_ROPE, 'knot': kp.REG_ROPE, 'gem': kp.REG_ORN, 'frame': kp.REG_ORN, 'bead': kp.REG_ORN,
     'tassel': kp.REG_ORN, 'eye': kp.REG_EYE, 'claw': kp.REG_CYAN, 'paw': kp.REG_CYAN, 'tuft_cyan': kp.REG_CYAN,
-    'tuft_tip': kp.REG_FUR,
+    'tuft_tip': kp.REG_FUR, 'tuft_cheek': kp.REG_FUR,
 }
 UV_IMPORTANCE = {
     'head': 3.2, 'eye': 3.5, 'gem': 2.5, 'frame': 2.0, 'ear': 1.8, 'neck': 1.2, 'torso': 1.1, 'tail': 0.95,
     'leg_f': 1.1, 'leg_h': 1.1, 'paw': 1.4, 'claw': 0.6, 'tuft': 0.8, 'tuft_cyan': 1.3, 'spike': 0.8,
-    'tail_tuft': 0.8, 'tuft_tip': 1.0, 'rope': 0.9, 'knot': 0.9, 'bead': 1.3, 'tassel': 1.2,
+    'tail_tuft': 0.8, 'tuft_tip': 1.0, 'tuft_cheek': 1.2, 'rope': 0.9, 'knot': 0.9, 'bead': 1.3, 'tassel': 1.2,
 }
 
 
@@ -135,13 +135,13 @@ def paint_textures(ob, md, lofts, outdir):
     tri = gather_triangles(ob, md)
     head = lofts['head']
     eye_c, eye_n, _ = head.point(lofts['eye'][0], lofts['eye'][1], 0.0)
-    ref = np.array([0, 1.0, 0.62])
+    ref = np.array([0.75, 0.55, 0.65]) * np.array([np.sign(eye_c[0]) or 1, 1, 1])
     along = ref - np.dot(ref, eye_n) * eye_n
     along /= np.linalg.norm(along)
     acr = np.cross(eye_n, along)
     acr = acr / np.linalg.norm(acr) * (1 if acr[2] > 0 else -1)
     ctx = {'eye_center': eye_c, 'eye_n': eye_n, 'eye_along': along, 'eye_acr': acr,
-           'head_line': np.array([[c[1], c[2]] for c in head.c])}
+           'head_line': np.array([[c[1], c[2]] for c in head.c]), 'nose_y': float(kg.HEAD_KEYS[-1, 0]) - 0.033}
     img, em, ro, nrm, face_reg, has = kp.paint_all(tri['uv'], tri['t'], tri['th'], tri['P'], tri['N'], tri['part'],
                                                    tri['face'], tri['rl'], len(ob.data.polygons), ctx, TEX_SIZE)
     inv = {v: k for k, v in kg.PART_IDS.items()}

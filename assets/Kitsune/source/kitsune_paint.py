@@ -196,23 +196,20 @@ def paint_samples(s, ctx):
         ww = d @ Nn
         near = np.abs(ww) < 0.05
         # cyan nose tip
-        mk = np.maximum(mk, smoothstep(0.968, 0.978, t[m]))
-        # forehead diamond + small crest diamond (centred)
-        mk = np.maximum(mk, ((x / 0.026 + np.abs(y - (ey + 0.075)) / 0.055) < 1) & top)
-        mk = np.maximum(mk, ((x / 0.016 + np.abs(y - (ey + 0.165)) / 0.028) < 1) & top)
-        # sharp eye outline following the slanted lens, open-ended streak off the outer corner
-        e = (u / 0.064) ** 2 + ((vv + 0.004) / 0.030) ** 2
-        mk = np.maximum(mk, ((e > 1.05) & (e < 1.55) & near).astype(float))
-        mk = np.maximum(mk, stroke_mask(u, vv, [(0.062, 0.006), (0.12, 0.022), (0.18, 0.040)], 0.011, 0.004, seed=22) * near)
-        # brow slash parallel above the eye, rising toward the ear
-        mk = np.maximum(mk, stroke_mask(u, vv, [(-0.050, 0.050), (0.040, 0.066), (0.130, 0.092)], 0.011, 0.004, seed=21)
-                        * (np.abs(ww) < 0.07))
-        # mask line from under the inner corner down the snout toward the nose
-        mk = np.maximum(mk, stroke_mask(u, vv, [(-0.050, -0.030), (-0.120, -0.052), (-0.200, -0.070)], 0.010, 0.004,
-                                        seed=23) * (np.abs(ww) < 0.08) * (x > 0.025))
-        # cheek line under the eye into the cheek ruff
-        mk = np.maximum(mk, stroke_mask(u, vv, [(0.000, -0.045), (0.070, -0.062), (0.140, -0.058)], 0.009, 0.004,
-                                        seed=24) * (np.abs(ww) < 0.08))
+        mk = np.maximum(mk, smoothstep(ctx['nose_y'] + 0.030, ctx['nose_y'] + 0.020, y))    # just the nose tip
+        # bold forehead diamond + crest diamond (centred)
+        mk = np.maximum(mk, ((x / 0.040 + np.abs(y - (ey + 0.080)) / 0.075) < 1) & top)
+        mk = np.maximum(mk, ((x / 0.022 + np.abs(y - (ey + 0.175)) / 0.036) < 1) & top)
+        # bold almond outline around the eye with a pointed extension off the outer corner
+        e = (u / 0.096) ** 2 + ((vv + 0.004) / 0.045) ** 2
+        mk = np.maximum(mk, ((e > 1.02) & (e < 1.75) & near).astype(float))
+        mk = np.maximum(mk, stroke_mask(u, vv, [(0.085, 0.010), (0.15, 0.034)], 0.020, 0.006, seed=22) * near)
+        # bold brow wedge above the eye, rising toward the ear (V toward the forehead)
+        mk = np.maximum(mk, stroke_mask(u, vv, [(-0.080, 0.058), (0.030, 0.078), (0.140, 0.110)], 0.020, 0.008, seed=21)
+                        * (np.abs(ww) < 0.08))
+        # bold mask edge from under the inner eye corner down the muzzle toward the nose
+        mk = np.maximum(mk, stroke_mask(u, vv, [(-0.075, -0.040), (-0.140, -0.062), (-0.210, -0.080)], 0.019, 0.007,
+                                        seed=23) * (np.abs(ww) < 0.09) * (x > 0.025))
         mk = np.clip(mk, 0, 1)
         c = lerp3(c, CYAN, mk)
         col[m], hgt[m], emi[m] = c * toplight[m][:, None], h * 0.5, mk
@@ -295,15 +292,16 @@ def paint_samples(s, ctx):
 
     # fur clumps ------------------------------------------------------------
     # leaf clumps: t = 0 root .. 1 tip; th ~1.57 on the top ridge, 0 / 3.14 at the edges
-    m = sel('tuft', 'spike', 'tuft_tip', 'tuft_cyan')
+    m = sel('tuft', 'spike', 'tuft_tip', 'tuft_cyan', 'tuft_cheek')
     if m.any():
         ridge = np.clip(np.sin(np.clip(th[m], 0, np.pi)), 0, 1)
         under = th[m] > np.pi + 0.2
         c = lerp3(PURPLE_DK, PURPLE, 0.55 + 0.35 * ridge + 0.1 * t[m])
         c = lerp3(c, PURPLE_LT, smoothstep(0.45, 1.0, ridge) * smoothstep(0.15, 0.7, t[m]) * 0.6)
-        c = lerp3(c, PURPLE_DK, under.astype(float) * 0.35)
+        c = lerp3(c, PURPLE_DK, under.astype(float) * 0.05)
         tipc = sel('tuft_tip', 'tuft_cyan')[m]
         cy = smoothstep(0.50, 0.80, t[m]) * tipc
+        cy = np.maximum(cy, smoothstep(0.82, 0.95, t[m]) * sel('tuft_cheek')[m])
         c = lerp3(c, lerp3(CYAN, CYAN_LT, smoothstep(0.8, 1.0, t[m])), cy)
         col[m], hgt[m], emi[m] = c * (0.5 + 0.5 * toplight[m])[:, None], 0.3 + 0.5 * ridge, cy
         reg[m] = np.where(cy > 0.5, REG_CYAN, REG_FUR)

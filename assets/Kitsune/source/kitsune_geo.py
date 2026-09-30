@@ -21,7 +21,7 @@ PART_IDS = {
     'torso': 0, 'neck': 1, 'head': 2, 'ear': 3, 'leg_f': 4, 'leg_h': 5,
     'paw': 6, 'claw': 7, 'tail': 8, 'tuft': 9, 'tuft_cyan': 10, 'spike': 11,
     'tail_tuft': 12, 'rope': 13, 'knot': 14, 'gem': 15, 'frame': 16,
-    'bead': 17, 'tassel': 18, 'eye': 19, 'tuft_tip': 20,
+    'bead': 17, 'tassel': 18, 'eye': 19, 'tuft_tip': 20, 'tuft_cheek': 21,
 }
 
 
@@ -528,15 +528,15 @@ TASSEL_TOP = v3(0.33, 0.14, 0.84)
 
 # torso key profile (y, top z, bottom z, half width)
 TORSO_KEYS = np.array([
-    [0.90, 0.90, 0.64, 0.22], [0.76, 0.935, 0.575, 0.29], [0.58, 0.945, 0.55, 0.29], [0.40, 0.945, 0.54, 0.28],
-    [0.24, 0.95, 0.53, 0.285], [0.08, 0.97, 0.48, 0.31], [-0.08, 0.995, 0.45, 0.335], [-0.24, 1.00, 0.43, 0.345],
-    [-0.38, 0.99, 0.44, 0.335], [-0.50, 0.95, 0.49, 0.30], [-0.58, 0.88, 0.57, 0.22]])
-TORSO_Y = list(np.linspace(TORSO_KEYS[0, 0], TORSO_KEYS[-1, 0], 12))
+    [0.90, 0.91, 0.63, 0.24], [0.76, 0.945, 0.565, 0.31], [0.58, 0.955, 0.54, 0.31], [0.40, 0.955, 0.525, 0.30],
+    [0.24, 0.96, 0.51, 0.305], [0.08, 0.975, 0.47, 0.33], [-0.08, 1.00, 0.44, 0.355], [-0.24, 1.005, 0.425, 0.365],
+    [-0.38, 0.995, 0.435, 0.355], [-0.50, 0.955, 0.485, 0.32], [-0.58, 0.885, 0.565, 0.24]])
+TORSO_Y = list(np.linspace(TORSO_KEYS[0, 0], TORSO_KEYS[-1, 0], 18))
 # head key profile (y, centre z, half width, top r, bottom r)
-HEAD_KEYS_TB = np.array([   # y, top z, bottom z, half width  (domed skull, stop at the eyes, tapered snout)
-    [-0.58, 1.44, 1.23, 0.150], [-0.64, 1.48, 1.21, 0.205], [-0.71, 1.475, 1.20, 0.220], [-0.77, 1.44, 1.18, 0.198],
-    [-0.82, 1.370, 1.160, 0.138], [-0.88, 1.330, 1.145, 0.104], [-0.94, 1.300, 1.140, 0.086], [-1.00, 1.272, 1.140, 0.070],
-    [-1.05, 1.248, 1.143, 0.054], [-1.09, 1.228, 1.150, 0.038]])
+HEAD_KEYS_TB = np.array([   # y, top z, bottom z, half width  (domed skull, stop, short thick fox muzzle)
+    [-0.58, 1.44, 1.23, 0.150], [-0.64, 1.48, 1.21, 0.205], [-0.71, 1.475, 1.20, 0.220], [-0.77, 1.44, 1.18, 0.200],
+    [-0.82, 1.378, 1.158, 0.152], [-0.87, 1.345, 1.142, 0.128], [-0.92, 1.320, 1.136, 0.113], [-0.97, 1.296, 1.136, 0.098],
+    [-1.01, 1.276, 1.141, 0.081], [-1.045, 1.256, 1.151, 0.060]])
 HEAD_KEYS = np.c_[HEAD_KEYS_TB[:, 0], (HEAD_KEYS_TB[:, 1] + HEAD_KEYS_TB[:, 2]) / 2, HEAD_KEYS_TB[:, 3],
                   (HEAD_KEYS_TB[:, 1] - HEAD_KEYS_TB[:, 2]) / 2 * 0.92, (HEAD_KEYS_TB[:, 1] - HEAD_KEYS_TB[:, 2]) / 2 * 1.08]
 
@@ -570,7 +570,7 @@ def build_kitsune():
     X = v3(1, 0, 0)
 
     # ------------------------------------------------------------------ torso
-    ty, (top, bot, hw) = smooth_rows(TORSO_KEYS, 12)
+    ty, (top, bot, hw) = smooth_rows(TORSO_KEYS, 18)
     tz = (top + bot) / 2
     tr = (top - bot) / 2
 
@@ -578,7 +578,7 @@ def build_kitsune():
         # sculpted fur layers on the back and flanks (shallow, flowing to the rear)
         up = max(0.0, math.cos(th) + 0.35)
         return 0.035 * up * math.cos(3 * th + (i % 2) * math.pi)
-    torso = Loft([v3(0, y, z) for y, z in zip(ty, tz)], hw, tr, tr, X, 18)
+    torso = Loft([v3(0, y, z) for y, z in zip(ty, tz)], hw, tr, tr, X, 24)
     torso_j = [(0.0, 'Hips'), (0.26, 'Hips'), (0.48, 'Spine'), (0.62, 'Spine'), (0.80, 'Chest'), (1.0, 'Chest')]
 
     def torso_w(i, t, p):
@@ -597,30 +597,32 @@ def build_kitsune():
     # ------------------------------------------------------------------- neck
     # long diagonal neck with a sculpted, layered ruff (relief rows pointing down/back)
     nkeys = [v3(0, -0.36, 0.84), v3(0, -0.46, 0.97), v3(0, -0.545, 1.09), v3(0, -0.61, 1.20), v3(0, -0.655, 1.29)]
-    neck_c = catmull_open(nkeys, 2)[:7]
+    neck_c = catmull_open(nkeys, 3)[:10]
     nr = np.linspace(0, 1, len(neck_c))
-    nrw = list(np.interp(nr, [0, 1], [0.29, 0.185]))
-    nrt = list(np.interp(nr, [0, 1], [0.24, 0.155]))
-    nrb = list(np.interp(nr, [0, 1], [0.30, 0.165]))
+    # taper into the back of the skull so the neck never pokes out beside the jaw
+    nrw = list(np.interp(nr, [0, 0.75, 1], [0.29, 0.19, 0.12]))
+    nrt = list(np.interp(nr, [0, 0.75, 1], [0.24, 0.16, 0.10]))
+    nrb = list(np.interp(nr, [0, 0.75, 1], [0.30, 0.17, 0.11]))
 
     def neck_relief(i, th):
         return 0.075 * max(0.0, math.cos(4 * th + (i % 2) * math.pi / 4 * 2)) - 0.02
-    neck = Loft(neck_c, nrw, nrt, nrb, X, 14)
+    neck = Loft(neck_c, nrw, nrt, nrb, X, 20)
     neck_j = [(0.0, 'Chest'), (0.30, 'Neck1'), (0.70, 'Neck2'), (1.0, 'Head')]
-    neck.build(md, 'neck', lambda i, t, p: blend_chain(t, neck_j))
+    neck.build(md, 'neck', lambda i, t, p: blend_chain(t, neck_j), cap_end=neck_c[-1] + norm(neck_c[-1] - neck_c[-2]) * 0.04)
 
     # ------------------------------------------------------------------- head
-    hy, (hz, hrw, hrt, hrb) = smooth_rows(HEAD_KEYS, 11)
-    head = Loft([v3(0, y, z) for y, z in zip(hy, hz)], hrw, hrt, hrb, X, 16)
+    hy, (hz, hrw, hrt, hrb) = smooth_rows(HEAD_KEYS, 16)
+    head = Loft([v3(0, y, z) for y, z in zip(hy, hz)], hrw, hrt, hrb, X, 22)
     head.build(md, 'head', lambda i, t, p: {'Head': 1.0} if i > 0 else {'Head': 0.8, 'Neck2': 0.2},
-               cap_start=v3(0, -0.54, 1.335), cap_end=v3(0, -1.125, 1.192))
+               cap_start=v3(0, -0.54, 1.335), cap_end=v3(0, -1.078, 1.205))
 
     # ------------------------------------------------------------------- eyes
     # sharp, slanted, flat-set eyes: long lens with pointed corners, outer corner high
-    eye_s, eye_th = 0.36, math.radians(44)
+    eye_s, eye_th = 0.38, math.radians(40)
     for sx in (1, -1):
         p, n, T = head.point(eye_s, sx * eye_th, 0.0)
-        along = norm(v3(0, 1.0, 0.62) - np.dot(v3(0, 1.0, 0.62), n) * n)      # toward the back, rising
+        ref_ax = v3(sx * 0.75, 0.55, 0.65)          # outer corner: out, back and UP (inner corner low -> angry slant)
+        along = norm(ref_ax - np.dot(ref_ax, n) * n)
         acr = np.cross(n, along)
         acr = norm(acr) * (1 if acr[2] > 0 else -1)
         isl = md.new_island('eye')
@@ -629,10 +631,10 @@ def build_kitsune():
         for k in range(10):
             a = TAU * k / 10
             ca_, sa_ = math.cos(a), math.sin(a)
-            h = 0.028 * abs(sa_) ** 1.1 * (1.0 if sa_ > 0 else 0.62)            # sharp corners
-            q = p + n * 0.004 + along * 0.060 * ca_ + acr * h * np.sign(sa_) - acr * 0.010 * (ca_ < 0) * (-ca_)
+            h = 0.042 * abs(sa_) ** 1.1 * (1.0 if sa_ > 0 else 0.62)            # sharp corners
+            q = p + n * 0.006 + along * 0.090 * ca_ + acr * h * np.sign(sa_) - acr * 0.015 * (ca_ < 0) * (-ca_)
             rim.append(md.add_vert(q, {'Head': 1.0}))
-        cvt = md.add_vert(p + n * 0.007 + along * 0.004, {'Head': 1.0})
+        cvt = md.add_vert(p + n * 0.011 + along * 0.006, {'Head': 1.0})
         for k in range(10):
             k2 = (k + 1) % 10
             a, b = TAU * k / 10, TAU * (k + 1) / 10
@@ -728,26 +730,31 @@ def build_kitsune():
 
     # cheek ruff: two neat rows sweeping back/out, cyan tipped
     for sx in (1, -1):
-        cheek_flow = lambda p, n, T, sx=sx: v3(sx * 0.62, 1.0, -0.12)
-        for s, deg, L in ((0.34, 98, 0.21), (0.27, 112, 0.23), (0.20, 126, 0.22)):          # front row
-            clump_on(head, s, sx * math.radians(deg), 'tuft_tip', L, 0.115, cheek_flow, hw, lift=0.35, thick=0.32)
-        for s, deg, L in ((0.18, 96, 0.21), (0.11, 112, 0.22), (0.05, 128, 0.20)):          # back row
-            clump_on(head, s, sx * math.radians(deg), 'tuft_tip', L, 0.12, cheek_flow, hw, lift=0.35, thick=0.32)
+        cheek_flow = lambda p, n, T, sx=sx: v3(sx * 0.22, 1.0, -0.18)
+        for s, deg, L in ((0.38, 104, 0.15), (0.29, 114, 0.17), (0.20, 124, 0.17)):         # 3 layered clumps on the cheek
+            clump_on(head, s, sx * math.radians(deg), 'tuft_cheek', L, 0.19, cheek_flow, hw, lift=0.04, thick=0.60, curl=0.55)
     # crest behind the ears
     # neck mane: three rows over the nape, all flowing back and down the neck
-    for s in (0.82, 0.55, 0.28):
-        for deg in (0, 48, -48):
-            clump_on(neck, s, math.radians(deg + (12 if s == 0.55 else 0)), 'tuft', 0.24, 0.16, neck_flow, nw)
-    # chest ruff: two rows flowing down, cyan under-tips
-    for s in (0.30, 0.06):
-        for deg in (180, 148, -148):
-            clump_on(neck, s, math.radians(deg), 'tuft_tip', 0.23, 0.16, lambda p, n, T: v3(0, 0.3, -1), nw, lift=0.15)
+    for s, degs in ((0.72, (0,)), (0.36, (0, 50, -50))):
+        for deg in degs:
+            clump_on(neck, s, math.radians(deg), 'tuft', 0.25, 0.18, neck_flow, nw, lift=0.14, thick=0.5)
+    # chest: V-shaped flow - centre clumps straight down, side clumps angle in toward the centre line
+    chest_flow = lambda sx: (lambda p, n, T: v3(-sx * 0.55, 0.15, -1))
+    clump_on(neck, 0.36, math.pi, 'tuft_tip', 0.24, 0.17, lambda p, n, T: v3(0, 0.2, -1), nw, lift=0.12, thick=0.5)
+    clump_on(neck, 0.08, math.pi, 'tuft_tip', 0.24, 0.17, lambda p, n, T: v3(0, 0.2, -1), nw, lift=0.12, thick=0.5)
+    for sx in (1, -1):
+        for s, deg in ((0.46, 140), (0.20, 138), (0.02, 150)):
+            clump_on(neck, s, sx * math.radians(deg), 'tuft_tip', 0.23, 0.16, chest_flow(sx), nw, lift=0.12, thick=0.5)
     for sx in (1, -1):
         S = '_L' if sx > 0 else '_R'
         # belly fringe under the deep chest (one aligned row)
         for y in (-0.30, -0.12, 0.06, 0.22):
             clump_on(torso, torso_s(y), sx * math.radians(152), 'tuft', 0.18, 0.15,
                      lambda p, n, T: v3(0, 0.45, -1), tw, lift=0.15)
+        # flank row over the rib-to-hip transition
+        for y in (0.10, 0.36):
+            clump_on(torso, torso_s(y), sx * math.radians(96), 'tuft', 0.22, 0.17, lambda p, n, T: v3(0, 0.7, -1), tw,
+                     lift=0.12, thick=0.5)
         # shoulder row
         for y, deg in ((-0.34, 100), (-0.18, 92)):
             clump_on(torso, torso_s(y), sx * math.radians(deg), 'tuft', 0.21, 0.15,
@@ -776,19 +783,24 @@ def build_kitsune():
     # knot behind the withers, strands down the barrel to neat side tassels
     rope_r = 0.025
     coll_s = 0.14
-    coll = [neck.point(coll_s, TAU * k / 12, rope_r * 2.2 + 0.03)[0] for k in range(12)]
-    build_tube(md, 'rope', coll, rope_r, 5, lambda i, t, p: {'Neck1': 0.5, 'Chest': 0.5}, closed=True)
+    coll = [neck.point(coll_s, TAU * k / 18, rope_r * 2.2 + 0.03)[0] for k in range(18)]
+    build_tube(md, 'rope', coll, rope_r, 7, lambda i, t, p: {'Neck1': 0.5, 'Chest': 0.5}, closed=True)
     back_pt = lambda y, deg, off: torso.point(torso_s(y), math.radians(deg), off)[0]
+    F0 = neck.point(coll_s, 0.0, rope_r * 2.2 + 0.03)[0]
     for sx in (1, -1):
-        F = neck.point(coll_s, sx * math.radians(34), rope_r * 2.2 + 0.03)[0]
-        pts = [F,
-               back_pt(-0.40, sx * 20, 0.20),
-               back_pt(-0.16, sx * 10, 0.24),
-               back_pt(0.06, sx * 6, 0.16),
-               KNOT + v3(sx * 0.03, 0, 0.02),
-               back_pt(-0.06, sx * 16, 0.05),
-               back_pt(-0.30, sx * 22, 0.05)]
-        build_tube(md, 'rope', catmull_loop(pts, 2), rope_r, 5, lambda i, t, p: {'Chest': 1.0}, closed=True)
+        # rounded oval: bottom arc rests on the back, top arc rises ~0.15 over the shoulders
+        pts = []
+        for k in range(22):
+            a = TAU * k / 22
+            y = (F0[1] + KNOT[1]) / 2 - (KNOT[1] - F0[1]) / 2 * math.cos(a)
+            f = 0.5 - 0.5 * math.cos(a)                                   # 0 at collar .. 1 at knot
+            deg = sx * (26 - 14 * f)
+            on_back = back_pt(y, deg, 0.035)
+            end_z = F0[2] * (1 - f) + (KNOT[2] + 0.02) * f
+            base = on_back if y > F0[1] + 0.06 else on_back * 0 + v3(on_back[0], y, max(on_back[2], end_z))
+            lift = 0.15 * max(0.0, math.sin(a)) ** 0.8
+            pts.append(base + v3(sx * 0.025 * max(0.0, math.sin(a)), 0, lift))
+        build_tube(md, 'rope', pts, rope_r, 7, lambda i, t, p: {'Chest': 1.0}, closed=True)
     build_sphere(md, 'knot', KNOT + v3(0, 0, 0.02), (0.060, 0.050, 0.040), 6, 3, {'Spine': 0.5, 'Chest': 0.5})
     ks = torso_s(KNOT[1])
     for sx in (1, -1):
