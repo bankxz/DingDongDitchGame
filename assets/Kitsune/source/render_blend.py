@@ -20,12 +20,14 @@ arm = bpy.data.objects.get('Kitsune_Rig')
 if arm and action:
     arm.animation_data.action = bpy.data.actions[action]
 bpy.context.scene.frame_set(frame)
-rv.setup_scene(res=(720, 540), samples=32)
+rv.setup_scene(res=(1000, 750), samples=64)
 S = 4.0
-tgt = Vector((0, 0.30, 0.85)) * S
+tgt = Vector((0, 0.45, 0.85)) * S
 for v in views:
-    ext = 3.6 * S
-    if v == 'head_close':
-        rv.render_view(v, os.path.join(out, f'shape_{v}.png'), Vector((0, -0.72, 1.25)) * S, 0.85 * S)
+    ext = 3.9 * S
+    if v in ('head_close', 'head_side'):
+        rv.render_view(v, os.path.join(out, f'shape_{v}.png'), Vector((0, -0.78, 1.30)) * S, 1.05 * S)
+    elif v == 'leg_close':
+        rv.render_view(v, os.path.join(out, f'shape_{v}.png'), Vector((0.28, -0.34, 0.34)) * S, 0.85 * S)
     else:
         rv.render_view(v, os.path.join(out, f'shape_{v}.png'), tgt, ext)

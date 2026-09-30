@@ -14,7 +14,9 @@ VIEW_DIRS = {
     'q34_front_right': (Vector((-1.0, -0.75, 0.30)), False),
     'q34_back_left': (Vector((-1.25, 0.55, 0.25)), False),
     'q34_front_left': (Vector((1.0, -1.1, 0.45)), False),
-    'head_close': (Vector((0, -1, 0.15)), False),
+    'head_close': (Vector((0, -1, 0.12)), False),
+    'head_side': (Vector((-1, -0.45, 0.10)), False),
+    'leg_close': (Vector((-0.35, -1, 0.05)), False),
 }
 
 

@@ -39,11 +39,12 @@ MATERIAL_SLOTS = [                # (slot name, region id)
 PART_DEFAULT_REGION = {
     'rope': kp.REG_ROPE, 'knot': kp.REG_ROPE, 'gem': kp.REG_ORN, 'frame': kp.REG_ORN, 'bead': kp.REG_ORN,
     'tassel': kp.REG_ORN, 'eye': kp.REG_EYE, 'claw': kp.REG_CYAN, 'paw': kp.REG_CYAN, 'tuft_cyan': kp.REG_CYAN,
+    'tuft_tip': kp.REG_FUR,
 }
 UV_IMPORTANCE = {
     'head': 2.4, 'eye': 3.5, 'gem': 2.5, 'frame': 2.0, 'ear': 1.8, 'neck': 1.2, 'torso': 1.1, 'tail': 0.95,
     'leg_f': 1.1, 'leg_h': 1.1, 'paw': 1.4, 'claw': 0.6, 'tuft': 0.8, 'tuft_cyan': 1.3, 'spike': 0.8,
-    'tail_tuft': 0.8, 'rope': 0.9, 'knot': 0.9, 'bead': 1.3, 'tassel': 1.2,
+    'tail_tuft': 0.8, 'tuft_tip': 1.0, 'rope': 0.9, 'knot': 0.9, 'bead': 1.3, 'tassel': 1.2,
 }
 
 
@@ -133,7 +134,7 @@ def gather_triangles(ob, md):
 def paint_textures(ob, md, lofts, outdir):
     tri = gather_triangles(ob, md)
     head = lofts['head']
-    eye_c = head.point(0.52, math.radians(50), 0.0)[0]
+    eye_c = head.point(lofts['eye'][0], lofts['eye'][1], 0.0)[0]
     ctx = {'eye_center': eye_c, 'head_line': np.array([[c[1], c[2]] for c in head.c])}
     img, em, ro, nrm, face_reg, has = kp.paint_all(tri['uv'], tri['t'], tri['th'], tri['P'], tri['N'], tri['part'],
                                                    tri['face'], tri['rl'], len(ob.data.polygons), ctx, TEX_SIZE)
