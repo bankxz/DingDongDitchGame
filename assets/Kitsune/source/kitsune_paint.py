@@ -138,11 +138,11 @@ def paint_samples(s, ctx):
     toplight = 0.88 + 0.16 * nz
 
     # ---------------------------------------------------------- body fur
-    def fur(m, part, base=PURPLE, contrast=0.8):
+    def fur(m, part, base=PURPLE, contrast=0.8, th_override=None):
         """Shading of the sculpted fur locks (same field as kitsune_sculpt):
         lit ridge toward each lock tip, dark crevice just past the tip."""
         f = kf.FUR[part]
-        a, b = kf.fur_coords(part, t[m], th[m])
+        a, b = kf.fur_coords(part, t[m], th[m] if th_override is None else th_override)
         hh, ridge, v = kf.lock_field(a, b, f['ca'], f['cb'], f['seed'])
         sh = np.clip(0.35 + 0.55 * np.clip(hh, 0, 1) + 0.15 * ridge, 0, 1)
         sh = 1 - contrast * (1 - sh)
@@ -228,14 +228,16 @@ def paint_samples(s, ctx):
     # ears ------------------------------------------------------------------
     m = sel('ear')
     if m.any():
-        c, h = fur(m, 'ear', base=PURPLE_HEAD, contrast=0.4)
-        edge = np.abs(np.sin(th[m]))
-        front = np.cos(th[m]) < -0.2
-        rim = smoothstep(0.84, 0.92, edge + 0.08 * (vnoise(t[m] * 25, th[m] * 3, 3) - 0.5))
+        # the right ear's loft is the mirror of the left one (th_R = pi - th_L):
+        # map it back so both ears are painted as exact mirror images
+        the = np.where(X[m] < 0, np.pi - th[m], th[m])
+        c, h = fur(m, 'ear', base=PURPLE_HEAD, contrast=0.4, th_override=the)
+        edge = np.abs(np.sin(the))
+        front = smoothstep(-0.10, -0.30, np.cos(the))                  # forward-facing (inner) side
+        rim = smoothstep(0.84, 0.92, edge + 0.08 * (vnoise(t[m] * 25, edge * 3, 3) - 0.5))
         tip = smoothstep(0.80, 0.86, t[m])
-        inner = front & (edge < 0.55) & (t[m] > 0.15)
-        c = lerp3(c, PURPLE_DK * 0.8, inner.astype(float) * 0.8)
-        streak = inner & (np.abs(np.sin(th[m] * 3)) > 0.8) & (t[m] < 0.6)
+        inner = front * smoothstep(0.62, 0.48, edge) * smoothstep(0.10, 0.20, t[m])
+        c = lerp3(c, PURPLE_DK * 0.8, inner * 0.8)
         mk = np.clip(np.maximum(rim, tip), 0, 1)
         c = lerp3(c, CYAN, mk)
         col[m], hgt[m], emi[m] = c, h, mk
