@@ -1423,6 +1423,37 @@ local function allOwned()
 	end)
 	return list
 end
+-- centred "nothing here yet" message over a grid
+local function emptyNote(grid, show, msg)
+	if not grid then
+		return
+	end
+	local note = grid.Parent:FindFirstChild("EmptyNote_" .. grid.Name)
+	if show and not note then
+		note = Instance.new("TextLabel")
+		note.Name = "EmptyNote_" .. grid.Name
+		note.BackgroundTransparency = 1
+		note.AnchorPoint = Vector2.new(0.5, 0.5)
+		note.Size = UDim2.fromOffset(math.min(460, grid.Size.X.Offset - 20), 90)
+		note.Position = UDim2.fromOffset(grid.Position.X.Offset + grid.Size.X.Offset / 2, grid.Position.Y.Offset + grid.Size.Y.Offset / 2)
+		note.FontFace = Font.new("rbxasset://fonts/families/FredokaOne.json")
+		note.TextSize = 30
+		note.TextColor3 = Color3.fromRGB(200, 200, 210)
+		note.TextWrapped = true
+		note.ZIndex = 20
+		local st = Instance.new("UIStroke")
+		st.Thickness = 2.5
+		st.Color = Color3.fromRGB(14, 14, 16)
+		st.Parent = note
+		note.Parent = grid.Parent
+	end
+	if note then
+		note.Visible = show
+		if show then
+			note.Text = msg
+		end
+	end
+end
 local function renderInventory()
 	if not (petsWin and state) then
 		return
@@ -1437,8 +1468,8 @@ local function renderInventory()
 		has[a.Rarity] = true
 	end
 	local tabs = { "All" }
-	for _, r in RARITY_ORDER do
-		if has[r] then
+	for i, r in RARITY_ORDER do
+		if has[r] or i <= 4 then
 			table.insert(tabs, r)
 		end
 	end
@@ -1518,6 +1549,7 @@ local function renderInventory()
 			invCards[id] = nil
 		end
 	end
+	emptyNote(grid, shown == 0, invFilter == "All" and "No pets yet!\nHatch eggs to fill your collection." or ("No " .. invFilter .. " pets yet!"))
 	local footer = find(body, "Content.Footer")
 	if footer then
 		local l = text(footer)
@@ -2300,10 +2332,19 @@ local function renderSell()
 	for _, d in sellWin.Side:GetChildren() do
 		local key = d.Name:match("^Tab/(.+)$")
 		if key then
-			tween(scaleOf(d, "SelScale"), 0.15, { Scale = key == sellTab and 1.08 or 1 })
-			d.BackgroundTransparency = key == sellTab and 0 or 0.25
+			local on = key == sellTab
+			d.BackgroundTransparency = 1
+			tween(scaleOf(d, "SelScale"), 0.15, { Scale = on and 1.12 or 0.95 })
+			for _, c in d:GetDescendants() do
+				if c:IsA("ImageLabel") then
+					c.ImageTransparency = on and 0 or 0.4
+				elseif c:IsA("TextLabel") then
+					c.TextTransparency = on and 0 or 0.4
+				end
+			end
 		end
 	end
+	emptyNote(grid, #list == 0, sellTab == "Eggs" and "No eggs to sell yet!\nGrab some eggs first." or "No pets to sell yet!\nHatch some eggs first.")
 end
 onOpen.SellWindow = function()
 	selected = {}
@@ -2695,14 +2736,34 @@ showReveal = function(info)
 	local color = rarityColor(info.Rarity)
 	local glow = reveal:FindFirstChild("RarityGlow")
 	if glow then
-		glow.BackgroundColor3 = color
+		-- soft radial glow: stacked translucent discs (Figma's radial gradient has no UIGradient equivalent)
+		glow.BackgroundTransparency = 1
 		for _, c in glow:GetChildren() do
-			if c:IsA("UIGradient") then
-				local cs = {}
-				for _, k in c.Color.Keypoints do
-					table.insert(cs, ColorSequenceKeypoint.new(k.Time, color))
-				end
-				c.Color = ColorSequence.new(cs)
+			if c:IsA("UIGradient") or c:IsA("UIStroke") then
+				c.Enabled = false
+			end
+		end
+		if not glow:FindFirstChild("Soft1") then
+			for i = 1, 8 do
+				local d = Instance.new("Frame")
+				d.Name = "Soft" .. i
+				d.AnchorPoint = Vector2.new(0.5, 0.5)
+				d.Position = UDim2.fromScale(0.5, 0.5)
+				local k = 1 - (i - 1) * 0.11
+				d.Size = UDim2.fromScale(k, k)
+				d.BackgroundTransparency = 0.88
+				d.BorderSizePixel = 0
+				d.ZIndex = glow.ZIndex
+				local corner = Instance.new("UICorner")
+				corner.CornerRadius = UDim.new(1, 0)
+				corner.Parent = d
+				d.Parent = glow
+			end
+		end
+		for i = 1, 8 do
+			local d = glow:FindFirstChild("Soft" .. i)
+			if d then
+				d.BackgroundColor3 = color:Lerp(Color3.new(1, 1, 1), (i - 1) / 14)
 			end
 		end
 	end
