@@ -1126,7 +1126,9 @@ local function fitPanel(panel, maxH, footers)
 	end
 	task.defer(function()
 		local k = list.AbsoluteSize.Y > 0 and list.Size.Y.Offset / list.AbsoluteSize.Y or 1
-		local content = math.ceil(layout.AbsoluteContentSize.Y * k) + 4
+		local pad = list:FindFirstChildOfClass("UIPadding")
+		local padY = pad and (pad.PaddingTop.Offset + pad.PaddingBottom.Offset) or 0
+		local content = math.ceil(layout.AbsoluteContentSize.Y * k) + padY + 4
 		local h = math.clamp(content, 84, maxH)
 		list.Size = UDim2.fromOffset(list.Size.X.Offset, h)
 		list.CanvasSize = UDim2.fromOffset(0, content)
