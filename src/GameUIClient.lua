@@ -402,6 +402,11 @@ local hudScale = 1
 local function touchOnly()
 	return UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
 end
+-- the on-screen thumbstick / jump button are showing (touch device, or a touchscreen laptop being used by touch)
+local function touchControls()
+	return UserInputService.TouchEnabled
+		and (not UserInputService.KeyboardEnabled or UserInputService:GetLastInputType() == Enum.UserInputType.Touch)
+end
 local function rescale()
 	local size = gui.AbsoluteSize
 	if size.X < 10 then
@@ -431,7 +436,7 @@ local function rescale()
 		end
 		local home = UDim2.new(g:GetAttribute("AX"), g:GetAttribute("OX") * s, g:GetAttribute("AY"), g:GetAttribute("OY") * s)
 		-- touch: lift the bottom-corner HUD clear of the thumbstick (left) and jump button (right)
-		if touchOnly() and kind ~= "window" and kind ~= "modal" and kind ~= "overlay" and g:GetAttribute("AY") == 1 then
+		if touchControls() and kind ~= "window" and kind ~= "modal" and kind ~= "overlay" and g:GetAttribute("AY") == 1 then
 			local small = math.min(size.X, size.Y) <= 500
 			local ax = g:GetAttribute("AX")
 			local lift = 0
@@ -450,6 +455,14 @@ local function rescale()
 	end
 end
 gui:GetPropertyChangedSignal("AbsoluteSize"):Connect(rescale)
+local lastTouch = touchControls()
+UserInputService.LastInputTypeChanged:Connect(function()
+	local t = touchControls()
+	if t ~= lastTouch then
+		lastTouch = t
+		rescale()
+	end
+end)
 task.defer(rescale)
 local function homeOf(g)
 	return UDim2.new(g:GetAttribute("AX"), g:GetAttribute("HomeX") or 0, g:GetAttribute("AY"), g:GetAttribute("HomeY") or 0)
