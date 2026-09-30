@@ -533,10 +533,10 @@ TORSO_KEYS = np.array([
     [-0.38, 0.995, 0.435, 0.355], [-0.50, 0.955, 0.485, 0.32], [-0.58, 0.885, 0.565, 0.24]])
 TORSO_Y = list(np.linspace(TORSO_KEYS[0, 0], TORSO_KEYS[-1, 0], 18))
 # head key profile (y, centre z, half width, top r, bottom r)
-HEAD_KEYS_TB = np.array([   # y, top z, bottom z, half width  (domed skull, stop, short thick fox muzzle)
-    [-0.58, 1.44, 1.23, 0.150], [-0.64, 1.48, 1.21, 0.205], [-0.71, 1.475, 1.20, 0.220], [-0.77, 1.44, 1.18, 0.200],
-    [-0.82, 1.378, 1.158, 0.152], [-0.87, 1.345, 1.142, 0.128], [-0.92, 1.320, 1.136, 0.113], [-0.97, 1.296, 1.136, 0.098],
-    [-1.01, 1.276, 1.141, 0.081], [-1.045, 1.256, 1.151, 0.060]])
+HEAD_KEYS_TB = np.array([   # y, top z, bottom z, half width  (domed skull, stop, short thick fox muzzle, wedge face)
+    [-0.58, 1.44, 1.23, 0.155], [-0.64, 1.48, 1.21, 0.215], [-0.71, 1.475, 1.20, 0.235], [-0.77, 1.44, 1.18, 0.210],
+    [-0.82, 1.378, 1.158, 0.140], [-0.87, 1.345, 1.142, 0.112], [-0.92, 1.320, 1.136, 0.098], [-0.97, 1.296, 1.136, 0.085],
+    [-1.01, 1.276, 1.141, 0.071], [-1.045, 1.256, 1.151, 0.053]])
 HEAD_KEYS = np.c_[HEAD_KEYS_TB[:, 0], (HEAD_KEYS_TB[:, 1] + HEAD_KEYS_TB[:, 2]) / 2, HEAD_KEYS_TB[:, 3],
                   (HEAD_KEYS_TB[:, 1] - HEAD_KEYS_TB[:, 2]) / 2 * 0.92, (HEAD_KEYS_TB[:, 1] - HEAD_KEYS_TB[:, 2]) / 2 * 1.08]
 
@@ -731,8 +731,8 @@ def build_kitsune():
     # cheek ruff: two neat rows sweeping back/out, cyan tipped
     for sx in (1, -1):
         cheek_flow = lambda p, n, T, sx=sx: v3(sx * 0.22, 1.0, -0.18)
-        for s, deg, L in ((0.38, 104, 0.15), (0.29, 114, 0.17), (0.20, 124, 0.17)):         # 3 layered clumps on the cheek
-            clump_on(head, s, sx * math.radians(deg), 'tuft_cheek', L, 0.19, cheek_flow, hw, lift=0.04, thick=0.60, curl=0.55)
+        for s, deg, L in ((0.50, 106, 0.13), (0.42, 116, 0.14), (0.34, 126, 0.14)):         # 3 layered clumps on the cheek
+            clump_on(head, s, sx * math.radians(deg), 'tuft_cheek', L, 0.19, cheek_flow, hw, lift=0.0, thick=0.55, curl=0.0)
     # crest behind the ears
     # neck mane: three rows over the nape, all flowing back and down the neck
     for s, degs in ((0.72, (0,)), (0.36, (0, 50, -50))):
@@ -787,20 +787,24 @@ def build_kitsune():
     build_tube(md, 'rope', coll, rope_r, 7, lambda i, t, p: {'Neck1': 0.5, 'Chest': 0.5}, closed=True)
     back_pt = lambda y, deg, off: torso.point(torso_s(y), math.radians(deg), off)[0]
     F0 = neck.point(coll_s, 0.0, rope_r * 2.2 + 0.03)[0]
+    LOOP_Y0, LOOP_Y1 = -0.42, KNOT[1] - 0.02
     for sx in (1, -1):
-        # rounded oval: bottom arc rests on the back, top arc rises ~0.15 over the shoulders
+        # clean oval on the back: lower arc lies on the fur, upper arc rises gently
+        # (max ~0.11) over the shoulders; both ends meet the spine line
         pts = []
-        for k in range(22):
-            a = TAU * k / 22
-            y = (F0[1] + KNOT[1]) / 2 - (KNOT[1] - F0[1]) / 2 * math.cos(a)
-            f = 0.5 - 0.5 * math.cos(a)                                   # 0 at collar .. 1 at knot
-            deg = sx * (26 - 14 * f)
-            on_back = back_pt(y, deg, 0.035)
-            end_z = F0[2] * (1 - f) + (KNOT[2] + 0.02) * f
-            base = on_back if y > F0[1] + 0.06 else on_back * 0 + v3(on_back[0], y, max(on_back[2], end_z))
-            lift = 0.15 * max(0.0, math.sin(a)) ** 0.8
-            pts.append(base + v3(sx * 0.025 * max(0.0, math.sin(a)), 0, lift))
+        for k in range(24):
+            a = TAU * k / 24
+            f = 0.5 - 0.5 * math.cos(a)                    # 0 front end .. 1 knot end
+            y = LOOP_Y0 + (LOOP_Y1 - LOOP_Y0) * f
+            up = math.sin(a)                                  # >0 upper (outer) arc, <0 lower arc
+            deg = sx * (8 + 20 * math.sin(math.pi * f) * (1.0 if up > 0 else 0.55))
+            clear = 0.035 + 0.075 * max(0.0, up) * math.sin(math.pi * f) ** 0.6
+            pts.append(back_pt(y, deg, clear))
         build_tube(md, 'rope', pts, rope_r, 7, lambda i, t, p: {'Chest': 1.0}, closed=True)
+    # collar -> front of the loops (one short cord over the withers)
+    front = back_pt(LOOP_Y0, 0.0, 0.04)
+    build_tube(md, 'rope', catmull_open([F0, (F0 + front) / 2 + v3(0, 0, 0.03), front], 3), rope_r * 0.9, 7,
+               lambda i, t, p: {'Chest': 0.6, 'Neck1': 0.4})
     build_sphere(md, 'knot', KNOT + v3(0, 0, 0.02), (0.060, 0.050, 0.040), 6, 3, {'Spine': 0.5, 'Chest': 0.5})
     ks = torso_s(KNOT[1])
     for sx in (1, -1):

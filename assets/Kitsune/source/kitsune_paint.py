@@ -299,6 +299,8 @@ def paint_samples(s, ctx):
         c = lerp3(PURPLE_DK, PURPLE, 0.55 + 0.35 * ridge + 0.1 * t[m])
         c = lerp3(c, PURPLE_LT, smoothstep(0.45, 1.0, ridge) * smoothstep(0.15, 0.7, t[m]) * 0.6)
         c = lerp3(c, PURPLE_DK, under.astype(float) * 0.05)
+        cheek = sel('tuft_cheek')[m]
+        c = lerp3(c, lerp3(PURPLE_HEAD, PURPLE_LT, 0.25 * ridge), cheek * 0.8)     # cheek fur: even, light purple
         tipc = sel('tuft_tip', 'tuft_cyan')[m]
         cy = smoothstep(0.50, 0.80, t[m]) * tipc
         cy = np.maximum(cy, smoothstep(0.82, 0.95, t[m]) * sel('tuft_cheek')[m])
