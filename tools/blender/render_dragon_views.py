@@ -14,7 +14,7 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 BLEND = os.path.join(ROOT, "assets", "models", "AncientDragon", "AncientDragon.blend")
 args = sys.argv[1:]
 out = args.pop(0) if args else "/tmp/dragon_views"
-action, frame, mask, night = "", 1, False, False
+action, frame, mask, night, nowings = "", 1, False, False, False
 views = []
 while args:
     a = args.pop(0)
@@ -24,6 +24,8 @@ while args:
         frame = int(args.pop(0))
     elif a == "--mask":
         mask = True
+    elif a == "--nowings":
+        nowings = True
     elif a == "--night":
         night = True
     else:
@@ -40,6 +42,8 @@ if arm and action:
     except Exception:
         pass
 sc.frame_set(frame)
+if nowings and "Dragon_Membrane" in bpy.data.objects:  # diagnostics: see the legs through the wings
+    bpy.data.objects["Dragon_Membrane"].hide_render = True
 
 w = bpy.data.worlds.new("SKY")
 sc.world = w
@@ -119,6 +123,10 @@ VIEWS = {
     "mouth": ((3.2, -10.5, 6.6), (0.0, -5.6, 7.0), 45, (500, 380)),
     "mouth_front": ((0.0, -12.0, 6.9), (0.0, -5.8, 7.3), 50, (500, 380)),
     "arm": ((12, -3, 3.2), (2.6, -0.3, 2.4), 35, (500, 380)),
+    "legs_side": ((22, 2.5, 3.0), (0, 2.5, 3.0), 45, (700, 400)),
+    "legs_34": ((12, -12, 1.0), (0, 2.5, 3.0), 38, (700, 400)),
+    "legs_below": ((14, -9, -3.5), (0, 3.0, 2.2), 32, (700, 400)),
+    "legs_cut": ((30, 3.0, 4.2), (0, 3.0, 4.2), 0, (800, 420)),
     "feet_under": ((1.5, -6.0, -6.0), (2.3, 1.5, 0.3), 32, (600, 420)),
     "spine": ((9, 16, 13), (0, 5, 4.5), 30, (600, 380)),
 }
@@ -164,8 +172,14 @@ for name, (loc, tgt, lens, res) in VIEWS.items():
     cam.location = Vector(loc) + lift
     d = Vector(tgt) + lift - cam.location
     cam.rotation_euler = d.to_track_quat("-Z", "Y").to_euler()
-    cam_d.lens = lens
-    if name in ("bottom", "feet_under"):
+    cam_d.lens = lens if lens else 50
+    cam_d.type = "PERSP"
+    cam_d.clip_start = 0.1
+    if name == "legs_cut":  # orthographic side slice: drops everything beyond the leg (x > 3.6), i.e. the wing
+        cam_d.type = "ORTHO"
+        cam_d.ortho_scale = 19
+        cam_d.clip_start = 30 - 3.6
+    if name in ("bottom", "feet_under", "legs_below"):
         ground.hide_render = True
     elif not mask:
         ground.hide_render = False

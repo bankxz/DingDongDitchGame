@@ -1122,6 +1122,27 @@ def wing_flap(p, ph, base_down, amp, sweep, elbow_lag=0.12):
     return beat
 
 
+# leg poses for flight, per joint: (pitch deg, splay deg, beat follow-through deg). Pitch is about the armature X
+# axis at the joint (+ swings a hanging limb back toward the tail), splay turns the limb outward (+ = away from body).
+LEGS_HOVER = {  # relaxed dangle: forelegs hanging slightly forward with claws curled under, hind legs loose
+    "UpperArm": (10, 6, 4), "Forearm": (22, 0, 4), "Hand": (50, 0, 5),  # offsets the body's nose-up tilt
+    "Thigh": (-8, 5, 5), "Shin": (26, 0, 5), "Foot": (48, 0, 6),
+}
+LEGS_FLY = {  # streamlined: front legs folded tight back along the belly, hind legs trailing straight out behind
+    "UpperArm": (40, 3, 2), "Forearm": (88, 0, 2), "Hand": (30, 0, 2),
+    "Thigh": (48, 3, 3), "Shin": (-22, 0, 2), "Foot": (125, 0, 2),
+}
+
+
+def leg_pose(p, sfx, s_, table, beat, lag_beat=None):
+    b = beat if lag_beat is None else lag_beat
+    for bn, (pitch, splay, follow) in table.items():
+        rots = [("X", pitch + follow * b)]
+        if splay:
+            rots.append(("Y", -s_ * splay))
+        p[bn + sfx] = rots
+
+
 def fly_idle_pose(ph):
     """hover in place: big slow wing beats, body tilted nose-up bobbing with each downstroke, neck curved to look
     ahead, front legs tucked, hind legs dangling, tail hanging and swaying"""
@@ -1136,12 +1157,7 @@ def fly_idle_pose(ph):
     p["Head"] = [("X", -8 + 3 * beat), ("Z", 4 * sn(ph, 1, 0.2))]
     p["Jaw"] = [("X", -5)]
     for sfx, s_ in (("_L", 1), ("_R", -1)):
-        p["UpperArm" + sfx] = [("X", 38 + 4 * beat)]
-        p["Forearm" + sfx] = [("X", -85)]
-        p["Hand" + sfx] = [("X", -25)]
-        p["Thigh" + sfx] = [("X", 28 + 5 * beat)]
-        p["Shin" + sfx] = [("X", 18)]
-        p["Foot" + sfx] = [("X", 30)]
+        leg_pose(p, sfx, s_, LEGS_HOVER, beat, lag_beat=math.cos(2 * math.pi * (ph - 0.18)))
     for i in range(1, N_TAIL + 1):
         p["Tail%d" % i] = [("X", (6 if i < 3 else -4) + 2 * beat), ("Z", 5 * sn(ph, 1, -0.09 * i))]
     return p
@@ -1161,12 +1177,7 @@ def fly_forward_pose(ph):
     p["Head"] = [("X", -28 + 3 * beat), ("Z", 2 * sn(ph, 1, 0.2))]
     p["Jaw"] = [("X", -3)]
     for sfx, s_ in (("_L", 1), ("_R", -1)):
-        p["UpperArm" + sfx] = [("X", 55 + 3 * beat)]
-        p["Forearm" + sfx] = [("X", -100)]
-        p["Hand" + sfx] = [("X", -20)]
-        p["Thigh" + sfx] = [("X", 65 + 4 * beat)]
-        p["Shin" + sfx] = [("X", 30)]
-        p["Foot" + sfx] = [("X", 45)]
+        leg_pose(p, sfx, s_, LEGS_FLY, beat, lag_beat=math.cos(2 * math.pi * (ph - 0.15)))
     for i in range(1, N_TAIL + 1):
         up = 18 if i == 1 else (8 if i == 2 else (-6 if i >= 8 else 0))
         p["Tail%d" % i] = [("X", up + 1.5 * beat), ("Z", 6 * sn(ph, 1, -0.1 * i))]

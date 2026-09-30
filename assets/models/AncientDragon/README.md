@@ -1,10 +1,10 @@
 # Ancient Dragon (Roblox)
 
-Stud-textured low-poly dragon, rigged, with idle and walk animations.
+Stud-textured low-poly dragon, rigged, with flying idle (hover) and flying-forward animations.
 
 | | |
 |---|---|
-| Triangles | 3,994 (hidden faces removed; checked in rest pose and across both animations) |
+| Triangles | 3,998 (hidden faces removed; checked in rest pose and across both animations) |
 | Meshes | 8 skinned meshes, one per material: Dark, Gold, Tan, Bone, Glow, Eye, Mouth, Membrane |
 | Rig | 48 bones, max 2 influences per vertex |
 | Animations | `Dragon_FlyIdle`: hovering flight (40 frames @ 30 fps, 1.33 s loop). `Dragon_Fly`: flying forward in place (28 frames @ 30 fps, 0.93 s loop). Both lift the body 4 studs off the rig origin. |
