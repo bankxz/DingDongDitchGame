@@ -5,13 +5,14 @@ from mathutils import Vector
 
 VIEW_DIRS = {
     # name: (camera direction FROM target, ortho?)  creature faces -Y, left = +X
-    'front': (Vector((0, -1, 0)), True),
-    'back': (Vector((0, 1, 0)), True),
+    'front': (Vector((0, -1, 0.27)), True),
+    'back': (Vector((0, 1, 0.27)), True),
     'side_left': (Vector((1, 0, 0)), True),       # sees the creature's left flank, head to the right
     'side_right': (Vector((-1, 0, 0)), True),     # head to the left (matches reference sheet panel 2)
-    'top': (Vector((0, 0.0001, 1)), True),
-    'q34_front_right': (Vector((-1.0, -1.1, 0.45)), False),
-    'q34_back_left': (Vector((1.2, 1.0, 0.45)), False),
+    'top': (Vector((0, -0.6, 1)), True),
+    'top_ortho': (Vector((0, 0.0001, 1)), True),
+    'q34_front_right': (Vector((-1.0, -0.75, 0.30)), False),
+    'q34_back_left': (Vector((-1.25, 0.55, 0.25)), False),
     'q34_front_left': (Vector((1.0, -1.1, 0.45)), False),
     'head_close': (Vector((0, -1, 0.15)), False),
 }

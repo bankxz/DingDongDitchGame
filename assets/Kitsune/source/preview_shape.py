@@ -42,8 +42,7 @@ for poly, pid in zip(me.polygons, md.face_part):
     poly.material_index = mats[pid]
 
 rv.setup_scene(res=(640, 480), samples=16)
-tgt = Vector((0, 0.35, 0.95))
-for v in ('front', 'back', 'side_right', 'top', 'q34_front_right', 'q34_back_left'):
-    ext = 3.2 if v != 'top' else 3.4
-    rv.render_view(v, os.path.join(out, f'shape_{v}.png'), tgt, ext)
+tgt = Vector((0, 0.30, 0.85))
+for v in ('front', 'back', 'side_left', 'top', 'q34_front_right', 'q34_back_left'):
+    rv.render_view(v, os.path.join(out, f'shape_{v}.png'), tgt, 3.6)
 print('tris', md.tri_count())

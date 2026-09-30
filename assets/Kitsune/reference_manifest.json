@@ -1,0 +1,21 @@
+{
+  "schema": "reference_manifest.v1",
+  "asset": "Roblox kitsune creature",
+  "source_files": ["source/reference_sheet_v2.png (canonical)", "source/reference_sheet.png (v1 sheet, superseded)"],
+  "view_roles": {
+    "side_L (row1 col2)": "canonical for heights and lengths (near-orthographic)",
+    "front (row1 col1)": "canonical for widths; shot ~15 deg from above (far tails appear higher)",
+    "back (row1 col4)": "validation only",
+    "top (row2 col1)": "front-above ~60 deg view; tail fan spread / harness tear-drop",
+    "close-ups (row3)": "face mask, paw/claws, tail tip gradient, gem, tassel details"
+  },
+  "canonical_policy": "front_side_canonical (sheet is a painted concept; views are not CAD-consistent)",
+  "landmarks_shoulder_units": {
+    "withers_height": 1.0, "nose": [-0.90, 1.10], "eye_height": 1.21, "ear_tip_height": 1.55,
+    "chest_front": [-0.62, 0.77], "belly_height": 0.5, "tail_base": [0.48, 0.97],
+    "tail_tip_lateral_half_span": 1.15, "tail_tip_back_max": 1.58
+  },
+  "expected_parts": {"tails": 8, "ears": 2, "eyes": 2, "legs": 4, "harness_hoops": 2, "chest_gem": 1, "side_tassels": 2},
+  "notes": ["The sheet shows 8 tails (not 9); the model follows the sheet."],
+  "validation_thresholds": {"side_aspect_drift_max": 0.05, "front_aspect_drift_max": 0.05, "tri_budget": 5000}
+}

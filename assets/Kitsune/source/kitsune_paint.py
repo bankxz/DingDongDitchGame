@@ -88,23 +88,17 @@ def stroke_mask(px, py, pts, w0, w1, jag=0.0, seed=0.0):
 
 
 def fur_clumps(a, b, ca, cb, seed=0.0):
-    """Painted-fur pattern of pointed clumps.  a runs along the fur flow
-    (tips toward +a), b across.  Returns (shade 0..1, height 0..1, gap 0..1)."""
-    A = a / ca
-    row = np.floor(A)
-    v = A - row
-    jit = _hash2(row, 0.0, seed)
-    Bc = b / cb + 0.5 * (row % 2) + 0.3 * jit
-    col = np.floor(Bc)
-    u = 2 * (Bc - col) - 1
-    rnd = _hash2(row, col, seed + 1)
-    wid = np.maximum((1.0 - v) ** 0.6, 1e-3)
-    e = np.abs(u) / wid
-    ridge = np.clip(1.0 - e ** 2, 0, 1) ** 0.6
-    shade = ridge * (0.45 + 0.55 * (1 - v) ** 0.7) + 0.12 * rnd
-    height = np.clip(ridge * (0.35 + 0.65 * (1 - v)), 0, 1)
-    gap = smoothstep(0.88, 1.0, e) * smoothstep(0.0, 0.2, v)
-    return np.clip(shade, 0, 1), height, gap
+    """Painted-fur pattern: long soft strands along the flow (a) with a few
+    darker jagged clump separations.  Returns (shade 0..1, height 0..1, gap 0..1)."""
+    # strands: noise stretched along the flow direction
+    st = fbm(b / (cb * 0.28), a / (ca * 1.6), seed)
+    # clump lobes: broad bands across the flow with jagged, flame-like fronts
+    lobe_v = a / ca + 0.9 * fbm(b / (cb * 0.9), a / (ca * 3.0), seed + 5)
+    v = lobe_v - np.floor(lobe_v)
+    shade = np.clip(0.30 + 0.50 * st + 0.35 * (1 - v) ** 1.5, 0, 1)
+    height = np.clip(0.45 * st + 0.55 * (1 - v), 0, 1)
+    gap = smoothstep(0.90, 1.0, v) * 0.8
+    return shade, height, gap
 
 
 def lerp3(c0, c1, f):
@@ -138,7 +132,7 @@ def paint_samples(s, ctx):
     toplight = 0.88 + 0.16 * nz
 
     # ---------------------------------------------------------- body fur
-    def fur(m, L, R, flow_sign, base=PURPLE, seed=0.0, ca=0.16, cb=0.12, contrast=1.0):
+    def fur(m, L, R, flow_sign, base=PURPLE, seed=0.0, ca=0.16, cb=0.12, contrast=0.7):
         a = flow_sign * t[m] * L
         b = th[m] * R
         sh, h, gap = fur_clumps(a, b, ca, cb, seed)
@@ -149,32 +143,29 @@ def paint_samples(s, ctx):
         return c, h
 
     # torso -----------------------------------------------------------------
+    # metric loft coordinates: ps = 0 (rump) .. 1.25 (chest), pp = 0 (spine) .. 0.94 (belly)
     m = sel('torso')
     if m.any():
-        c, h = fur(m, 1.05, 0.21, -1, seed=1)
-        # cyan lightning markings (s = t, symmetric phi); coordinates in metres
-        ps, pp = t[m] * 1.05, phi[m] * 0.21
+        c, h = fur(m, 1.25, 0.30, -1, seed=1, ca=0.22, cb=0.17)
+        ps, pp = t[m] * 1.25, phi[m] * 0.30
         mk = np.zeros(m.sum())
-        strokes = [
-            ([(0.93, 0.40), (0.87, 0.30), (0.90, 0.22), (0.84, 0.13)], 0.030),      # shoulder
-            ([(0.86, 0.46), (0.80, 0.37), (0.83, 0.30)], 0.020),
-            ([(0.70, 0.40), (0.65, 0.31), (0.69, 0.24), (0.63, 0.16)], 0.028),      # ribs
-            ([(0.55, 0.36), (0.50, 0.28), (0.54, 0.21)], 0.024),
-            ([(0.30, 0.36), (0.25, 0.27), (0.30, 0.20), (0.24, 0.12)], 0.028),      # haunch
-            ([(0.16, 0.33), (0.11, 0.24), (0.15, 0.17)], 0.022),
-            ([(0.98, 0.58), (0.92, 0.52), (0.95, 0.46)], 0.026),                    # chest side
-            ([(0.78, 0.30), (0.74, 0.22), (0.77, 0.15), (0.73, 0.08)], 0.018),      # upper shoulder bolt
-            ([(0.44, 0.30), (0.40, 0.22), (0.43, 0.14)], 0.018),
-            ([(0.62, 0.50), (0.57, 0.44), (0.60, 0.38)], 0.020),                    # lower ribs
-            ([(0.36, 0.48), (0.31, 0.42), (0.34, 0.36)], 0.018),
-            ([(0.08, 0.30), (0.04, 0.22), (0.07, 0.15)], 0.016),                    # rump
+        strokes = [   # bold cyan lightning / flame strokes (reference: shoulders, ribs, haunch)
+            ([(1.12, 0.64), (1.03, 0.52), (1.09, 0.42), (1.00, 0.30), (1.05, 0.20)], 0.050),
+            ([(0.95, 0.72), (0.88, 0.60), (0.93, 0.50), (0.87, 0.40)], 0.042),
+            ([(0.80, 0.62), (0.72, 0.50), (0.78, 0.40), (0.70, 0.28)], 0.046),
+            ([(0.60, 0.57), (0.53, 0.46), (0.58, 0.36)], 0.040),
+            ([(0.36, 0.57), (0.29, 0.44), (0.35, 0.34), (0.27, 0.22)], 0.046),
+            ([(0.16, 0.46), (0.10, 0.35), (0.15, 0.26)], 0.036),
+            ([(1.20, 0.84), (1.12, 0.73), (1.17, 0.64)], 0.040),
         ]
         for i, (pts, w) in enumerate(strokes):
-            mk = np.maximum(mk, stroke_mask(ps, pp, pts, w, w * 0.55, jag=0.2, seed=i))
-        for sd in (0.35, 0.52, 0.68):                                              # dorsal diamonds
-            mk = np.maximum(mk, (np.abs(ps - sd) / 0.035 + np.abs(pp - 0.0) / 0.03 < 1).astype(float))
-        belly = smoothstep(0.54, 0.60, pp + 0.03 * (vnoise(ps * 30, pp * 30, 5) - 0.5)) * \
-            smoothstep(0.55, 0.70, ps) * (1 - smoothstep(0.93, 1.0, ps))
+            mk = np.maximum(mk, stroke_mask(ps, pp, pts, w, w * 0.45, jag=0.15, seed=i))
+        for sd in (0.45, 0.65, 0.85, 1.02):          # dorsal chevrons (top view)
+            vshape = (np.abs(pp) < 0.05 + 0.6 * np.clip(ps - sd, 0, 0.08)) & (ps > sd) & (ps < sd + 0.07) \
+                & (np.abs(pp) > 0.6 * np.clip(ps - sd, 0, 0.08) - 0.012)
+            mk = np.maximum(mk, vshape.astype(float))
+        belly = smoothstep(0.80, 0.86, pp + 0.04 * (vnoise(ps * 20, pp * 20, 5) - 0.5)) * \
+            smoothstep(0.65, 0.85, ps) * (1 - smoothstep(1.15, 1.25, ps))
         mk = np.maximum(mk, belly * 0.9)
         c = lerp3(c, CYAN, mk)
         col[m], hgt[m] = c * toplight[m][:, None], h
@@ -184,48 +175,61 @@ def paint_samples(s, ctx):
     # neck ------------------------------------------------------------------
     m = sel('neck')
     if m.any():
-        c, h = fur(m, 0.55, 0.15, -1, seed=2, ca=0.13, cb=0.10)
-        ps, pp = t[m] * 0.55, phi[m] * 0.15
+        c, h = fur(m, 0.45, 0.24, -1, seed=2, ca=0.17, cb=0.14)
+        ps, pp = t[m] * 0.45, phi[m] * 0.24
         mk = np.zeros(m.sum())
         for i, (pts, w) in enumerate([
-                ([(0.40, 0.47), (0.33, 0.43), (0.27, 0.47), (0.18, 0.43), (0.08, 0.46)], 0.022),   # chest bolt
-                ([(0.36, 0.36), (0.30, 0.32), (0.24, 0.37), (0.16, 0.33)], 0.016),
-                ([(0.44, 0.24), (0.38, 0.20), (0.33, 0.25)], 0.016)]):
-            mk = np.maximum(mk, stroke_mask(ps, pp, pts, w, w * 0.5, jag=0.5, seed=10 + i))
+                ([(0.02, 0.70), (0.09, 0.64), (0.16, 0.71), (0.24, 0.65), (0.32, 0.71)], 0.034),   # chest bolt
+                ([(0.04, 0.55), (0.11, 0.49), (0.18, 0.56), (0.26, 0.50)], 0.028),
+                ([(0.10, 0.36), (0.17, 0.30), (0.24, 0.37)], 0.026)]):
+            mk = np.maximum(mk, stroke_mask(ps, pp, pts, w, w * 0.5, jag=0.15, seed=10 + i))
         c = lerp3(c, CYAN, mk)
         col[m], hgt[m], emi[m] = c * toplight[m][:, None], h, mk
 
     # head ------------------------------------------------------------------
+    # face mask designed relative to the eye centre E (reference close-ups)
     m = sel('head')
     if m.any():
-        c, h = fur(m, 0.45, 0.10, -1, base=PURPLE_HEAD, seed=3, ca=0.09, cb=0.07, contrast=0.45)
+        c, h = fur(m, 0.52, 0.16, -1, base=PURPLE_HEAD, seed=3, ca=0.12, cb=0.09, contrast=0.35)
         x, y, z = np.abs(X[m]), Y[m], Z[m]
-        mk = np.zeros(m.sum())
-        up = s.N[m, 2] > -0.1
-        # nose tip
-        mk = np.maximum(mk, smoothstep(-0.748, -0.762, y))
-        # forehead diamond + small upper diamond
-        mk = np.maximum(mk, ((x / 0.030 + np.abs(y + 0.500) / 0.055) < 1) & (s.N[m, 2] > 0.3))
-        mk = np.maximum(mk, ((x / 0.018 + np.abs(y + 0.425) / 0.025) < 1) & (s.N[m, 2] > 0.3))
-        # eye mask: ring around each eye, points back toward the ears / down the cheek
+        nzh = s.N[m, 2]
         E = ctx['eye_center']
         ex, ey, ez = abs(E[0]), E[1], E[2]
+        mk = np.zeros(m.sum())
+        top = nzh > 0.25
+        # cyan nose tip
+        mk = np.maximum(mk, smoothstep(0.935, 0.955, t[m]))
+        # forehead diamond + small crest diamond between the ears
+        mk = np.maximum(mk, ((x / 0.034 + np.abs(y - (ey + 0.075)) / 0.058) < 1) & top)
+        mk = np.maximum(mk, ((x / 0.020 + np.abs(y - (ey + 0.170)) / 0.030) < 1) & top)
+        # brow slashes: from above the inner eye corner up and out toward the ears
+        mk = np.maximum(mk, stroke_mask(x, y, [(0.035, ey + 0.015), (0.10, ey + 0.07), (0.17, ey + 0.13)],
+                                        0.014, 0.006, seed=21) * (nzh > 0.0))
+        # eye outline (open at the back) + tear stroke falling from the outer corner
         d = np.sqrt((x - ex) ** 2 + (y - ey) ** 2 + (z - ez) ** 2)
-        ring = (d > 0.024) & (d < 0.034)
-        mk = np.maximum(mk, ring.astype(float) * up)
-        for pts, w in (([(ey + 0.01, ez + 0.02), (ey + 0.05, ez + 0.055), (ey + 0.095, ez + 0.07)], 0.013),   # brow
-                       ([(ey + 0.02, ez - 0.02), (ey + 0.07, ez - 0.035), (ey + 0.11, ez - 0.03)], 0.012),   # cheek
-                       ([(ey - 0.02, ez - 0.025), (ey - 0.08, ez - 0.045), (ey - 0.13, ez - 0.058)], 0.010)):  # muzzle
-            mk = np.maximum(mk, stroke_mask(y, z, pts, w, w * 0.4, jag=0.3, seed=20) * (x > 0.03))
-        # mouth line: jagged cyan fangs along the lower snout
+        ring = (d > 0.052) & (d < 0.064) & ~((y > ey + 0.03) & (z > ez))
+        mk = np.maximum(mk, ring.astype(float))
+        mk = np.maximum(mk, stroke_mask(y, z, [(ey + 0.035, ez - 0.02), (ey + 0.09, ez - 0.07), (ey + 0.12, ez - 0.12)],
+                                        0.013, 0.005, seed=22) * (x > 0.06))
+        # mask band across the muzzle bridge below the eyes, notched like teeth
+        band = (np.abs(y - (ey - 0.058)) < 0.011) & (x < ex) & (nzh > 0.1)
+        notch = ((x / 0.024) % 1.0) < 0.40
+        mk = np.maximum(mk, (band & ~notch).astype(float))
+        # muzzle side stripes toward the nose
+        mk = np.maximum(mk, stroke_mask(y, z, [(ey - 0.04, ez - 0.05), (ey - 0.11, ez - 0.08), (ey - 0.17, ez - 0.10)],
+                                        0.010, 0.004, seed=23) * (x > 0.035))
+        # cheek flames behind the eyes
+        mk = np.maximum(mk, stroke_mask(y, z, [(ey + 0.08, ez - 0.02), (ey + 0.15, ez - 0.05), (ey + 0.20, ez - 0.02)],
+                                        0.013, 0.005, seed=24) * (x > 0.12))
+        # mouth line: jagged cyan fangs along the lower snout edge
         hc = ctx['head_line']
         zc = np.interp(-y, -hc[:, 0], hc[:, 1])
-        mouth = (z < zc - 0.018) & (z > zc - 0.040) & (y < -0.56)
-        fang = (np.abs(((y * 55) % 1.0) - 0.5) * 2 < 0.55 + 0.45 * smoothstep(zc - 0.04, zc - 0.018, z))
+        mouth = (z < zc - 0.028) & (z > zc - 0.046) & (y < ey - 0.04) & (x > 0.02)
+        fang = (np.abs(((y * 45) % 1.0) - 0.5) * 2 < 0.5 + 0.5 * smoothstep(zc - 0.05, zc - 0.022, z))
         mk = np.maximum(mk, (mouth & fang).astype(float))
         mk = np.clip(mk, 0, 1)
         c = lerp3(c, CYAN, mk)
-        col[m], hgt[m], emi[m] = c * toplight[m][:, None], h * 0.6, mk
+        col[m], hgt[m], emi[m] = c * toplight[m][:, None], h * 0.5, mk
 
     # ears ------------------------------------------------------------------
     m = sel('ear')
@@ -233,8 +237,8 @@ def paint_samples(s, ctx):
         c, h = fur(m, 0.3, 0.05, -1, base=PURPLE_HEAD, seed=4, ca=0.08, cb=0.05, contrast=0.5)
         edge = np.abs(np.sin(th[m]))
         front = np.cos(th[m]) < -0.2
-        rim = smoothstep(0.72, 0.82, edge + 0.08 * (vnoise(t[m] * 25, th[m] * 3, 3) - 0.5))
-        tip = smoothstep(0.62, 0.72, t[m])
+        rim = smoothstep(0.84, 0.92, edge + 0.08 * (vnoise(t[m] * 25, th[m] * 3, 3) - 0.5))
+        tip = smoothstep(0.80, 0.86, t[m])
         inner = front & (edge < 0.55) & (t[m] > 0.15)
         c = lerp3(c, PURPLE_DK * 0.8, inner.astype(float) * 0.8)
         streak = inner & (np.abs(np.sin(th[m] * 3)) > 0.8) & (t[m] < 0.6)
@@ -243,7 +247,7 @@ def paint_samples(s, ctx):
         col[m], hgt[m], emi[m] = c, h, mk
 
     # legs ------------------------------------------------------------------
-    for part, L, tb, seed in (('leg_f', 0.85, 0.60, 5), ('leg_h', 0.95, 0.62, 6)):
+    for part, L, tb, seed in (('leg_f', 0.80, 0.64, 5), ('leg_h', 0.90, 0.63, 6)):
         m = sel(part)
         if not m.any():
             continue
@@ -277,23 +281,24 @@ def paint_samples(s, ctx):
     m = sel('tail')
     if m.any():
         tt, a = t[m], th[m]
-        sh, h, gap = fur_clumps(tt * 1.35, a * 0.2, 0.20, 0.14, 13)
+        sh, h, gap = fur_clumps(tt * 1.35, a * 0.2, 0.24, 0.17, 13)
+        sh = 1 - 0.65 * (1 - sh)
         base = lerp3(PURPLE_DK, PURPLE, 0.30 + 0.70 * sh)
         base = lerp3(base, PURPLE_LT, np.clip(sh - 0.7, 0, 1) * 1.3)
         base = lerp3(base, PURPLE_DK * 0.7, gap * 0.6)
         # jagged purple -> cyan boundary (flames pointing to the tail base)
         k = 5
         saw = 1 - np.abs(2 * (((a * k / (2 * np.pi)) + 0.35 * vnoise(a * 1.5, tt * 4, 7)) % 1.0) - 1)
-        bound = 0.66 - 0.18 * saw ** 2.2
+        bound = 0.70 - 0.20 * saw ** 2.2
         cy = smoothstep(bound - 0.008, bound + 0.008, tt)
-        grad = smoothstep(0.55, 0.97, tt)
+        grad = smoothstep(0.62, 0.97, tt)
         streak = 0.5 + 0.5 * np.sin(a * 7 + tt * 9 + 2 * vnoise(a * 3, tt * 6, 9))
         cc = lerp3(CYAN, CYAN_LT, smoothstep(0.35, 0.75, grad))
         cc = lerp3(cc, TIP_WHITE, smoothstep(0.72, 1.0, grad))
         cc = lerp3(cc * 0.90, cc, streak * 0.6 + 0.4)
         # small cyan diamonds on the broad faces of the purple part
         dia = np.zeros(m.sum())
-        for tc, ac in ((0.36, 0.0), (0.36, np.pi)):
+        for tc, ac in ((0.46, 0.0), (0.46, np.pi)):
             da = np.abs(((a - ac + np.pi) % (2 * np.pi)) - np.pi)
             dia = np.maximum(dia, ((np.abs(tt - tc) / 0.035 + da / 0.25) < 1).astype(float))
         base = lerp3(base, CYAN, dia * (1 - cy))
@@ -333,10 +338,10 @@ def paint_samples(s, ctx):
     m = sel('gem')
     if m.any():
         # t: 0 front pole -> 1 back pole ; painted highlight + rim darkening
-        hi = smoothstep(0.35, 0.05, np.hypot(t[m] - 0.22, 0.12 * np.sin(th[m] - 2.3)))
-        c = lerp3(RED_GEM, RED_DK, smoothstep(0.35, 0.8, t[m]) * 0.7)
-        c = lerp3(c, np.array([1.0, 0.75, 0.78]), hi * 0.8)
-        col[m], rough[m], emi[m], reg[m] = c, 0.15, 0.55, REG_ORN
+        hi = smoothstep(0.16, 0.04, np.hypot(t[m] - 0.20, 0.10 * np.sin(th[m] - 2.3)))
+        c = lerp3(np.array([0.92, 0.04, 0.10]), RED_DK, smoothstep(0.25, 0.75, t[m]) * 0.8)
+        c = lerp3(c, np.array([1.0, 0.62, 0.66]), hi * 0.7)
+        col[m], rough[m], emi[m], reg[m] = c, 0.15, 0.30, REG_ORN
     m = sel('frame')
     if m.any():
         col[m] = lerp3(RED_DK, RED, 0.5 + 0.5 * t[m])

@@ -1,0 +1,26 @@
+{
+ "front": {
+  "iou": 0.6907,
+  "ref_aspect": 1.1402,
+  "model_aspect": 1.1255,
+  "aspect_drift": -0.0129
+ },
+ "side_L": {
+  "iou": 0.6289,
+  "ref_aspect": 1.5079,
+  "model_aspect": 1.5217,
+  "aspect_drift": 0.0092
+ },
+ "back": {
+  "iou": 0.5657,
+  "ref_aspect": 1.1597,
+  "model_aspect": 1.053,
+  "aspect_drift": -0.092
+ },
+ "top": {
+  "iou": 0.5487,
+  "ref_aspect": 0.8832,
+  "model_aspect": 0.8399,
+  "aspect_drift": -0.049
+ }
+}

@@ -133,7 +133,7 @@ def gather_triangles(ob, md):
 def paint_textures(ob, md, lofts, outdir):
     tri = gather_triangles(ob, md)
     head = lofts['head']
-    eye_c = head.point(0.50, math.radians(52), 0.0)[0]
+    eye_c = head.point(0.52, math.radians(50), 0.0)[0]
     ctx = {'eye_center': eye_c, 'head_line': np.array([[c[1], c[2]] for c in head.c])}
     img, em, ro, nrm, face_reg, has = kp.paint_all(tri['uv'], tri['t'], tri['th'], tri['P'], tri['N'], tri['part'],
                                                    tri['face'], tri['rl'], len(ob.data.polygons), ctx, TEX_SIZE)
@@ -164,7 +164,7 @@ def load_img(path, colorspace):
     return img
 
 
-def make_materials(ob, paths, face_reg, emission_strength=0.9):
+def make_materials(ob, paths, face_reg, emission_strength=0.55):
     me = ob.data
     col = load_img(paths['color'], 'sRGB')
     emi = load_img(paths['emissive'], 'Non-Color')
