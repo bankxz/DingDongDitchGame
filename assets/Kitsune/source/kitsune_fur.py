@@ -81,9 +81,9 @@ def amplitude(part, t, th):
     if part == 'neck':
         return 0.040 + 0.016 * smoothstep(0.4, 0.9, c) + 0.020 * smoothstep(-0.5, -0.9, c)
     if part == 'head':
-        back = 0.026 * smoothstep(0.55, 0.28, t)
-        cheek = 0.034 * smoothstep(0.55, 0.80, s) * smoothstep(0.55, 0.35, t) * smoothstep(0.08, 0.2, t) * (c < 0.35)
-        return back + cheek
+        # fur locks only on the back of the skull; the face (eyes, cheeks, muzzle)
+        # stays smooth -- the cheek fur is the sculpted flame ruff
+        return 0.026 * smoothstep(0.30, 0.12, t)
     if part in LEG_BOUNDARY:
         tb = LEG_BOUNDARY[part]
         upper = 0.038 * (1.0 - smoothstep(tb - 0.14, tb + 0.01, t))

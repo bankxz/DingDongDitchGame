@@ -264,12 +264,12 @@ def paint_samples(s, ctx):
         liner = smoothstep(0.0042, 0.0030, de) * near
         ring = smoothstep(0.0030, 0.0042, de) * smoothstep(0.0036 + band + 0.0008, 0.0036 + band - 0.0008, de)
         mk = np.maximum(mk, ring * near)
-        mk = np.maximum(mk, stroke_mask(u, vv, [(0.039, 0.004), (0.11, 0.022)], 0.014, 0.005, seed=22) * near)
+        mk = np.maximum(mk, stroke_mask(u, vv, [(0.049, 0.004), (0.12, 0.022)], 0.014, 0.005, seed=22) * near)
         # bold brow wedge above the eye, rising toward the ear (V toward the forehead)
         mk = np.maximum(mk, stroke_mask(u, vv, [(-0.065, 0.050), (0.025, 0.066), (0.120, 0.096)], 0.018, 0.007, seed=21)
                         * (np.abs(ww) < 0.08))
         # bold mask edge from under the inner eye corner down the muzzle toward the nose
-        mk = np.maximum(mk, stroke_mask(u, vv, [(-0.036, -0.030), (-0.115, -0.054), (-0.190, -0.074)], 0.017, 0.007,
+        mk = np.maximum(mk, stroke_mask(u, vv, [(-0.046, -0.031), (-0.120, -0.055), (-0.190, -0.074)], 0.017, 0.007,
                                         seed=23) * (np.abs(ww) < 0.09) * (x > 0.025))
         mk = np.clip(mk, 0, 1) * (1 - liner)
         c = lerp3(c, CYAN, mk)
@@ -468,7 +468,7 @@ def paint_samples(s, ctx):
         de_ = Pm - ctx['eye_center']
         u, v = de_ @ ctx['eye_along'], de_ @ ctx['eye_acr']
         tt = eye_scale(u, v, ctx['eye_poly'])          # 0 centre -> 1 outline (-> 1.07 buried skirt)
-        a = np.arctan2(v / 0.021, u / 0.039)
+        a = np.arctan2(v / 0.021, u / 0.049)
         # glowing pink-red iris (reference close-up): lighter upper half, deeper red
         # toward the lid line, faint radial fibres
         fib = 0.5 + 0.5 * np.sin(a * 23 + 2.0 * vnoise(a * 3, tt * 5, 17))
@@ -476,7 +476,7 @@ def paint_samples(s, ctx):
         c = lerp3(c, EYE_DEEP, smoothstep(0.66, 0.93, tt) * (0.55 + 0.45 * smoothstep(0.004, -0.012, v)))
         c = lerp3(c * 0.88, c, 0.45 + 0.55 * fib)
         # pink-white catch-light (upper, toward the outer corner), dark lid-line rim
-        glint = smoothstep(0.0070, 0.0042, np.hypot((u - 0.008) * 0.9, v - 0.008))
+        glint = smoothstep(0.0070, 0.0042, np.hypot((u - 0.010) * 0.9, v - 0.008))
         c = lerp3(c, np.array([1.0, 0.93, 0.93]), glint)
         rim = smoothstep(0.93, 0.995, tt)
         c = lerp3(c, EYELINER, rim)

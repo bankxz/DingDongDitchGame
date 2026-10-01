@@ -364,7 +364,7 @@ def scale_uv_islands(ob, importance, S=1.0, part_attr='k_part'):
 
 
 EYE_K = 16                      # outline segments per eye
-EYE_HALF_LEN = 0.039            # half length of the almond (v13: halved)
+EYE_HALF_LEN = 0.049            # half length of the almond
 EYE_RINGS = ((1.07, -0.010), (1.0, 0.0), (0.70, 0.0035), (0.38, 0.0050))   # (outline scale, lift)
 EYE_TRIS = EYE_K * (2 * (len(EYE_RINGS) - 1) + 1)
 
