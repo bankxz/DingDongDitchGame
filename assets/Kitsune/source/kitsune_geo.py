@@ -378,7 +378,7 @@ def bezier(p0, p1, p2, p3, t):
 
 
 TAIL_BASE_DESIGN = v3(0, 0.55, 0.95)    # tail fan was fitted around this root (v2)
-TAIL_BASE = v3(0, 0.70, 0.90)           # v7: fan follows the shortened rump (shape unchanged)
+TAIL_BASE = v3(0, 0.62, 0.95)           # v15: fan follows the shorter, perked-up rump (shape unchanged)
 # (name, tip position, max radius, bow)  -- tips measured from side/front/back views
 TAIL_SPECS = [
     ('Tail1', v3(0.00, 1.18, 1.50), 0.28, 0.20),    # top centre
@@ -552,7 +552,7 @@ TASSEL_TOP = v3(0.33, 0.14, 0.84)
 
 # torso key profile (y, top z, bottom z, half width): rump now ends ~0.2 behind the hip joint
 TORSO_KEYS = np.array([
-    [0.76, 0.915, 0.64, 0.25], [0.64, 0.945, 0.57, 0.31], [0.50, 0.955, 0.545, 0.31], [0.36, 0.955, 0.53, 0.30],
+    [0.68, 0.965, 0.66, 0.25], [0.58, 0.99, 0.58, 0.30], [0.46, 0.99, 0.55, 0.31], [0.34, 0.975, 0.53, 0.30],
     [0.22, 0.96, 0.51, 0.305], [0.08, 0.975, 0.47, 0.33], [-0.08, 1.00, 0.44, 0.355], [-0.24, 1.005, 0.425, 0.365],
     [-0.38, 0.995, 0.435, 0.355], [-0.50, 0.955, 0.485, 0.32], [-0.58, 0.885, 0.565, 0.24]])
 TORSO_Y = list(np.linspace(TORSO_KEYS[0, 0], TORSO_KEYS[-1, 0], 18))
@@ -588,8 +588,8 @@ MANE_LOCKS = [
     ('neck', 0.55, 0, (0.50, 0.85, 0.05), 0.230, 0.070),
     ('neck', 0.46, 45, (0.85, 0.55, -0.05), 0.200, 0.060),
 ]
-# upright harness hoops: (centre y on the back, half length, half height, yaw deg)
-HOOPS = [(-0.10, 0.30, 0.24, 9.0), (0.00, 0.24, 0.19, -9.0)]
+# halo harness loop: centre, radius, backward tilt (deg), half arc (deg from the top)
+HALO_C, HALO_R, HALO_TILT, HALO_SPAN = v3(0.0, -0.28, 1.27), 0.48, 46.0, 128.0
 # sculpted cyan ear fur (reference ears): flame spikes growing out of the cyan rim
 # along both edges.  Left ear, in the ear frame:
 # (a along the ear, c across (+ outer edge), lift off the front face, direction
@@ -663,7 +663,7 @@ def build_kitsune():
                 nm = bone + ('_L' if sx > 0 else '_R')
                 w[nm] = w.get(nm, 0) + f
         return w
-    torso.build(md, 'torso', torso_w, cap_start=v3(0, 0.81, 0.775), cap_end=v3(0, -0.625, 0.73))
+    torso.build(md, 'torso', torso_w, cap_start=v3(0, 0.73, 0.83), cap_end=v3(0, -0.625, 0.73))
 
     # ------------------------------------------------------------------- neck
     # thick neck running INTO the back of the skull and under the jaw; the
@@ -792,36 +792,28 @@ def build_kitsune():
     tb = build_tube(ma, 'rope', coll, rope_r, 6, lambda i, t, p: {'Neck1': 0.5, 'Chest': 0.5}, closed=True)
     ma.hug.append(dict(kind='tube', tube=tb, lift=[0.0] * len(tb['rings'])))
     back_pt = lambda y, deg, off: torso.point(torso_s(y), math.radians(deg), off)[0]
-    F0 = neck.point(coll_s, 0.0, rope_r * 2.2 + 0.05)[0]
-    LOOP_Y0, LOOP_Y1 = -0.42, KNOT[1] - 0.02
+    # shoulder ropes (reference harness overlay): from the collar sides back over
+    # the shoulders to the knot on the back -- a V seen from above
     for sx in (1, -1):
-        pts, lifts = [], []
-        for k in range(20):
-            a = TAU * k / 20
-            f = 0.5 - 0.5 * math.cos(a)
-            y = LOOP_Y0 + (LOOP_Y1 - LOOP_Y0) * f
-            up = math.sin(a)
-            deg = sx * (8 + 20 * math.sin(math.pi * f) * (1.0 if up > 0 else 0.55))
-            lift = 0.035 * max(0.0, up) * math.sin(math.pi * f) ** 0.6       # gentle rise of the upper arc
-            pts.append(back_pt(y, deg, 0.06 + lift))
-            lifts.append(lift)
-        tb = build_tube(ma, 'rope', pts, rope_r, 6, lambda i, t, p: {'Chest': 1.0}, closed=True)
-        ma.hug.append(dict(kind='tube', tube=tb, lift=lifts))
-    # two large upright hoops rising from the harness on the back, standing up
-    # behind the head (reference side / 3/4 views); they float, only their
-    # lowest point rests on the fur
-    for (cy, ry, rz, yaw) in HOOPS:
-        base_pt = back_pt(cy, 0.0, 0.0)
-        c = base_pt + v3(0, 0, rz + rope_r + 0.03)
-        ax_y = v3(math.sin(math.radians(yaw)), math.cos(math.radians(yaw)), 0)
-        pts = [c + ax_y * ry * math.sin(TAU * k / 22) - v3(0, 0, rz) * math.cos(TAU * k / 22) for k in range(22)]
-        hv0 = len(ma.verts)
-        build_tube(ma, 'rope', pts, rope_r * 0.95, 5, lambda i, t, p: {'Chest': 1.0}, closed=True)
-        ma.hug.append(dict(kind='rigid', v0=hv0, v1=len(ma.verts), anchor=c - v3(0, 0, rz), clear=rope_r + 0.004))
-    front = back_pt(LOOP_Y0, 0.0, 0.06)
-    cord = catmull_open([F0, (F0 + front) / 2 + v3(0, 0, 0.03), front], 3)
-    tb = build_tube(ma, 'rope', cord, rope_r * 0.9, 6, lambda i, t, p: {'Chest': 0.6, 'Neck1': 0.4})
-    ma.hug.append(dict(kind='tube', tube=tb, lift=[0.0] * len(tb['rings'])))
+        pts = catmull_open([neck.point(coll_s, sx * math.radians(60), rope_r * 2.2 + 0.05)[0],
+                            back_pt(-0.25, sx * 30, 0.05), back_pt(-0.02, sx * 15, 0.05),
+                            KNOT + v3(sx * 0.035, -0.03, 0.0)], 3)
+        tb = build_tube(ma, 'rope', pts, rope_r, 6, lambda i, t, p: {'Chest': 1.0})
+        ma.hug.append(dict(kind='tube', tube=tb, lift=[0.0] * len(tb['rings'])))
+    # the big HALO loop (reference sheet + in-game views): a bundle of ropes forming
+    # one large ring that stands behind the head, tilted back a little, circling the
+    # head in the front view; both ends come down onto the shoulders
+    C, R, tilt = HALO_C, HALO_R, math.radians(HALO_TILT)
+    up_ = v3(0, math.sin(tilt), math.cos(tilt))                # ring "up" leans back
+    side_ = v3(1, 0, 0)
+    nrm_ = np.cross(side_, up_)                                 # ring plane normal
+    for dr, dn in ((0.0, 0.0), (-0.035, 0.012), (-0.012, -0.035)):
+        pts = []
+        for k in range(25):
+            ang = math.radians(-HALO_SPAN + 2 * HALO_SPAN * k / 24)
+            pts.append(C + side_ * (R + dr) * math.sin(ang) + up_ * (R + dr) * math.cos(ang) + nrm_ * dn)
+        build_tube(ma, 'rope', pts, rope_r * 0.85, 6,
+                   lambda i, t, p: {'Chest': 1.0} if p[2] < 1.15 else {'Neck1': 0.5, 'Chest': 0.5}, cap_ends=True)
     v0 = len(ma.verts)
     build_sphere(ma, 'knot', KNOT + v3(0, 0, 0.04), (0.060, 0.050, 0.040), 6, 3, {'Spine': 0.5, 'Chest': 0.5})
     ma.hug.append(dict(kind='rigid', v0=v0, v1=len(ma.verts), anchor=KNOT + v3(0, 0, 0.04), clear=0.030))

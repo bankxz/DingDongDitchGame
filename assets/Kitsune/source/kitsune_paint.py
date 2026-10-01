@@ -32,6 +32,8 @@ CYAN_LT = np.array([0.470, 0.930, 0.985])
 TIP_WHITE = np.array([0.880, 0.990, 1.000])
 RED = np.array([0.820, 0.140, 0.230])
 RED_DK = np.array([0.420, 0.040, 0.110])
+ROPE_RED = np.array([0.880, 0.080, 0.130])
+ROPE_LT = np.array([1.000, 0.300, 0.330])
 RED_GEM = np.array([1.000, 0.090, 0.160])
 EYE_RED = np.array([1.000, 0.060, 0.150])
 EYE_IRIS = np.array([1.000, 0.120, 0.290])      # reference: hot pink-red iris
@@ -433,13 +435,19 @@ def paint_samples(s, ctx):
     # harness / ornaments ---------------------------------------------------
     m = sel('rope')
     if m.any():
-        twist = 0.5 + 0.5 * np.sin(th[m] + ctx['rope_len'][m] / 0.018 * 2 * np.pi)
-        c = lerp3(RED_DK, RED, 0.45 + 0.55 * twist)
-        col[m], hgt[m], rough[m], reg[m] = c, twist * 0.6, 0.6, REG_ROPE
+        # stylised rope (reference): smooth glossy bright red with soft mottling and
+        # a few long darker-red streaks winding slowly around it
+        L, a = ctx['rope_len'][m], th[m]
+        wind = 0.5 + 0.5 * np.sin(a + L / 0.16 * 2 * np.pi + 0.8 * vnoise(L * 9, a, 51))
+        streak = smoothstep(0.80, 0.93, wind)
+        mott = vnoise(L * 22, a * 1.6, 52)
+        c = lerp3(ROPE_RED, ROPE_LT, smoothstep(0.55, 0.95, mott) * 0.35)
+        c = lerp3(c, RED_DK, streak * 0.75 + smoothstep(0.35, 0.05, mott) * 0.25)
+        col[m], hgt[m], rough[m], reg[m] = c, streak * 0.3, 0.32, REG_ROPE
     m = sel('knot')
     if m.any():
-        tw = 0.5 + 0.5 * np.sin(th[m] * 2 + t[m] * 9)
-        col[m], hgt[m], rough[m], reg[m] = lerp3(RED_DK, RED, 0.4 + 0.5 * tw), tw * 0.5, 0.6, REG_ROPE
+        tw = smoothstep(0.75, 0.92, 0.5 + 0.5 * np.sin(th[m] * 2 + t[m] * 7))
+        col[m], hgt[m], rough[m], reg[m] = lerp3(ROPE_RED, RED_DK, tw * 0.7), tw * 0.3, 0.32, REG_ROPE
     m = sel('gem')
     if m.any():
         # t: 0 front pole -> 1 back pole ; painted highlight + rim darkening
