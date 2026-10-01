@@ -427,9 +427,12 @@ def paint_samples(s, ctx):
         cc = lerp3(cc, CYAN_LT, stripe * 0.85)
         cc = lerp3(cc, CYAN_DK, smoothstep(0.80, 0.86, aw) * 0.6)
         cc = lerp3(cc, TIP_WHITE, smoothstep(0.78, 0.92, tt))
-        c = lerp3(PURPLE_HEAD, cc, cy)
-        col[m] = c * (0.80 + 0.20 * toplight[m])[:, None]
-        hgt[m] = 0.3 + 0.4 * (1 - aw)
+        # root = exactly the cheek's own purple and lighting (the cheek is sculpted up
+        # into the tuft, so there must be no colour / shading step at the join)
+        cheek_col = lerp3(PURPLE_DK, PURPLE_HEAD, 0.90)
+        c = lerp3(cheek_col, cc, cy)
+        col[m] = c * lerp3(toplight[m][:, None] * np.ones(3), (0.80 + 0.20 * toplight[m])[:, None] * np.ones(3), cy)
+        hgt[m] = np.where(cy > 0.5, 0.3 + 0.4 * (1 - aw), 0.20) * smoothstep(0.0, 0.25, tt)
         emi[m] = cy
         reg[m] = np.where(cy > 0.5, REG_CYAN, REG_FUR)
     m = sel('mane')
