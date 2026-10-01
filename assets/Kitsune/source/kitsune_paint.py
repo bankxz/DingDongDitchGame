@@ -223,6 +223,9 @@ def paint_samples(s, ctx):
     m = sel('neck')
     if m.any():
         c, h = fur(m, 'neck')
+        hair = kf.neck_hair(t[m], np.cos(th[m]))
+        c = lerp3(lerp3(PURPLE_HEAD, PURPLE, 0.35), c, hair)           # smooth top of the neck
+        h = h * hair
         ps, pp = t[m] * 0.45, phi[m] * 0.24
         mk = np.zeros(m.sum())
         for i, (pts, w) in enumerate([
@@ -266,12 +269,12 @@ def paint_samples(s, ctx):
         liner = smoothstep(0.0042, 0.0030, de) * near
         ring = smoothstep(0.0030, 0.0042, de) * smoothstep(0.0036 + band + 0.0008, 0.0036 + band - 0.0008, de)
         mk = np.maximum(mk, ring * near)
-        mk = np.maximum(mk, stroke_mask(u, vv, [(0.049, 0.004), (0.12, 0.022)], 0.014, 0.005, seed=22) * near)
+        mk = np.maximum(mk, stroke_mask(u, vv, [(0.056, 0.004), (0.125, 0.022)], 0.014, 0.005, seed=22) * near)
         # bold brow wedge above the eye, rising toward the ear (V toward the forehead)
         mk = np.maximum(mk, stroke_mask(u, vv, [(-0.065, 0.050), (0.025, 0.066), (0.120, 0.096)], 0.018, 0.007, seed=21)
                         * (np.abs(ww) < 0.08))
         # bold mask edge from under the inner eye corner down the muzzle toward the nose
-        mk = np.maximum(mk, stroke_mask(u, vv, [(-0.046, -0.031), (-0.120, -0.055), (-0.190, -0.074)], 0.017, 0.007,
+        mk = np.maximum(mk, stroke_mask(u, vv, [(-0.052, -0.026), (-0.122, -0.052), (-0.190, -0.074)], 0.017, 0.007,
                                         seed=23) * (np.abs(ww) < 0.09) * (x > 0.025))
         mk = np.clip(mk, 0, 1) * (1 - liner)
         c = lerp3(c, CYAN, mk)
@@ -483,7 +486,7 @@ def paint_samples(s, ctx):
         de_ = Pm - ctx['eye_center']
         u, v = de_ @ ctx['eye_along'], de_ @ ctx['eye_acr']
         tt = eye_scale(u, v, ctx['eye_poly'])          # 0 centre -> 1 outline (-> 1.07 buried skirt)
-        a = np.arctan2(v / 0.021, u / 0.049)
+        a = np.arctan2(v / 0.022, u / 0.056)
         # glowing pink-red iris (reference close-up): lighter upper half, deeper red
         # toward the lid line, faint radial fibres
         fib = 0.5 + 0.5 * np.sin(a * 23 + 2.0 * vnoise(a * 3, tt * 5, 17))

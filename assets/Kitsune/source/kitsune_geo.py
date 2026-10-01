@@ -578,16 +578,7 @@ CHEEK_TUFTS = [
     (0.29, 141, (0.80, 0.34, -0.68), 0.140, 0.033),   # jaw
 ]
 # nape mane: (loft, s, th deg, direction weights (out, back, up), length, half width)
-MANE_LOCKS = [
-    ('head', 0.04, 0, (0.50, 0.80, 0.40), 0.230, 0.070),     # back of the skull, between the ears
-    ('head', 0.08, 40, (0.65, 0.70, 0.30), 0.200, 0.062),
-    ('neck', 0.92, 0, (0.50, 0.85, 0.20), 0.260, 0.075),     # nape crest, layered down the neck
-    ('neck', 0.84, 40, (0.75, 0.65, 0.10), 0.230, 0.066),
-    ('neck', 0.74, 0, (0.50, 0.85, 0.12), 0.250, 0.075),
-    ('neck', 0.64, 42, (0.80, 0.62, 0.0), 0.220, 0.064),
-    ('neck', 0.55, 0, (0.50, 0.85, 0.05), 0.230, 0.070),
-    ('neck', 0.46, 45, (0.85, 0.55, -0.05), 0.200, 0.060),
-]
+MANE_LOCKS = []                                # v18: the top of the neck stays smooth
 # halo harness loop: centre, radius, backward tilt (deg), half arc (deg from the top)
 HALO_C, HALO_R, HALO_TILT, HALO_SPAN = v3(0.0, -0.28, 1.27), 0.48, 46.0, 128.0
 # sculpted cyan ear fur (in-game ears): a bold lock curling inward at the inner

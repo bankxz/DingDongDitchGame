@@ -364,7 +364,7 @@ def scale_uv_islands(ob, importance, S=1.0, part_attr='k_part'):
 
 
 EYE_K = 16                      # outline segments per eye
-EYE_HALF_LEN = 0.049            # half length of the almond
+EYE_HALF_LEN = 0.056            # half length of the almond
 EYE_RINGS = ((1.07, -0.010), (1.0, 0.0), (0.70, 0.0035), (0.38, 0.0050))   # (outline scale, lift)
 EYE_TRIS = EYE_K * (2 * (len(EYE_RINGS) - 1) + 1)
 
@@ -374,8 +374,13 @@ def eye_outline(a):
     narrower + wider almond, pinched sharp outer corner, inner corner angled
     down toward the nose.  Shared by the lens builder and the texture painter."""
     ca_, sa_ = math.cos(a), math.sin(a)
-    h = 0.021 * abs(sa_) ** 1.3 * (1.0 if sa_ > 0 else 0.66) * (1.0 - 0.45 * max(0.0, ca_) ** 3)
-    return EYE_HALF_LEN * ca_, h * np.sign(sa_) - 0.017 * max(0.0, -ca_) ** 1.5
+    # v18 (in-game eye): fuller almond -- fairly flat upper lid, deep rounded lower
+    # lid, pointed corners
+    if sa_ > 0:
+        h = 0.020 * sa_ ** 1.45 * (1.0 - 0.30 * max(0.0, ca_) ** 3)
+    else:
+        h = -0.027 * (-sa_) ** 1.20 * (1.0 - 0.25 * max(0.0, ca_) ** 3)
+    return EYE_HALF_LEN * ca_, h - 0.010 * max(0.0, -ca_) ** 1.5
 
 
 def add_eyes(ma, info, body_ob, S):

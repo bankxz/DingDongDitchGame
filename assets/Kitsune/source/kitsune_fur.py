@@ -79,16 +79,21 @@ def amplitude(part, t, th):
         return (0.022 + 0.014 * smoothstep(0.45, 0.90, c) + 0.020 * smoothstep(-0.50, -0.85, c)
                 + 0.014 * smoothstep(0.70, 0.90, t) * smoothstep(0.5, 0.8, s))
     if part == 'neck':
-        return 0.040 + 0.016 * smoothstep(0.4, 0.9, c) + 0.020 * smoothstep(-0.5, -0.9, c)
+        return 0.045 * neck_hair(t, c)
     if part == 'head':
-        # fur locks only on the back of the skull; the face (eyes, cheeks, muzzle)
-        # stays smooth -- the cheek fur is the sculpted flame ruff
-        return 0.026 * smoothstep(0.30, 0.12, t)
+        # v18: the whole head stays smooth (the cheek fur is the flame ruff)
+        return np.zeros_like(t)
     if part in LEG_BOUNDARY:
         tb = LEG_BOUNDARY[part]
         upper = 0.038 * (1.0 - smoothstep(tb - 0.14, tb + 0.01, t))
         return upper + 0.004
     return np.zeros_like(t)
+
+
+def neck_hair(t, c):
+    """0..1 where the neck has fur: the underside / chest and the base where it
+    joins the torso; the top of the neck stays smooth (v18)."""
+    return np.maximum(smoothstep(0.05, -0.40, c), smoothstep(0.30, 0.08, t))
 
 
 def sculpt_height(part, t, th):
