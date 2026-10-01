@@ -786,6 +786,7 @@ def build_kitsune():
                              {'Head': 1.0} if loft_ == 'head' else {'Neck2': 1.0}, curl_k=0.22)
 
     # ------------------------------------------------------------ cheek ruff
+    cheek_roots = []
     # in-game cheek fur: one chunky sculpted cyan tuft per cheek, just behind the
     # eye, flaring out sideways with a long main point and smaller side points.
     # Solid flame-shaped volumes (kept out of the remesh so the points stay sharp)
@@ -799,6 +800,8 @@ def build_kitsune():
             sink = 0.045 if k_ == 0 else 0.030
             build_flame_lock(dst, 'tuft_cheek', p - n * sink, d, n, L + sink, w, tk, {'Head': 1.0},
                              n=8 if k_ == 0 else 6, curl_k=ck, curl_dir=v3(0, cb, cu))
+            if k_ == 0:
+                cheek_roots.append((p, n, d))        # the sculpt swells the cheek up into the tuft
 
     # ------------------------------------------------------------------- legs + paws
     toe_tips = []
@@ -956,6 +959,7 @@ def build_kitsune():
         ma.hug.append(dict(kind='rigid', v0=tv0, v1=len(ma.verts), anchor=top, clear=0.045, horizontal_only=True))
 
     info = dict(torso=torso, neck=neck, head=head, tails=tails, toe_tips=toe_tips, tassel_tops=tassel_tops,
+                cheek_roots=cheek_roots,
                 eye=(EYE_S, EYE_TH))
     return md, ma, info
 

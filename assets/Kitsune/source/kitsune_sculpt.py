@@ -138,6 +138,18 @@ def eye_sculpt(co_unit, part, head):
     return d_all
 
 
+def cheek_sculpt(co_unit, part, roots):
+    """Swell the cheek smoothly up into the root of each big cheek tuft: a soft
+    bump on the head surface (no separate filler shape, so no outline)."""
+    d_all = np.zeros(len(co_unit))
+    hm = (part == kg.PART_IDS['head']) | (part == kg.PART_IDS['neck'])
+    for p, n, d in roots:
+        q = np.asarray(p) + np.asarray(d) * 0.010
+        r = np.linalg.norm(co_unit - q, axis=1)
+        d_all += 0.042 * np.exp(-(r / 0.078) ** 2) * hm
+    return d_all
+
+
 # ---------------------------------------------------------------- main
 def build_sculpted_body(md, info, S, target_tris, voxel=0.0085, smooth_iters=5, log=print):
     src = Source(md, S)
@@ -169,6 +181,7 @@ def build_sculpted_body(md, info, S, target_tris, voxel=0.0085, smooth_iters=5, 
         name = INV_PART[int(p)]
         disp[m] = kf.sculpt_height(name, t[m], th[m])
     disp += eye_sculpt(co / S, part, info['head'])
+    disp += cheek_sculpt(co / S, part, info.get('cheek_roots', []))
     co2 = co + nr * (disp[:, None] * S)
     me1.vertices.foreach_set('co', co2.ravel())
     me1.update()
