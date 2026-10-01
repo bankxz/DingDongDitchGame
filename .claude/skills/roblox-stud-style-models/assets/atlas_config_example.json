@@ -1,0 +1,28 @@
+{
+  "size": 1024,
+  "px_per_stud": 32,
+  "stud_strength": 0.5,
+  "palette": {
+    "navy":  "#073588",
+    "royal": "#1657fc",
+    "ice":   "#d8efff",
+    "white": "#eef3fa",
+    "gold":  "#ffcd53",
+    "red":   "#b8143a",
+    "dark":  "#3a0214"
+  },
+  "slots": {
+    "navy":    {"rect": [0, 0, 512, 512],     "kind": "studs", "color": "navy", "top_tint": ["#1a4cb8", 0.275]},
+    "white":   {"rect": [512, 0, 512, 256],   "kind": "studs", "color": "white"},
+    "ice":     {"rect": [512, 256, 512, 256], "kind": "studs", "color": "ice"},
+    "royal":   {"rect": [0, 512, 512, 256],   "kind": "studs", "color": "royal"},
+    "goldS":   {"rect": [768, 512, 256, 128], "kind": "studs", "color": "gold"},
+    "gold":    {"rect": [512, 512, 256, 128], "kind": "gold"},
+    "dark":    {"rect": [512, 640, 128, 128], "kind": "flat", "color": "dark"},
+    "crystal": {"rect": [0, 768, 256, 256],   "kind": "crystal", "base": "#1c8cf2", "tip": "#7cdcff"},
+    "red":     {"rect": [256, 768, 128, 128], "kind": "gradient", "from": "#7a0622", "to": "#d02048"},
+    "tooth":   {"rect": [384, 768, 128, 128], "kind": "gradient", "from": "#ffffff", "to": "#e6ecf4"},
+    "eye":     {"rect": [256, 896, 128, 128], "kind": "eye", "glow": "#2eb8fa", "iris": ["#3ac4ff", "#e4fdff"], "pupil": "#051036", "aspect": 2.3},
+    "gem":     {"rect": [384, 896, 128, 128], "kind": "gem"}
+  }
+}
