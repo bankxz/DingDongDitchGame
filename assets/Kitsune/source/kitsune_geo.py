@@ -644,10 +644,10 @@ EYE_S, EYE_TH = 0.38, math.radians(40)
 #  length, half width)
 CHEEK_LOCKS = [   # (head s, th deg, direction (out, back, up), length, half width, half thickness,
                   #  curl amount, curl direction (back, up))
-    (0.30, 90, (1.00, 0.22, 0.10), 0.150, 0.092, 0.036, 0.60, (0.15, 1.0)),    # BIG tuft: broad base over the cheek, curving upward
-    (0.31, 102, (1.00, 0.30, -0.40), 0.085, 0.028, 0.016, 0.20, (0.5, 0.5)),   # small spikes stepping down
-    (0.31, 114, (0.95, 0.35, -0.58), 0.070, 0.024, 0.014, 0.20, (0.5, 0.5)),   # the cheek
-    (0.30, 126, (0.85, 0.40, -0.75), 0.055, 0.020, 0.013, 0.20, (0.5, 0.5)),
+    (0.345, 98, (1.00, 0.22, 0.10), 0.150, 0.092, 0.036, 0.60, (0.15, 1.0)),   # BIG tuft on the cheek below the eye
+    (0.345, 114, (1.00, 0.30, -0.40), 0.085, 0.028, 0.016, 0.20, (0.5, 0.5)),  # small spikes stepping down
+    (0.34, 126, (0.95, 0.35, -0.58), 0.070, 0.024, 0.014, 0.20, (0.5, 0.5)),   # the cheek
+    (0.33, 137, (0.85, 0.40, -0.75), 0.055, 0.020, 0.013, 0.20, (0.5, 0.5)),
 ]
 # in-game cheek tuft outline (u along the tuft from the root, v across), unit = 0.19
 CHEEK_TUFT_OUTLINE = [   # a small fan of thin sharp spikes (in-game cheek tuft)
