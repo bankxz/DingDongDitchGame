@@ -312,13 +312,11 @@ def paint_samples(s, ctx):
         # a thick cyan band on the outer side, a few bold notches on the inner side,
         # a jagged cyan fringe along the bottom and a solid cyan tip
         outer = smoothstep(E['c_mid'] - 0.01, E['c_mid'] + 0.01, ec)
-        notch = tri_wave(ea / 0.075 + 0.6) ** 3 * (1 - outer)
-        rim_w = np.where(front > 0.5, 0.016 + 0.022 * outer + 0.014 * notch, 0.016)
+        rim_w = np.where(front > 0.5, 0.018 + 0.020 * outer, 0.016)
         tip_w = smoothstep(E['a_tip'] - 0.090, E['a_tip'] - 0.040, ea) * 0.05
         rw_ = np.maximum(rim_w, tip_w)
         mk = smoothstep(rw_ + 0.0011, rw_ - 0.0011, dist)
-        fringe = 0.012 + 0.030 * tri_wave((ec - E['c_mid']) / 0.038 + 0.5) ** 2 * (1 - outer * 0.6)
-        mk = np.maximum(mk, smoothstep(fringe + 0.0012, fringe - 0.0012, ea) * front)
+
         # inner ear: deep indigo with soft vertical strands
         strands = 0.5 + 0.5 * np.sin(ec / 0.011 + 1.5 * vnoise(ec * 40, ea * 8, 4))
         inner = front * smoothstep(0.0, 0.004, dist - rw_) * (1 - mk)
@@ -419,8 +417,12 @@ def paint_samples(s, ctx):
         aw = np.abs(w)
         # clean, crisp bands (no noise): purple root -> deep-cyan base -> cyan
         # body with a light centre stripe and darker edges -> white-cyan tip
-        cy = smoothstep(0.10, 0.17, tt)
-        cc = lerp3(CYAN_DK, CYAN, smoothstep(0.20, 0.34, tt))
+        # purple root -> cyan flame tongues licking toward the tip (like the legs)
+        xf = th[m] * 3 / (2 * np.pi) + 0.4 * tt
+        tongue = (1 - np.abs(2 * (xf - np.floor(xf)) - 1)) ** 2.2
+        bound = 0.50 - 0.24 * tongue
+        cy = smoothstep(bound - 0.015, bound + 0.015, tt)
+        cc = lerp3(CYAN, CYAN, smoothstep(0.20, 0.34, tt))
         stripe = smoothstep(0.34, 0.27, aw) * smoothstep(0.30, 0.40, tt)
         cc = lerp3(cc, CYAN_LT, stripe * 0.85)
         cc = lerp3(cc, CYAN_DK, smoothstep(0.80, 0.86, aw) * 0.6)
