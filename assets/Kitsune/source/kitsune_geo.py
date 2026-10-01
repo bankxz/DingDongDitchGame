@@ -644,7 +644,7 @@ EYE_S, EYE_TH = 0.38, math.radians(40)
 #  length, half width)
 CHEEK_LOCKS = [   # (head s, th deg, direction (out, back, up), length, half width, half thickness,
                   #  curl amount, curl direction (back, up))
-    (0.345, 98, (1.00, 0.22, 0.10), 0.150, 0.092, 0.036, 0.60, (0.15, 1.0)),   # BIG tuft on the cheek below the eye
+    (0.345, 98, (1.00, 0.22, 0.10), 0.150, 0.078, 0.025, 0.60, (0.15, 1.0)),   # BIG tuft on the cheek below the eye (sculpted in)
     (0.345, 114, (1.00, 0.30, -0.40), 0.085, 0.028, 0.016, 0.20, (0.5, 0.5)),  # small spikes stepping down
     (0.34, 126, (0.95, 0.35, -0.58), 0.070, 0.024, 0.014, 0.20, (0.5, 0.5)),   # the cheek
     (0.33, 137, (0.85, 0.40, -0.75), 0.055, 0.020, 0.013, 0.20, (0.5, 0.5)),
@@ -790,11 +790,15 @@ def build_kitsune():
     # eye, flaring out sideways with a long main point and smaller side points.
     # Solid flame-shaped volumes (kept out of the remesh so the points stay sharp)
     for sx in (1, -1):
-        for s_, thd, (o, b, u), L, w, tk, ck, (cb, cu) in CHEEK_LOCKS:
+        for k_, (s_, thd, (o, b, u), L, w, tk, ck, (cb, cu)) in enumerate(CHEEK_LOCKS):
             p, n, _ = head.point(s_, sx * math.radians(thd), 0.0)
             d = norm(n * o + v3(0, b, u))
-            build_flame_lock(ma, 'tuft_cheek', p - n * 0.030, d, n, L + 0.030, w, tk, {'Head': 1.0}, n=6,
-                             curl_k=ck, curl_dir=v3(0, cb, cu))
+            # the big tuft goes into the body so the remesh fuses it into the cheek
+            # (clean sculpted transition); the small spikes stay crisp separate pieces
+            dst = md if k_ == 0 else ma
+            sink = 0.045 if k_ == 0 else 0.030
+            build_flame_lock(dst, 'tuft_cheek', p - n * sink, d, n, L + sink, w, tk, {'Head': 1.0},
+                             n=8 if k_ == 0 else 6, curl_k=ck, curl_dir=v3(0, cb, cu))
 
     # ------------------------------------------------------------------- legs + paws
     toe_tips = []
