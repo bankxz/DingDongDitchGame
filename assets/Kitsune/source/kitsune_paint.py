@@ -295,13 +295,17 @@ def paint_samples(s, ctx):
         dist, arc = polyline_dist(ea, ec, E['outline'])
         front = smoothstep(0.15, -0.15, Nm @ E['back'])                # inner (forward-facing) side
         # rim with fur spikes pointing inward / down the ear, wider on the front
-        # thick cyan border with long fur points reaching in over the navy inner ear
-        ph = arc / 0.034 + 0.9 * dist / 0.034 + 0.45 * vnoise(arc * 22, 0.5, 8)
-        spk = tri_wave(ph) ** 3 * (0.55 + 0.45 * _hash2(np.floor(ph), 1.0, 9))
-        rim_w = np.where(front > 0.5, 0.028, 0.020) + 0.030 * spk
-        tip_w = smoothstep(E['a_tip'] - 0.075, E['a_tip'] - 0.020, ea) * 0.05
+        # in-game ears: mostly cyan; a deep-navy pocket set toward the inner edge,
+        # a thick cyan band on the outer side, a few bold notches on the inner side,
+        # a jagged cyan fringe along the bottom and a solid cyan tip
+        outer = smoothstep(E['c_mid'] - 0.01, E['c_mid'] + 0.01, ec)
+        notch = tri_wave(ea / 0.075 + 0.6) ** 3 * (1 - outer)
+        rim_w = np.where(front > 0.5, 0.016 + 0.022 * outer + 0.014 * notch, 0.016)
+        tip_w = smoothstep(E['a_tip'] - 0.090, E['a_tip'] - 0.040, ea) * 0.05
         rw_ = np.maximum(rim_w, tip_w)
         mk = smoothstep(rw_ + 0.0011, rw_ - 0.0011, dist)
+        fringe = 0.012 + 0.030 * tri_wave((ec - E['c_mid']) / 0.038 + 0.5) ** 2 * (1 - outer * 0.6)
+        mk = np.maximum(mk, smoothstep(fringe + 0.0012, fringe - 0.0012, ea) * front)
         # inner ear: deep indigo with soft vertical strands
         strands = 0.5 + 0.5 * np.sin(ec / 0.011 + 1.5 * vnoise(ec * 40, ea * 8, 4))
         inner = front * smoothstep(0.0, 0.004, dist - rw_) * (1 - mk)
@@ -444,32 +448,32 @@ def paint_samples(s, ctx):
         mott = vnoise(L * 22, a * 1.6, 52)
         c = lerp3(ROPE_RED, ROPE_LT, smoothstep(0.55, 0.95, mott) * 0.35)
         c = lerp3(c, RED_DK, streak * 0.75 + smoothstep(0.35, 0.05, mott) * 0.25)
-        col[m], hgt[m], rough[m], reg[m] = c, streak * 0.3, 0.32, REG_ROPE
+        col[m], hgt[m], rough[m], reg[m] = c, streak * 0.3, 0.82, REG_ROPE
     m = sel('knot')
     if m.any():
         tw = smoothstep(0.75, 0.92, 0.5 + 0.5 * np.sin(th[m] * 2 + t[m] * 7))
-        col[m], hgt[m], rough[m], reg[m] = lerp3(ROPE_RED, RED_DK, tw * 0.7), tw * 0.3, 0.32, REG_ROPE
+        col[m], hgt[m], rough[m], reg[m] = lerp3(ROPE_RED, RED_DK, tw * 0.7), tw * 0.3, 0.82, REG_ROPE
     m = sel('gem')
     if m.any():
         # t: 0 front pole -> 1 back pole ; painted highlight + rim darkening
         hi = smoothstep(0.16, 0.04, np.hypot(t[m] - 0.20, 0.10 * np.sin(th[m] - 2.3)))
         c = lerp3(np.array([0.92, 0.04, 0.10]), RED_DK, smoothstep(0.25, 0.75, t[m]) * 0.8)
         c = lerp3(c, np.array([1.0, 0.62, 0.66]), hi * 0.7)
-        col[m], rough[m], emi[m], reg[m] = c, 0.15, 0.30, REG_ORN
+        col[m], rough[m], emi[m], reg[m] = c, 0.45, 0.30, REG_ORN
     m = sel('frame')
     if m.any():
         col[m] = lerp3(RED_DK, RED, 0.5 + 0.5 * t[m])
-        rough[m], reg[m] = 0.45, REG_ORN
+        rough[m], reg[m] = 0.78, REG_ORN
     m = sel('bead')
     if m.any():
         hi = smoothstep(0.30, 0.10, t[m]) * (0.5 + 0.5 * np.cos(th[m] - 1.0))
         col[m] = lerp3(lerp3(RED, RED_DK, t[m] * 0.8), np.array([1.0, 0.6, 0.65]), hi * 0.6)
-        rough[m], reg[m], emi[m] = 0.3, REG_ORN, 0.15
+        rough[m], reg[m], emi[m] = 0.70, REG_ORN, 0.15
     m = sel('tassel')
     if m.any():
         st = 0.5 + 0.5 * np.cos(th[m] * 6)
         col[m] = lerp3(RED_DK, lerp3(RED, RED_GEM, 0.4), 0.45 + 0.55 * st)
-        hgt[m], rough[m], reg[m] = st * 0.5, 0.7, REG_ORN
+        hgt[m], rough[m], reg[m] = st * 0.5, 0.85, REG_ORN
     m = sel('eye')
     if m.any():
         # exact eye-frame coordinates of the lens surface (u along the eye toward

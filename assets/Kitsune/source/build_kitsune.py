@@ -253,6 +253,8 @@ def make_materials(ob, paths, face_reg, emission_strength=0.55):
         nt.links.new(tn.outputs['Color'], nm.inputs['Color'])
         nt.links.new(nm.outputs['Normal'], bsdf.inputs['Normal'])
         bsdf.inputs['Metallic'].default_value = 0.0
+        if name in ('M_Kitsune_Rope_Red', 'M_Kitsune_Ornament_Red'):
+            bsdf.inputs['Specular IOR Level'].default_value = 0.25      # matte, stylised harness
         if name in SLOT_EMISSION:
             # preview-only glow pass (render_views adds it as a soft bloom); Roblox
             # gets the same look from EmissiveMaskContent + Lighting.Bloom

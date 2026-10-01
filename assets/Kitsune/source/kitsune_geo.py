@@ -546,7 +546,7 @@ HIND_LEG = [v3(0.22, 0.56, 0.84), v3(0.265, 0.45, 0.53), v3(0.28, 0.74, 0.24), v
 FRONT_PAW_C = v3(0.285, -0.385, 0.060)          # pad centre
 HIND_PAW_C = v3(0.285, 0.665, 0.060)
 EAR_BASE = v3(0.135, -0.66, 1.45)
-EAR_TIP = v3(0.305, -0.655, 1.72)          # v16: splayed outward (in-game ears)
+EAR_TIP = v3(0.335, -0.655, 1.655)         # v17: short, pointed, splayed ~45 deg (in-game ears)
 KNOT = v3(0.0, 0.14, 1.03)
 TASSEL_TOP = v3(0.33, 0.14, 0.84)
 
@@ -590,17 +590,13 @@ MANE_LOCKS = [
 ]
 # halo harness loop: centre, radius, backward tilt (deg), half arc (deg from the top)
 HALO_C, HALO_R, HALO_TILT, HALO_SPAN = v3(0.0, -0.28, 1.27), 0.48, 46.0, 128.0
-# sculpted cyan ear fur (reference ears): flame spikes growing out of the cyan rim
-# along both edges.  Left ear, in the ear frame:
+# sculpted cyan ear fur (in-game ears): a bold lock curling inward at the inner
+# base and one small spike on the inner edge; the outer edge stays clean.  Left ear, in the ear frame:
 # (a along the ear, c across (+ outer edge), lift off the front face, direction
 #  (across, along, forward), length, half width, half thickness)
 EAR_FUR = [
-    (0.030, 0.112, 0.0, (0.85, 0.53, 0.0), 0.080, 0.022, 0.012),     # outer rim: fur spikes
-    (0.085, 0.103, 0.0, (0.78, 0.63, 0.0), 0.070, 0.020, 0.012),     # sweeping out / up
-    (0.140, 0.088, 0.0, (0.70, 0.71, 0.0), 0.060, 0.018, 0.011),
-    (0.050, -0.106, 0.0, (-0.70, 0.71, 0.0), 0.070, 0.019, 0.012),   # inner rim: spikes
-    (0.110, -0.092, 0.0, (-0.62, 0.78, 0.0), 0.060, 0.017, 0.011),   # pointing in / up
-    (0.170, -0.074, 0.0, (-0.52, 0.85, 0.0), 0.050, 0.015, 0.011),
+    (0.025, -0.085, 0.0, (-0.88, 0.47, 0.0), 0.090, 0.028, 0.014),   # bold cyan lock curling in at the inner base
+    (0.095, -0.068, 0.0, (-0.66, 0.75, 0.0), 0.055, 0.018, 0.012),   # small inner-edge spike
 ]
 
 
@@ -689,9 +685,9 @@ def build_kitsune():
     for sx in (1, -1):
         base, tip = mx(EAR_BASE, sx), mx(EAR_TIP, sx)
         ax = norm(tip - base)
-        pts = [base - ax * 0.06, base + (tip - base) * 0.28, base + (tip - base) * 0.58, base + (tip - base) * 0.84]
+        pts = [base - ax * 0.06, base + (tip - base) * 0.25, base + (tip - base) * 0.52, base + (tip - base) * 0.76]
         ref = norm(v3(sx * 1.0, 0.12, 0))
-        ear = Loft(pts, [0.150, 0.128, 0.086, 0.040], [0.080, 0.066, 0.044, 0.022], [0.046, 0.040, 0.028, 0.014], ref, 10)
+        ear = Loft(pts, [0.128, 0.108, 0.066, 0.024], [0.080, 0.066, 0.044, 0.022], [0.046, 0.040, 0.028, 0.014], ref, 10)
         nm = 'Ear' + ('_L' if sx > 0 else '_R')
         ear.build(md, 'ear', lambda i, t, p, nm=nm: {'Head': 0.6, nm: 0.4} if i == 0 else {nm: 1.0},
                   cap_start=base - ax * 0.10, cap_end=tip)
