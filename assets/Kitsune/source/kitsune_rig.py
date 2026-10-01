@@ -31,31 +31,51 @@ def V(p):
 
 
 # ------------------------------------------------------------------ bones
-def bone_specs():
+def group_points(ob, name):
+    """World-unit (shoulder-height) positions of the vertices weighted to a group."""
+    g = ob.vertex_groups.get(name)
+    if g is None:
+        return None
+    pts = [v.co for v in ob.data.vertices if any(e.group == g.index and e.weight > 0.5 for e in v.groups)]
+    return np.array([tuple(p) for p in pts]) / S() if pts else None
+
+
+def bone_specs(ob=None):
+    """Bone layout for the v28 anatomy (unit = shoulder height)."""
     g = kg
+    v3 = kg.v3
+    nk = [v3(0, -0.34, 0.83), v3(0, -0.43, 0.99), v3(0, -0.50, 1.14), v3(0, -0.57, 1.27), v3(0, -0.65, 1.36)]
+    nose = v3(0, float(g.HEAD_KEYS[-1, 0]), float(g.HEAD_KEYS[-1, 1]))
     b = []   # (name, head, tail, parent, connected)
     b.append(('Root', (0, 0, 0), (0, -0.3, 0), None, False))
-    b.append(('Hips', (0, 0.58, 0.845), (0, 0.30, 0.835), 'Root', False))
-    b.append(('Spine', (0, 0.30, 0.835), (0, 0.02, 0.84), 'Hips', True))
-    b.append(('Chest', (0, 0.02, 0.84), (0, -0.20, 0.88), 'Spine', True))
-    b.append(('Neck1', (0, -0.18, 0.93), (0, -0.28, 1.10), 'Chest', False))
-    b.append(('Neck2', (0, -0.28, 1.10), (0, -0.35, 1.30), 'Neck1', True))
-    b.append(('Head', (0, -0.35, 1.38), (0, -0.64, 1.30), 'Neck2', False))
+    b.append(('Hips', (0, 0.50, 0.82), (0, 0.24, 0.82), 'Root', False))
+    b.append(('Spine', (0, 0.24, 0.82), (0, -0.04, 0.83), 'Hips', True))
+    b.append(('Chest', (0, -0.04, 0.83), (0, -0.34, 0.86), 'Spine', True))
+    b.append(('Neck1', (0, -0.38, 0.90), (0, -0.50, 1.15), 'Chest', False))
+    b.append(('Neck2', (0, -0.50, 1.15), (0, -0.60, 1.32), 'Neck1', True))
+    b.append(('Head', (0, -0.60, 1.36), tuple(nose), 'Neck2', False))
     for sx, sfx in ((1, '_L'), (-1, '_R')):
         m = lambda p: kg.mx(p, sx)
         b.append(('Ear' + sfx, m(g.EAR_BASE), m(g.EAR_TIP), 'Head', False))
         fl, hl = [m(p) for p in g.FRONT_LEG], [m(p) for p in g.HIND_LEG]
         b.append(('FrontLegUpper' + sfx, fl[0], fl[1], 'Chest', False))
         b.append(('FrontLegLower' + sfx, fl[1], fl[2], 'FrontLegUpper' + sfx, True))
-        b.append(('FrontPaw' + sfx, fl[2], m(g.FRONT_PAW[2]), 'FrontLegLower' + sfx, True))
+        b.append(('FrontPaw' + sfx, fl[2], m(g.FRONT_PAW_C + v3(0, -0.12, -0.03)), 'FrontLegLower' + sfx, True))
         b.append(('HindLegUpper' + sfx, hl[0], hl[1], 'Hips', False))
         b.append(('HindLegLower' + sfx, hl[1], hl[2], 'HindLegUpper' + sfx, True))
         b.append(('HindFoot' + sfx, hl[2], hl[3], 'HindLegLower' + sfx, True))
-        b.append(('HindPaw' + sfx, hl[3], m(g.HIND_PAW[2]), 'HindFoot' + sfx, True))
-        t = m(g.TASSEL_TOP)
-        b.append(('Tassel' + sfx, t, t + kg.v3(0, 0, -0.40), 'Chest', False))
-    b.append(('TailBase', g.TAIL_BASE, g.TAIL_BASE + kg.v3(0, 0.14, 0.05), 'Hips', False))
-    for spec in g.TAIL_SPECS:
+        b.append(('HindPaw' + sfx, hl[3], m(g.HIND_PAW_C + v3(0, -0.12, -0.03)), 'HindFoot' + sfx, True))
+        # tassel: measured on the final mesh (it is seated onto the fur after the sculpt)
+        tp = group_points(ob, 'Tassel' + sfx) if ob is not None else None
+        if tp is not None:
+            top = tp[tp[:, 2].argmax()].copy()
+            top[0] = abs(top[0]) * sx
+            top = top + v3(0, 0, 0.06)
+        else:
+            top = m(g.TASSEL_TOP)
+        b.append(('Tassel' + sfx, tuple(top), tuple(top + v3(0, 0, -0.40)), 'Chest', False))
+    b.append(('TailBase', g.TAIL_BASE, g.TAIL_BASE + v3(0, 0.14, 0.05), 'Hips', False))
+    for spec in g.tuned_specs():
         pts = g.tail_bone_points(spec)
         par = 'TailBase'
         for k in range(3):
@@ -65,7 +85,10 @@ def bone_specs():
     return b
 
 
-def build_rig(ob, md):
+def build_rig(ob, md=None):
+    """Armature for the finished mesh.  Skin weights come from the vertex groups
+    the build already transferred onto the sculpted body / accessories; they are
+    limited to 4 influences and normalised (Roblox skinning)."""
     arm_data = bpy.data.armatures.new('Kitsune_Armature')
     arm = bpy.data.objects.new('Kitsune_Rig', arm_data)
     bpy.context.scene.collection.objects.link(arm)
@@ -75,7 +98,7 @@ def build_rig(ob, md):
         o.select_set(o == arm)
     bpy.ops.object.mode_set(mode='EDIT')
     X = Vector((1, 0, 0))
-    specs = bone_specs()
+    specs = bone_specs(ob)
     for name, h, t, par, conn in specs:
         eb = arm_data.edit_bones.new(name)
         eb.head, eb.tail = V(h), V(t)
@@ -95,15 +118,19 @@ def build_rig(ob, md):
             eb.use_connect = conn
     bpy.ops.object.mode_set(mode='OBJECT')
 
-    # skin weights (max 4 influences, normalised)
+    # weights: drop groups that are not bones, limit to 4, normalise
     names = {s[0] for s in specs}
-    groups = {n: ob.vertex_groups.new(name=n) for n in [s[0] for s in specs]}
-    for vi, w in enumerate(md.weights):
-        items = sorted(((k, v) for k, v in w.items() if v > 1e-4), key=lambda kv: -kv[1])[:4]
-        tot = sum(v for _, v in items)
-        for k, v in items:
-            assert k in names, k
-            groups[k].add([vi], v / tot, 'REPLACE')
+    for vg in list(ob.vertex_groups):
+        if vg.name not in names:
+            print('RIG dropping non-bone group', vg.name)
+            ob.vertex_groups.remove(vg)
+    bpy.context.view_layer.objects.active = ob
+    for o in bpy.context.view_layer.objects:
+        o.select_set(o == ob)
+    bpy.ops.object.vertex_group_limit_total(group_select_mode='ALL', limit=4)
+    bpy.ops.object.vertex_group_normalize_all(group_select_mode='ALL', lock_active=False)
+    unweighted = sum(1 for v in ob.data.vertices if not v.groups)
+    print('RIG bones', len(specs), 'groups', len(ob.vertex_groups), 'unweighted verts', unweighted)
     ob.parent = arm
     mod = ob.modifiers.new('Armature', 'ARMATURE')
     mod.object = arm
@@ -201,7 +228,9 @@ def pose_idle(arm, f, N):
         P.world('Tassel' + sfx, AX, 0.05 * math.sin(p + 0.5 * sx))
         P.world('Tassel' + sfx, (0, 1, 0), 0.03 * math.sin(2 * p + sx))
     P.world('TailBase', AX, 0.03 * math.sin(p))
-    tail_sway(P, p, 0.07)
+    for tn in ('Tail6', 'Tail7', 'Tail8'):          # lower tails lifted a touch so they clear the ground
+        P.world(f'{tn}_1', AX, -0.10)
+    tail_sway(P, p, 0.06)
     P.world('Hips', (0, 1, 0), 0.01 * math.sin(p))
     return P
 
@@ -282,8 +311,8 @@ def pose_sleep(arm, f, N):
     order = [3, 1, 5, 0, 7, 2, 4, 6]            # stacking order around the body
     for rank, i in enumerate(order):
         tn = kg.TAIL_SPECS[i][0]
-        beta = math.radians(-25 + rank * 22)     # 0 = straight back, 90 = creature's left side
-        tgt = (math.sin(beta) * 1.0, math.cos(beta), 0.10 + 0.07 * (rank % 3))
+        beta = math.radians(60 + rank * 16)      # 0 = straight back, 90 = left side, 180 = toward the head
+        tgt = (math.sin(beta) * 1.0, math.cos(beta), -0.05 + 0.06 * (rank % 3))
         P.aim(f'{tn}_1', tgt, 1.0)
         P.world(f'{tn}_2', (0, 0, 1), 0.28)      # curl toward the head
         P.world(f'{tn}_3', (0, 0, 1), 0.32)
@@ -298,7 +327,16 @@ ANIMS = {
 }
 
 
-def eval_min_z(arm, ob, frame):
+FOOT_BONES = ('FrontPaw_L', 'FrontPaw_R', 'HindPaw_L', 'HindPaw_R')
+
+
+def foot_mask(ob):
+    """Vertices that must touch the ground when standing / running (paws + claws)."""
+    gi = {ob.vertex_groups[n].index for n in FOOT_BONES if n in ob.vertex_groups}
+    return np.array([any(e.group in gi and e.weight > 0.5 for e in v.groups) for v in ob.data.vertices])
+
+
+def eval_min_z(arm, ob, frame, mask=None):
     bpy.context.scene.frame_set(frame)
     dg = bpy.context.evaluated_depsgraph_get()
     oe = ob.evaluated_get(dg)
@@ -306,10 +344,11 @@ def eval_min_z(arm, ob, frame):
     co = np.zeros(len(me.vertices) * 3)
     me.vertices.foreach_get('co', co)
     oe.to_mesh_clear()
-    return co.reshape(-1, 3)[:, 2].min()
+    z = co.reshape(-1, 3)[:, 2]
+    return (z[mask] if mask is not None else z).min()
 
 
-def bake_action(arm, ob, name, fn, N, ground=True, per_frame=False, hop=None):
+def bake_action(arm, ob, name, fn, N, ground=True, per_frame=False, hop=None, mask=None):
     act = bpy.data.actions.new(name)
     act.use_fake_user = True
     arm.animation_data_create()
@@ -322,7 +361,7 @@ def bake_action(arm, ob, name, fn, N, ground=True, per_frame=False, hop=None):
         for f in range(N + 1):
             fn(arm, f, N).apply(f)
         for f in range(N + 1):
-            offs.append(-eval_min_z(arm, ob, f))
+            offs.append(-eval_min_z(arm, ob, f, mask))
         offs = np.array(offs)
         offs[-1] = offs[0]
         # light smoothing keeps contact without jitter; optional airborne hop
@@ -344,7 +383,7 @@ def bake_action(arm, ob, name, fn, N, ground=True, per_frame=False, hop=None):
         for f in range(0, N + 1, 3):
             fn(arm, f, N).apply(f)
         for f in range(0, N + 1, 3):
-            mins.append(eval_min_z(arm, ob, f))
+            mins.append(eval_min_z(arm, ob, f, mask))
         offset = -min(mins)
         for fc in list(act.fcurves):
             act.fcurves.remove(fc)
@@ -367,10 +406,13 @@ def build_actions(arm, ob):
     info = {}
     s = S()
     hop = lambda f, N: s * 0.05 * max(0.0, math.sin(2 * math.pi * f / N - 2.2)) ** 2   # suspension phase
+    feet = foot_mask(ob)
     for name, (fn, N) in ANIMS.items():
         if name == 'Kitsune_Run':
-            act, off = bake_action(arm, ob, name, fn, N, per_frame=True, hop=hop)
-        else:
+            act, off = bake_action(arm, ob, name, fn, N, per_frame=True, hop=hop, mask=feet)
+        elif name == 'Kitsune_Idle':
+            act, off = bake_action(arm, ob, name, fn, N, ground=True, mask=feet)
+        else:                                   # sleeping: the body itself rests on the ground
             act, off = bake_action(arm, ob, name, fn, N, ground=True)
         info[name] = dict(frames=N, seconds=N / FPS, ground_offset=off)
         print('ACTION', name, N, 'frames, ground offset', round(off, 4))
