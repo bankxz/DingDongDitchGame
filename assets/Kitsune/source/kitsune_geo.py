@@ -641,9 +641,11 @@ EYE_S, EYE_TH = 0.38, math.radians(40)
 # bases fuse into the cheek; the tips separate into sharp tongues.
 # (head s, head th deg, direction weights (out along the skin normal, back, up),
 #  length, half width)
-CHEEK_TUFTS = [
-    (0.31, 104, (0.80, 0.50, -0.32), 1.00),     # main tuft on the cheek, sweeps back / out / down
-    (0.25, 80, (0.80, 0.55, -0.05), 0.72),      # smaller tuft just above / behind it
+CHEEK_LOCKS = [   # (head s, head th deg, direction (out, back, up), length, half width, half thickness)
+    (0.30, 88, (1.00, 0.30, 0.30), 0.170, 0.046, 0.024),     # long main point, out and a little up
+    (0.31, 102, (1.00, 0.40, -0.28), 0.120, 0.036, 0.020),   # lower point
+    (0.27, 92, (0.70, 0.80, 0.05), 0.110, 0.032, 0.018),     # point sweeping back
+    (0.28, 76, (0.90, 0.45, 0.60), 0.085, 0.027, 0.015),     # small upper point
 ]
 # in-game cheek tuft outline (u along the tuft from the root, v across), unit = 0.19
 CHEEK_TUFT_OUTLINE = [   # a small fan of thin sharp spikes (in-game cheek tuft)
@@ -785,19 +787,14 @@ def build_kitsune():
                              {'Head': 1.0} if loft_ == 'head' else {'Neck2': 1.0}, curl_k=0.22)
 
     # ------------------------------------------------------------ cheek ruff
-    # closed, flattened flame locks rooted inside the skull: the voxel remesh
-    # fuses them into the face, so they are sculpted fur (no separate cards)
+    # in-game cheek fur: one chunky sculpted cyan tuft per cheek, just behind the
+    # eye, flaring out sideways with a long main point and smaller side points.
+    # Solid flame-shaped volumes (kept out of the remesh so the points stay sharp)
     for sx in (1, -1):
-        for s_, thd, (o, b, u), sc in CHEEK_TUFTS:
+        for s_, thd, (o, b, u), L, w, tk in CHEEK_LOCKS:
             p, n, _ = head.point(s_, sx * math.radians(thd), 0.0)
             d = norm(n * o + v3(0, b, u))
-            flat = norm(n - np.dot(n, d) * d)
-            vax = norm(np.cross(flat, d))
-            vax = vax if vax[2] >= 0 else -vax                     # +v = upper edge on both sides
-            unit = 0.22 * sc
-            outline = [(uu * unit, vv * unit) for uu, vv in CHEEK_TUFT_OUTLINE]
-            # crisp separate piece (the remesh would melt the thin spikes), root sunk into the cheek
-            build_slab(ma, 'tuft_cheek', outline, p - n * 0.020 - d * 0.03, d, vax, 0.010, {'Head': 1.0})
+            build_flame_lock(ma, 'tuft_cheek', p - n * 0.030, d, n, L + 0.030, w, tk, {'Head': 1.0}, n=6, curl_k=0.12)
 
     # ------------------------------------------------------------------- legs + paws
     toe_tips = []
