@@ -22,6 +22,10 @@ assert(model, "select the kitsune Model first")
 local count = 0
 for _, part in model:GetDescendants() do
 	if part:IsA("MeshPart") then
+		-- plain colour texture as a fallback (shows even without SurfaceAppearance)
+		pcall(function()
+			part.TextureID = IDS.ColorMap
+		end)
 		local old = part:FindFirstChildOfClass("SurfaceAppearance")
 		if old then
 			old:Destroy()
