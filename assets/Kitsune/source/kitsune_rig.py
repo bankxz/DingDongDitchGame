@@ -75,9 +75,6 @@ def bone_specs(ob=None):
             top = m(g.TASSEL_TOP)
         b.append(('Tassel' + sfx, tuple(top), tuple(top + v3(0, 0, -0.40)), 'Chest', False))
     b.append(('TailBase', g.TAIL_BASE, g.TAIL_BASE + v3(0, 0.14, 0.05), 'Hips', False))
-    # halo: pivots at the back of the collar, points up to the top of the ring
-    hc, hr, ht = g.HALO_C, g.HALO_R, math.radians(g.HALO_TILT)
-    b.append(('Halo', (0, -0.34, 1.05), tuple(hc + v3(0, math.sin(ht), math.cos(ht)) * hr), 'Chest', False))
     # eyes: tiny bones so the sleep pose can close them (lens sinks into the socket)
     for sx, sfx in ((1, '_L'), (-1, '_R')):
         ep = group_points(ob, 'Eye' + sfx) if ob is not None else None
@@ -288,7 +285,6 @@ def pose_idle(arm, f, N):
         P.world(f'{tn}_1', AX, -0.12)
     tail_wave(P, p, 0.11, freq=1, lag=0.80, spread=0.85)
     P.world('Hips', (0, 1, 0), 0.01 * math.sin(p))
-    P.world('Halo', AX, 0.03 * math.sin(p - 0.8))            # halo sways gently with the breath
     return P
 
 
@@ -330,15 +326,13 @@ def pose_run(arm, f, N):
         P.toward(f'{tn}_1', (0, 1, 0.05), 0.40)
     tail_fan(P, 0.10)
     tail_wave(P, p, 0.13, freq=1, lag=1.05, spread=0.55, side_amp=0.10, harm=0.15)
-    P.world('Halo', AX, -0.12 + 0.10 * math.sin(p - 1.6))    # halo bounces with the stride
     return P
 
 
 def pose_sleep(arm, f, N):
     """Sleeping kitsune (sleep reference sheet): lying flat and straight, head
     resting on the front paws (paws together under the chin), ears up, eyes
-    closed, hind legs folded beside the belly, the halo rope laid down around the
-    neck, and all tails fanned out behind in layers - lower ones on the ground,
+    closed, hind legs folded beside the belly, and all tails fanned out behind in layers - lower ones on the ground,
     upper ones arching up, tips curling upward.  Slow breathing, tails stir."""
     P = Pose(arm)
     p = 2 * math.pi * f / N
@@ -365,8 +359,6 @@ def pose_sleep(arm, f, N):
     P.world('Neck1', AX, 0.80)
     P.world('Neck2', AX, 0.35 + 0.012 * br)
     P.world('Head', AX, -0.70)
-    # halo rope laid back over the shoulders around the neck
-    P.world('Halo', AX, -1.15)
     # tails: layered fan behind the body (heading 0 = straight back, + = left)
     specs = kg.tuned_specs()
     for i, tn in enumerate(TAILS):

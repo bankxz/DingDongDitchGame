@@ -700,16 +700,9 @@ def eye_frame(head, sx):
 
 
 def halo_weight(p):
-    """Halo rope: the ring itself follows its own 'Halo' bone (so poses can lay it
-    down); the ends that run down the neck blend into the chest."""
-    w = float(np.clip((p[2] - 1.06) / 0.12, 0.0, 1.0))
-    w = w * w * (3 - 2 * w)
-    out = {}
-    if w < 1.0:
-        out['Chest'] = 1.0 - w
-    if w > 0.0:
-        out['Halo'] = w
-    return out
+    """Halo rope: rigidly attached to the chest (no bone of its own - keeps the rig
+    light for the game)."""
+    return {'Chest': 1.0}
 
 
 def build_kitsune():

@@ -121,8 +121,9 @@ the harness (collar ties) — floating ends look disconnected.
 - **Aim chains with an FK-aware helper** (`set_dir`: convert the target world
   direction through the parents' *posed* rotation). Aiming each bone from its rest
   orientation ignores the parent pose, so curls and legs end up wrong.
-- Rigid accessories that should move in a pose (a halo loop lying down when asleep)
-  get their own bone; blend the weight into the parent where the piece attaches.
+- Keep the rig lean for games: accessories (harness loops, halo rings) stay rigidly
+  weighted to the body bone they sit on. Don't add bones for them unless the user
+  asks - users worry about performance and may reject extra bones.
 - Ask which sleep style the user wants and follow their sheet: e.g. "head on paws,
   straight body, tails in a layered fan behind (low ones on the ground, upper ones
   arching, tips curling up)" vs a curled fox.
