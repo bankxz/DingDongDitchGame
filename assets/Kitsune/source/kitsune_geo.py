@@ -170,8 +170,9 @@ class Loft:
         nrm = norm(side * math.sin(th) / max(rw, 1e-6) + up * math.cos(th) / max(rv, 1e-6))
         return p + nrm * offset, nrm, T
 
-    def build(self, md, part, weight_fn, cap_start=None, cap_end=None, t_range=(0.0, 1.0)):
-        """cap_start / cap_end: None (open) or a pole position."""
+    def build(self, md, part, weight_fn, cap_start=None, cap_end=None, t_range=(0.0, 1.0), cap_end_t=None):
+        """cap_start / cap_end: None (open) or a pole position.  cap_end_t: loft t
+        of the end pole (defaults to the last ring's t)."""
         isl = md.new_island(part)
         first = len(md.faces)
         n, R = self.n, len(self.c)
@@ -196,7 +197,7 @@ class Loft:
                             [uvs(i, k), uvs(i, k2), uvs(i + 1, k2), uvs(i + 1, k)],
                             [(tt[i], ths(k)), (tt[i], ths(k2)), (tt[i + 1], ths(k2)), (tt[i + 1], ths(k))],
                             part, isl)
-        for cap, i, sgn, tcap in ((cap_start, 0, -1, t0), (cap_end, R - 1, 1, t1)):
+        for cap, i, sgn, tcap in ((cap_start, 0, -1, t0), (cap_end, R - 1, 1, t1 if cap_end_t is None else cap_end_t)):
             if cap is None:
                 continue
             capv = md.add_vert(cap, weight_fn(i, tcap, np.asarray(cap)))
@@ -487,6 +488,27 @@ def build_leaf_clump(md, part, root, nrm, flow, length, width, weight, lift=0.25
     md.orient_piece(first, root - nrm * width)
 
 
+def build_flame_lock(md, part, root, d, skin_n, length, width, thick, weight, n=8, curl_k=0.18):
+    """Closed, flattened flame-shaped fur lock (pointed leaf) growing from root
+    along d.  It lies roughly parallel to the skin (flattened along the skin
+    normal) and its tip curls further back.  Loft params: t 0 root -> 1 tip,
+    th = 0 / pi on the two broad faces, +-pi/2 on the edges."""
+    d = norm(d)
+    flat = norm(skin_n - np.dot(skin_n, d) * d)           # thickness axis
+    wax = norm(np.cross(d, flat))                         # width axis
+    back = v3(0, 1, 0)
+    curl = norm(back - np.dot(back, d) * d) * curl_k * length
+    fs = [0.0, 0.14, 0.30, 0.46, 0.62, 0.77, 0.89]
+    centers = [root + d * length * f + curl * f * f for f in fs]
+    rw = [width * k for k in (0.85, 1.0, 0.92, 0.72, 0.48, 0.27, 0.11)]       # broad base, flame taper
+    rt = [thick * k for k in (1.0, 1.0, 0.92, 0.80, 0.64, 0.50, 0.38)]
+    loft = Loft(centers, rw, rt, rt, wax, n)
+    tip = root + d * length + curl
+    loft.build(md, part, lambda i, t, p: dict(weight), cap_start=root - d * 0.012, cap_end=tip,
+               t_range=(0.0, 0.89), cap_end_t=1.0)
+    return loft
+
+
 def catmull_loop(pts, n_per):
     pts = [np.asarray(p, float) for p in pts]
     N = len(pts)
@@ -541,6 +563,19 @@ HEAD_KEYS_TB = np.array([   # y, top z, bottom z, half width  (domed skull, stop
 HEAD_KEYS = np.c_[HEAD_KEYS_TB[:, 0], (HEAD_KEYS_TB[:, 1] + HEAD_KEYS_TB[:, 2]) / 2, HEAD_KEYS_TB[:, 3],
                   (HEAD_KEYS_TB[:, 1] - HEAD_KEYS_TB[:, 2]) / 2 * 0.92, (HEAD_KEYS_TB[:, 1] - HEAD_KEYS_TB[:, 2]) / 2 * 1.08]
 EYE_S, EYE_TH = 0.38, math.radians(40)
+# cheek ruff (reference head close-ups): a fan of curved flame locks flaring back
+# and out from behind the eye, from under the ear down to the jaw.  Broad bases
+# fuse into one ruff; the tips separate into sharp tongues.
+# (head s, head th deg, direction weights (out along the skin normal, back, up),
+#  length, half width)
+CHEEK_TUFTS = [
+    (0.12, 55, (0.75, 0.55, 0.65), 0.170, 0.040),     # under the ear, sweeps up/back
+    (0.15, 72, (0.95, 0.55, 0.35), 0.215, 0.044),
+    (0.18, 88, (1.00, 0.50, 0.08), 0.245, 0.046),     # eye level, the longest flame
+    (0.20, 104, (1.00, 0.48, -0.22), 0.225, 0.044),
+    (0.21, 120, (0.90, 0.45, -0.48), 0.190, 0.040),
+    (0.20, 136, (0.70, 0.42, -0.70), 0.150, 0.034),   # jaw, runs into the neck ruff
+]
 
 
 def mx(p, sx):
@@ -634,6 +669,15 @@ def build_kitsune():
         nm = 'Ear' + ('_L' if sx > 0 else '_R')
         ear.build(md, 'ear', lambda i, t, p, nm=nm: {'Head': 0.6, nm: 0.4} if i == 0 else {nm: 1.0},
                   cap_start=base - ax * 0.10, cap_end=tip)
+
+    # ------------------------------------------------------------ cheek ruff
+    # closed, flattened flame locks rooted inside the skull: the voxel remesh
+    # fuses them into the face, so they are sculpted fur (no separate cards)
+    for sx in (1, -1):
+        for s, thd, (o, b, u), L, w in CHEEK_TUFTS:
+            p, n, _ = head.point(s, sx * math.radians(thd), 0.0)
+            d = norm(n * o + v3(0, b, u))
+            build_flame_lock(md, 'tuft_cheek', p - n * 0.035, d, n, L + 0.035, w, 0.017, {'Head': 1.0}, curl_k=0.24)
 
     # ------------------------------------------------------------------- legs + paws
     toe_tips = []

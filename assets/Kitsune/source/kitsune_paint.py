@@ -34,6 +34,10 @@ RED = np.array([0.820, 0.140, 0.230])
 RED_DK = np.array([0.420, 0.040, 0.110])
 RED_GEM = np.array([1.000, 0.090, 0.160])
 EYE_RED = np.array([1.000, 0.060, 0.150])
+EYE_IRIS = np.array([1.000, 0.120, 0.290])      # reference: hot pink-red iris
+EYE_DEEP = np.array([0.620, 0.000, 0.100])
+EYE_CORE = np.array([1.000, 0.400, 0.520])
+EYELINER = np.array([0.055, 0.025, 0.130])
 
 REG_FUR, REG_CYAN, REG_TIP, REG_ROPE, REG_ORN, REG_EYE = range(6)
 
@@ -70,7 +74,7 @@ def seg_dist(px, py, ax, ay, bx, by):
     return np.hypot(px - ax - h * dx, py - ay - h * dy), h
 
 
-def soft_in(v, w=0.10):
+def soft_in(v, w=0.05):
     """Anti-aliased 'v < 1' (soft edge of relative width w)."""
     return smoothstep(1.0 + w * 0.5, 1.0 - w * 0.5, v)
 
@@ -90,7 +94,46 @@ def stroke_mask(px, py, pts, w0, w1, jag=0.0, seed=0.0):
         if jag:
             w = w * (1.0 + jag * (vnoise(px * 60, py * 60, seed) - 0.5))
         best = np.minimum(best, d / np.maximum(w, 1e-5))
-    return 1.0 - smoothstep(0.88, 1.08, best)
+    return 1.0 - smoothstep(0.93, 1.04, best)
+
+
+def polyline_dist(px, py, pts):
+    """Distance from points to an open polyline and the arc-length position of
+    the nearest polyline point."""
+    pts = np.asarray(pts, float)
+    L = np.r_[0.0, np.cumsum(np.hypot(*np.diff(pts, axis=0).T))]
+    best = np.full(px.shape, 1e9)
+    arc = np.zeros(px.shape)
+    for i in range(len(pts) - 1):
+        d, h = seg_dist(px, py, pts[i, 0], pts[i, 1], pts[i + 1, 0], pts[i + 1, 1])
+        m = d < best
+        best = np.where(m, d, best)
+        arc = np.where(m, L[i] + h * (L[i + 1] - L[i]), arc)
+    return best, arc
+
+
+def eye_signed_dist(u, v, poly):
+    """Signed metric distance to the (closed, star-shaped) eye outline: < 0 inside."""
+    d, _ = polyline_dist(u, v, np.vstack([poly, poly[:1]]))
+    psi = np.arctan2(poly[:, 1], poly[:, 0])
+    r = np.hypot(poly[:, 0], poly[:, 1])
+    o = np.argsort(psi)
+    rr = np.interp(np.arctan2(v, u), psi[o], r[o], period=2 * np.pi)
+    return np.where(np.hypot(u, v) < rr, -d, d)
+
+
+def eye_scale(u, v, poly):
+    """Almond-normalised radius: 0 at the eye centre, 1 on the outline."""
+    psi = np.arctan2(poly[:, 1], poly[:, 0])
+    r = np.hypot(poly[:, 0], poly[:, 1])
+    o = np.argsort(psi)
+    rr = np.interp(np.arctan2(v, u), psi[o], r[o], period=2 * np.pi)
+    return np.hypot(u, v) / np.maximum(rr, 1e-9)
+
+
+def tri_wave(x):
+    """Triangle wave 0..1..0 with period 1."""
+    return 1.0 - np.abs(2.0 * (x - np.floor(x)) - 1.0)
 
 
 def fur_clumps(a, b, ca, cb, seed=0.0):
@@ -213,37 +256,65 @@ def paint_samples(s, ctx):
         topw = smoothstep(0.15, 0.35, nzh)
         mk = np.maximum(mk, soft_in(x / 0.040 + np.abs(y - (ey + 0.080)) / 0.075) * topw)
         mk = np.maximum(mk, soft_in(x / 0.022 + np.abs(y - (ey + 0.175)) / 0.036) * topw)
-        # bold almond outline around the eye with a pointed extension off the outer corner
-        vv_c = vv + 0.004 + 0.011 * np.clip(-u / 0.078, 0, 1) ** 1.5 - 0.004 * np.clip(u / 0.078, 0, 1)
-        e = (u / 0.089) ** 2 + (vv_c / 0.027) ** 2
-        mk = np.maximum(mk, smoothstep(0.98, 1.10, e) * smoothstep(1.80, 1.62, e) * near)
-        mk = np.maximum(mk, stroke_mask(u, vv, [(0.084, 0.002), (0.15, 0.022)], 0.014, 0.005, seed=22) * near)
+        # eye frame hugging the seated lens exactly (same outline): thin dark liner,
+        # then a bold cyan band (thicker under the eye), pointed wing off the outer corner
+        de = eye_signed_dist(u, vv, ctx['eye_poly'])
+        s_up = vv / np.maximum(np.hypot(u, vv), 1e-9)
+        band = 0.0100 + 0.0060 * smoothstep(0.1, -0.7, s_up)
+        liner = smoothstep(0.0042, 0.0030, de) * near
+        ring = smoothstep(0.0030, 0.0042, de) * smoothstep(0.0036 + band + 0.0008, 0.0036 + band - 0.0008, de)
+        mk = np.maximum(mk, ring * near)
+        mk = np.maximum(mk, stroke_mask(u, vv, [(0.078, 0.004), (0.15, 0.022)], 0.014, 0.005, seed=22) * near)
         # bold brow wedge above the eye, rising toward the ear (V toward the forehead)
         mk = np.maximum(mk, stroke_mask(u, vv, [(-0.065, 0.050), (0.025, 0.066), (0.120, 0.096)], 0.018, 0.007, seed=21)
                         * (np.abs(ww) < 0.08))
         # bold mask edge from under the inner eye corner down the muzzle toward the nose
         mk = np.maximum(mk, stroke_mask(u, vv, [(-0.060, -0.032), (-0.130, -0.056), (-0.200, -0.076)], 0.017, 0.007,
                                         seed=23) * (np.abs(ww) < 0.09) * (x > 0.025))
-        mk = np.clip(mk, 0, 1)
+        mk = np.clip(mk, 0, 1) * (1 - liner)
         c = lerp3(c, CYAN, mk)
+        c = lerp3(c, EYELINER, liner)
         col[m], hgt[m], emi[m] = c * toplight[m][:, None], h * 0.5, mk
 
     # ears ------------------------------------------------------------------
+    # metric ear coordinates (ctx['ear'], measured on the final mesh; the right
+    # ear is the exact mirror): a along the ear, c across it, outline distance
     m = sel('ear')
     if m.any():
-        # the right ear's loft is the mirror of the left one (th_R = pi - th_L):
-        # map it back so both ears are painted as exact mirror images
         the = np.where(X[m] < 0, np.pi - th[m], th[m])
-        c, h = fur(m, 'ear', base=PURPLE_HEAD, contrast=0.4, th_override=the)
-        edge = np.abs(np.sin(the))
-        front = smoothstep(-0.10, -0.30, np.cos(the))                  # forward-facing (inner) side
-        rim = smoothstep(0.84, 0.92, edge + 0.08 * (vnoise(t[m] * 25, edge * 3, 3) - 0.5))
-        tip = smoothstep(0.80, 0.86, t[m])
-        inner = front * smoothstep(0.62, 0.48, edge) * smoothstep(0.10, 0.20, t[m])
-        c = lerp3(c, PURPLE_DK * 0.8, inner * 0.8)
-        mk = np.clip(np.maximum(rim, tip), 0, 1)
-        c = lerp3(c, CYAN, mk)
-        col[m], hgt[m], emi[m] = c, h, mk
+        c, h = fur(m, 'ear', base=PURPLE_HEAD, contrast=0.45, th_override=the)
+        E = ctx['ear']
+        Pm = s.P[m] * np.array([1, 1, 1])
+        Pm[:, 0] = np.abs(Pm[:, 0])
+        Nm = s.N[m].copy()
+        Nm[:, 0] *= np.sign(X[m] + 1e-12)
+        d = Pm - E['base']
+        ea, ec = d @ E['ax'], d @ E['side']
+        dist, arc = polyline_dist(ea, ec, E['outline'])
+        front = smoothstep(0.15, -0.15, Nm @ E['back'])                # inner (forward-facing) side
+        # rim with fur spikes pointing inward / down the ear, wider on the front
+        ph = arc / 0.028 + 0.8 * dist / 0.028 + 0.45 * vnoise(arc * 22, 0.5, 8)
+        spk = tri_wave(ph) ** 3 * (0.55 + 0.45 * _hash2(np.floor(ph), 1.0, 9))
+        rim_w = np.where(front > 0.5, 0.017, 0.013) + 0.018 * spk
+        tip_w = smoothstep(E['a_tip'] - 0.075, E['a_tip'] - 0.020, ea) * 0.05
+        rw_ = np.maximum(rim_w, tip_w)
+        mk = smoothstep(rw_ + 0.0011, rw_ - 0.0011, dist)
+        # inner ear: deep indigo with soft vertical strands
+        strands = 0.5 + 0.5 * np.sin(ec / 0.011 + 1.5 * vnoise(ec * 40, ea * 8, 4))
+        inner = front * smoothstep(0.0, 0.004, dist - rw_)
+        c = lerp3(c, lerp3(PURPLE_DK * 0.75, PURPLE_DK * 1.25, strands * 0.6), inner)
+        # light cyan fluff rising from the inner base
+        fl = np.zeros(m.sum())
+        cm = E['c_mid']
+        for i, pts in enumerate(([(0.020, cm - 0.010), (0.060, cm - 0.030), (0.090, cm - 0.040)],
+                                 [(0.015, cm + 0.002), (0.065, cm + 0.004), (0.105, cm + 0.008)],
+                                 [(0.020, cm + 0.014), (0.055, cm + 0.032), (0.080, cm + 0.040)])):
+            fl = np.maximum(fl, stroke_mask(ea, ec, pts, 0.014, 0.005, seed=40 + i))
+        fl = fl * front
+        cy_col = lerp3(CYAN, CYAN_LT, smoothstep(E['a_tip'] - 0.10, E['a_tip'], ea))
+        c = lerp3(c, lerp3(CYAN, CYAN_LT, 0.5), fl)
+        c = lerp3(c, cy_col, mk)
+        col[m], hgt[m], emi[m] = c, np.where(mk > 0.5, 0.3, h), np.maximum(mk, fl)
 
     # legs ------------------------------------------------------------------
     for part, L, tb, seed in (('leg_f', 0.80, 0.53, 5), ('leg_h', 0.90, 0.50, 6)):
@@ -308,20 +379,43 @@ def paint_samples(s, ctx):
 
     # fur clumps ------------------------------------------------------------
     # leaf clumps: t = 0 root .. 1 tip; th ~1.57 on the top ridge, 0 / 3.14 at the edges
-    m = sel('tuft', 'spike', 'tuft_tip', 'tuft_cyan', 'tuft_cheek')
+    m = sel('tuft', 'spike', 'tuft_tip', 'tuft_cyan')
     if m.any():
         ridge = np.clip(np.sin(np.clip(th[m], 0, np.pi)), 0, 1)
         under = th[m] > np.pi + 0.2
         c = lerp3(PURPLE_DK, PURPLE, 0.55 + 0.35 * ridge + 0.1 * t[m])
         c = lerp3(c, PURPLE_LT, smoothstep(0.45, 1.0, ridge) * smoothstep(0.15, 0.7, t[m]) * 0.6)
         c = lerp3(c, PURPLE_DK, under.astype(float) * 0.05)
-        cheek = sel('tuft_cheek')[m]
-        c = lerp3(c, lerp3(PURPLE_HEAD, PURPLE_LT, 0.25 * ridge), cheek * 0.8)     # cheek fur: even, light purple
         tipc = sel('tuft_tip', 'tuft_cyan')[m]
         cy = smoothstep(0.50, 0.80, t[m]) * tipc
-        cy = np.maximum(cy, smoothstep(0.82, 0.95, t[m]) * sel('tuft_cheek')[m])
         c = lerp3(c, lerp3(CYAN, CYAN_LT, smoothstep(0.8, 1.0, t[m])), cy)
         col[m], hgt[m], emi[m] = c * (0.5 + 0.5 * toplight[m])[:, None], 0.3 + 0.5 * ridge, cy
+        reg[m] = np.where(cy > 0.5, REG_CYAN, REG_FUR)
+    m = sel('tuft_cheek')
+    if m.any():
+        # cheek ruff (reference close-ups): cyan flames licking down into purple
+        # roots, serrated edges, streaked, bright white-cyan tips.
+        # t: 0 root -> 1 tip ; w = sin(th): -1..1 across the flattened lock
+        tt = t[m]
+        w = np.sin(th[m])
+        aw = np.abs(w)
+        flames = tri_wave(w * 1.2 + 0.5) ** 2.0                 # flame tongues across the lock
+        bound = 0.44 - 0.15 * flames                            # clean purple root, cyan tongues
+        cy = smoothstep(bound - 0.012, bound + 0.012, tt)
+        # serrated edges: dark notches cut in from both edges along the lock
+        notch = tri_wave(tt * 6.5 + 0.3) ** 2.5
+        cut = smoothstep(0.93 - 0.25 * notch - 0.012, 0.93 - 0.25 * notch + 0.012, aw) * smoothstep(0.45, 0.60, tt)
+        cy = cy * (1 - cut * smoothstep(0.97, 0.90, tt))
+        streak = 0.5 + 0.5 * np.sin(w * 11 + tt * 4 + 1.5 * vnoise(w * 4, tt * 7, 31))
+        cc = lerp3(CYAN_DK, CYAN, smoothstep(0.30, 0.55, tt))
+        cc = lerp3(cc, CYAN_LT, smoothstep(0.60, 0.85, tt))
+        cc = lerp3(cc, TIP_WHITE, smoothstep(0.86, 1.0, tt))
+        cc = lerp3(cc * 0.86, cc, 0.35 + 0.65 * streak)
+        base = lerp3(PURPLE_DK, PURPLE_HEAD, 0.55 + 0.35 * (1 - aw) + 0.1 * streak)
+        c = lerp3(base, cc, cy)
+        col[m] = c * (0.55 + 0.45 * toplight[m])[:, None]
+        hgt[m] = 0.35 + 0.35 * (1 - aw) * streak
+        emi[m] = cy
         reg[m] = np.where(cy > 0.5, REG_CYAN, REG_FUR)
     m = sel('tail_tuft')
     if m.any():
@@ -363,10 +457,30 @@ def paint_samples(s, ctx):
         hgt[m], rough[m], reg[m] = st * 0.5, 0.7, REG_ORN
     m = sel('eye')
     if m.any():
-        # t: 1 rim -> 0 centre
-        c = lerp3(np.array([1.0, 0.45, 0.50]), EYE_RED, smoothstep(0.05, 0.45, t[m]))
-        c = lerp3(c, np.array([0.55, 0.0, 0.06]), smoothstep(0.82, 1.0, t[m]) * 0.7)
-        col[m], emi[m], rough[m], reg[m] = c, 1.0, 0.2, REG_EYE
+        # exact eye-frame coordinates of the lens surface (u along the eye toward
+        # the outer corner, v across / up); the right eye is the mirror image
+        Pm = s.P[m].copy()
+        Pm[:, 0] = np.abs(Pm[:, 0])
+        de_ = Pm - ctx['eye_center']
+        u, v = de_ @ ctx['eye_along'], de_ @ ctx['eye_acr']
+        tt = eye_scale(u, v, ctx['eye_poly'])          # 0 centre -> 1 outline (-> 1.07 buried skirt)
+        a = np.arctan2(v / 0.021, u / 0.078)
+        # glowing pink-red iris (reference close-up): lighter upper half, deeper red
+        # toward the lid line, faint radial fibres
+        fib = 0.5 + 0.5 * np.sin(a * 23 + 2.0 * vnoise(a * 3, tt * 5, 17))
+        c = lerp3(EYE_IRIS, EYE_CORE, smoothstep(-0.004, 0.016, v) * smoothstep(0.85, 0.3, tt) * 0.55)
+        c = lerp3(c, EYE_DEEP, smoothstep(0.66, 0.93, tt) * (0.55 + 0.45 * smoothstep(0.004, -0.012, v)))
+        c = lerp3(c * 0.88, c, 0.45 + 0.55 * fib)
+        # soft round darker pupil, a little toward the inner corner
+        pup = smoothstep(0.0135, 0.0080, np.hypot((u + 0.010) * 0.9, v + 0.001))
+        c = lerp3(c, np.array([0.40, 0.0, 0.085]), pup * 0.85)
+        # pink-white catch-light (upper, toward the outer corner), dark lid-line rim
+        glint = smoothstep(0.0070, 0.0042, np.hypot((u - 0.016) * 0.8, v - 0.009))
+        c = lerp3(c, np.array([1.0, 0.93, 0.93]), glint)
+        rim = smoothstep(0.93, 0.995, tt)
+        c = lerp3(c, EYELINER, rim)
+        col[m], rough[m], reg[m] = c, 0.22, REG_EYE
+        emi[m] = np.clip((1.0 - rim) * (1.0 - 0.8 * pup) + glint, 0, 1)
 
     emi = np.clip(emi, 0, 1)
     # slot-classification: fur faces that are mostly cyan move to the cyan slot

@@ -44,10 +44,11 @@ PART_DEFAULT_REGION = {
     'tuft_tip': kp.REG_FUR, 'tuft_cheek': kp.REG_FUR,
 }
 UV_IMPORTANCE = {
-    'head': 2.4, 'eye': 3.0, 'gem': 2.5, 'frame': 2.0, 'ear': 1.5, 'neck': 1.3, 'torso': 1.2, 'tail': 0.85,
+    'head': 2.6, 'eye': 3.6, 'gem': 2.5, 'frame': 2.0, 'ear': 2.7, 'neck': 1.3, 'torso': 1.2, 'tail': 0.80,
     'leg_f': 1.1, 'leg_h': 1.1, 'paw': 1.4, 'claw': 0.6, 'tuft': 0.8, 'tuft_cyan': 1.3, 'spike': 0.8,
-    'tail_tuft': 0.8, 'tuft_tip': 1.0, 'tuft_cheek': 1.2, 'rope': 0.9, 'knot': 0.9, 'bead': 1.3, 'tassel': 1.2,
+    'tail_tuft': 0.8, 'tuft_tip': 1.0, 'tuft_cheek': 2.3, 'rope': 0.9, 'knot': 0.9, 'bead': 1.3, 'tassel': 1.2,
 }
+SLOT_EMISSION = {'M_Kitsune_Eyes_Red_EMISSIVE': 2.2}     # eyes glow hotter than the cyan fur markings
 
 
 # ============================================================ mesh + UVs
@@ -152,12 +153,48 @@ def gather_triangles(ob):
                 face=faces, rl=rl[loops])
 
 
+def ear_frame(tri):
+    """Left-ear frame and outline in metric (along, across) coordinates,
+    measured on the final sculpted mesh (the right ear is its exact mirror)."""
+    base = kg.EAR_BASE
+    ax = kg.norm(kg.EAR_TIP - base)
+    ref = kg.norm(kg.v3(1.0, 0.12, 0.0))
+    side = kg.norm(ref - np.dot(ref, ax) * ax)
+    back = np.cross(ax, side)
+    back = back if back[1] > 0 else -back
+    T = tri['P'][tri['part'] == kg.PART_IDS['ear']]
+    T = T[T[:, :, 0].mean(1) > 0]
+    # dense samples inside every triangle (the decimated ear has few vertices)
+    g = np.array([(i, j) for i in range(9) for j in range(9 - i)], float) / 8.0
+    bary = np.c_[1 - g.sum(1), g]
+    P = np.einsum('kb,tbx->tkx', bary, T).reshape(-1, 3)
+    d = P - base
+    a, c = d @ ax, d @ side
+    a_tip = float(a.max())
+    bins = np.linspace(np.percentile(a, 0.5), a_tip - 0.004, 31)
+    ac, lo, hi = [], [], []
+    for b0, b1 in zip(bins, bins[1:]):
+        k = (a >= b0) & (a < b1)
+        if k.sum() >= 3:
+            ac.append(0.5 * (b0 + b1)); lo.append(c[k].min()); hi.append(c[k].max())
+    lo, hi = np.array(lo), np.array(hi)
+    for _ in range(2):
+        lo = np.convolve(np.r_[lo[0], lo, lo[-1]], [0.25, 0.5, 0.25], 'valid')
+        hi = np.convolve(np.r_[hi[0], hi, hi[-1]], [0.25, 0.5, 0.25], 'valid')
+    c_tip = float(c[a > a_tip - 0.006].mean())
+    outline = np.array([(x, y) for x, y in zip(ac, lo)] + [(a_tip, c_tip)] + [(x, y) for x, y in zip(ac[::-1], hi[::-1])])
+    near_base = np.array(ac) < ac[0] + 0.05
+    return dict(base=base, ax=ax, side=side, back=back, outline=outline, a_tip=a_tip,
+                c_mid=float(0.5 * (lo[near_base] + hi[near_base]).mean()))
+
+
 def paint_textures(ob, lofts, outdir):
     tri = gather_triangles(ob)
     head = lofts['head']
-    eye_c, eye_n, along, acr = kg.eye_frame(head, 1)       # same frame the eyes are built with
+    eye_c, eye_n, along, acr = lofts['eye_frames'][1]       # the seated lens frame (left eye)
     ctx = {'eye_center': eye_c, 'eye_n': eye_n, 'eye_along': along, 'eye_acr': acr,
-           'head_line': np.array([[c[1], c[2]] for c in head.c]), 'nose_y': float(kg.HEAD_KEYS[-1, 0]) - 0.033}
+           'head_line': np.array([[c[1], c[2]] for c in head.c]), 'nose_y': float(kg.HEAD_KEYS[-1, 0]) - 0.033,
+           'eye_poly': np.array([ks.eye_outline(kg.TAU * k / 256) for k in range(256)]), 'ear': ear_frame(tri)}
     img, em, ro, nrm, face_reg, has = kp.paint_all(tri['uv'], tri['t'], tri['th'], tri['P'], tri['N'], tri['part'],
                                                    tri['face'], tri['rl'], len(ob.data.polygons), ctx, TEX_SIZE)
     inv = {v: k for k, v in kg.PART_IDS.items()}
@@ -206,7 +243,7 @@ def make_materials(ob, paths, face_reg, emission_strength=0.55):
         tn = nt.nodes.new('ShaderNodeTexImage'); tn.image = nor; tn.location = (-700, -600)
         nm = nt.nodes.new('ShaderNodeNormalMap'); nm.location = (-350, -600); nm.inputs['Strength'].default_value = 0.8
         mul = nt.nodes.new('ShaderNodeMath'); mul.operation = 'MULTIPLY'; mul.location = (-350, 0)
-        glow = emission_strength
+        glow = SLOT_EMISSION.get(name, emission_strength)
         mul.inputs[1].default_value = glow
         nt.links.new(tc.outputs['Color'], bsdf.inputs['Base Color'])
         nt.links.new(tc.outputs['Color'], bsdf.inputs['Emission Color'])
@@ -216,6 +253,15 @@ def make_materials(ob, paths, face_reg, emission_strength=0.55):
         nt.links.new(tn.outputs['Color'], nm.inputs['Color'])
         nt.links.new(nm.outputs['Normal'], bsdf.inputs['Normal'])
         bsdf.inputs['Metallic'].default_value = 0.0
+        if name in SLOT_EMISSION:
+            # preview-only glow pass (render_views adds it as a soft bloom); Roblox
+            # gets the same look from EmissiveMaskContent + Lighting.Bloom
+            gm = nt.nodes.new('ShaderNodeMixRGB'); gm.blend_type = 'MULTIPLY'; gm.location = (-350, 250)
+            gm.inputs['Fac'].default_value = 1.0
+            nt.links.new(tc.outputs['Color'], gm.inputs['Color1'])
+            nt.links.new(te.outputs['Color'], gm.inputs['Color2'])
+            aov = nt.nodes.new('ShaderNodeOutputAOV'); aov.aov_name = 'glow'; aov.location = (0, 400)
+            nt.links.new(gm.outputs['Color'], aov.inputs['Color'])
         mat['roblox_slot_region'] = reg
         me.materials.append(mat)
     reg_to_slot = {reg: i for i, (_, reg) in enumerate(MATERIAL_SLOTS)}
@@ -246,11 +292,11 @@ def main():
     md_body, md_acc, lofts = kg.build_kitsune()
     kg.add_claws(md_acc, lofts['toe_tips'])
     # budget: body gets whatever the accessories (+ eyes) leave under the limit
-    body_target = TRI_BUDGET - md_acc.tri_count() - 2 * 60
+    body_target = TRI_BUDGET - md_acc.tri_count() - 2 * ks.EYE_TRIS
     body = ks.build_sculpted_body(md_body, lofts, WORLD_SCALE, body_target)
     ks.scale_uv_islands(body, UV_IMPORTANCE, WORLD_SCALE)
     print('HUG seated accessory pieces', ks.hug_accessories(md_acc, body, WORLD_SCALE))
-    ks.add_eyes(md_acc, lofts, body, WORLD_SCALE)
+    lofts['eye_frames'] = ks.add_eyes(md_acc, lofts, body, WORLD_SCALE)
     acc = build_mesh(md_acc, 'Kitsune_Acc')
     ob = join_objects([body, acc], 'Kitsune')
     ntri = sum(len(p.vertices) - 2 for p in ob.data.polygons)

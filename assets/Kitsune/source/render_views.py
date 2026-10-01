@@ -52,6 +52,7 @@ def setup_scene(res=(900, 650), samples=48):
             ob = bpy.data.objects.new(name, ld)
             ob.rotation_euler = [math.radians(a) for a in rot]
             sc.collection.objects.link(ob)
+    setup_glow(sc)
     if 'GEO-ground' not in bpy.data.objects:
         me = bpy.data.meshes.new('GEO-ground')
         s = 400
@@ -66,6 +67,38 @@ def setup_scene(res=(900, 650), samples=48):
         ob.is_shadow_catcher = False
         sc.collection.objects.link(ob)
     return sc
+
+
+def setup_glow(sc, core=0.9, halo=0.55):
+    """Preview bloom for the glowing eyes: the eye material writes its emissive
+    colour to the 'glow' AOV; the compositor blurs it and adds it back (the
+    in-game equivalent is EmissiveMaskContent + Lighting.Bloom)."""
+    vl = bpy.context.view_layer
+    if 'glow' not in [a.name for a in vl.aovs]:
+        a = vl.aovs.add()
+        a.name, a.type = 'glow', 'COLOR'
+    sc.use_nodes = True
+    tree = sc.node_tree
+    tree.nodes.clear()
+    rl = tree.nodes.new('CompositorNodeRLayers')
+    comp = tree.nodes.new('CompositorNodeComposite')
+    if 'glow' not in rl.outputs:
+        tree.links.new(rl.outputs['Image'], comp.inputs['Image'])
+        return
+    cur = rl.outputs['Image']
+    for fac, size in ((core, 0.6), (halo, 2.2)):
+        bl = tree.nodes.new('CompositorNodeBlur')
+        bl.filter_type = 'FAST_GAUSS'
+        bl.use_relative = True
+        bl.factor_x = bl.factor_y = size
+        tree.links.new(rl.outputs['glow'], bl.inputs['Image'])
+        mx = tree.nodes.new('CompositorNodeMixRGB')
+        mx.blend_type = 'ADD'
+        mx.inputs['Fac'].default_value = fac
+        tree.links.new(cur, mx.inputs[1])
+        tree.links.new(bl.outputs['Image'], mx.inputs[2])
+        cur = mx.outputs['Image']
+    tree.links.new(cur, comp.inputs['Image'])
 
 
 def get_camera():

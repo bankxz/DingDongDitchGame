@@ -42,17 +42,28 @@ class Source:
         self.tri_t = np.array([[md.face_at[fi][c][0] for c in cs] for fi, cs in zip(tf, tc)])
         self.tri_th = np.array([[md.face_at[fi][c][1] for c in cs] for fi, cs in zip(tf, tc)])
         self.tri_part = np.array(md.face_part)[self.tri_face]
+        self.tri_island = np.array(md.face_island)[self.tri_face]
         self.weights = md.weights
         vlist = [tuple(v) for v in self.V]
         self.bvh = BVHTree.FromPolygons(vlist, [tuple(t) for t in self.tris])
+        self.vlist = vlist
         self.part_bvh = {}
         for p in np.unique(self.tri_part):
             idx = np.where(self.tri_part == p)[0]
             self.part_bvh[int(p)] = (BVHTree.FromPolygons(vlist, [tuple(t) for t in self.tris[idx]]), idx)
+        self.isl_bvh = {}
 
-    def nearest(self, pts, part=None):
+    def island(self, isl):
+        if isl not in self.isl_bvh:
+            idx = np.where(self.tri_island == isl)[0]
+            self.isl_bvh[isl] = (BVHTree.FromPolygons(self.vlist, [tuple(t) for t in self.tris[idx]]), idx)
+        return self.isl_bvh[isl]
+
+    def nearest(self, pts, part=None, island=None):
         """-> (tri indices, barycentric (N,3))"""
-        if part is None:
+        if island is not None:
+            bvh, remap = self.island(int(island))
+        elif part is None:
             bvh, remap = self.bvh, None
         else:
             bvh, remap = self.part_bvh[int(part)]
@@ -203,6 +214,15 @@ def build_sculpted_body(md, info, S, target_tris, voxel=0.0085, smooth_iters=5, 
         i2, b2 = src.nearest(co[loops_v[m]], part=p)
         _, tt, tth = src.params(i2, b2)
         lt[m], lth[m] = tt, tth
+    # fused locks (cheek ruff): all corners of a face sample the SAME lock, so
+    # the painted pattern never interpolates between two different locks
+    lisl = src.tri_island[fidx][loop_face]
+    for p in (kg.PART_IDS['tuft_cheek'],):
+        for isl in np.unique(lisl[lpart == p]):
+            m = np.where((lpart == p) & (lisl == isl))[0]
+            i2, b2 = src.nearest(co[loops_v[m]], island=isl)
+            _, tt, tth = src.params(i2, b2)
+            lt[m], lth[m] = tt, tth
     # unwrap th inside each face (relative to its first corner)
     for poly in me2.polygons:
         s0 = poly.loop_start
@@ -343,9 +363,24 @@ def scale_uv_islands(ob, importance, S=1.0, part_attr='k_part'):
     bm.free()
 
 
+EYE_K = 16                      # outline segments per eye
+EYE_RINGS = ((1.07, -0.010), (1.0, 0.0), (0.70, 0.0035), (0.38, 0.0050))   # (outline scale, lift)
+EYE_TRIS = EYE_K * (2 * (len(EYE_RINGS) - 1) + 1)
+
+
+def eye_outline(a):
+    """Almond outline of the eye in its (along, across) frame at angle a:
+    narrower + wider almond, pinched sharp outer corner, inner corner angled
+    down toward the nose.  Shared by the lens builder and the texture painter."""
+    ca_, sa_ = math.cos(a), math.sin(a)
+    h = 0.021 * abs(sa_) ** 1.3 * (1.0 if sa_ > 0 else 0.66) * (1.0 - 0.45 * max(0.0, ca_) ** 3)
+    return 0.078 * ca_, h * np.sign(sa_) - 0.017 * max(0.0, -ca_) ** 1.5
+
+
 def add_eyes(ma, info, body_ob, S):
-    """Eyes seated flush in the sculpted sockets (projected onto the final
-    surface), sharp almond outline, inner corner low toward the nose."""
+    """Eyes seated in the sculpted sockets and SEALED to the head: the lens
+    edge lies on the final surface and a skirt ring continues below it, so
+    there is no gap between the head and the eye from any angle."""
     me = body_ob.data
     co = np.zeros(len(me.vertices) * 3); me.vertices.foreach_get('co', co)
     tris = []
@@ -356,6 +391,7 @@ def add_eyes(ma, info, body_ob, S):
     bvh = BVHTree.FromPolygons([tuple(v) for v in co.reshape(-1, 3)], tris)
     head = info['head']
     frames = {}
+    K = EYE_K
     for sx in (1, -1):
         p, n, along, acr = kg.eye_frame(head, sx)
         loc, sn, _, _ = bvh.find_nearest(Vector(p * S))
@@ -364,36 +400,32 @@ def add_eyes(ma, info, body_ob, S):
         frames[sx] = (c, sn, along, acr)
         isl = ma.new_island('eye')
         first = len(ma.faces)
-        K = 12
         rings = []
-        # (scale of the almond outline, lift above the surface): the lens follows the
-        # socket surface everywhere, so the head can never poke through it
-        for sc_, lift in ((1.0, 0.004), (0.68, 0.008), (0.36, 0.010)):
+        for sc_, lift in EYE_RINGS:
             ring = []
             for k in range(K):
-                a = kg.TAU * k / K
-                ca_, sa_ = math.cos(a), math.sin(a)
-                # narrower + wider almond, pinched sharp outer corner, inner corner angled down
-                h = 0.021 * abs(sa_) ** 1.3 * (1.0 if sa_ > 0 else 0.66) * (1.0 - 0.45 * max(0.0, ca_) ** 3)
-                q = c + (along * 0.078 * ca_ + acr * h * np.sign(sa_) - acr * 0.017 * max(0.0, -ca_) ** 1.5) * sc_
+                u_, v_ = eye_outline(kg.TAU * k / K)
+                q = c + (along * u_ + acr * v_) * sc_
                 l2, n2, _, _ = bvh.find_nearest(Vector(q * S))
                 ring.append(ma.add_vert(np.array(l2) / S + np.array(n2) * lift, {'Head': 1.0}))
             rings.append((ring, sc_))
         l2, n2, _, _ = bvh.find_nearest(Vector(c * S))
-        cvt = ma.add_vert(np.array(l2) / S + np.array(n2) * 0.011, {'Head': 1.0})
-        uvp = lambda a, r: (.5 + .5 * r * math.cos(a), .5 + .5 * r * math.sin(a))
+        cvt = ma.add_vert(np.array(l2) / S + np.array(n2) * 0.0055, {'Head': 1.0})
+        R0 = EYE_RINGS[0][0]           # the buried skirt sits on the UV island border
+        uvp = lambda a, r: (.5 + .5 * r / R0 * math.cos(a), .5 + .5 * r / R0 * math.sin(a))
         for ri in range(len(rings) - 1):
             (ra, sa), (rb, sb) = rings[ri], rings[ri + 1]
             for k in range(K):
                 k2 = (k + 1) % K
-                a, b = kg.TAU * k / K, kg.TAU * k2 / K
+                a, b = kg.TAU * k / K, kg.TAU * (k + 1) / K       # unwrapped: no 2pi -> 0 jump inside a face
                 ma.add_face([ra[k], ra[k2], rb[k2], rb[k]], [uvp(a, sa), uvp(b, sa), uvp(b, sb), uvp(a, sb)],
                             [(sa, a), (sa, b), (sb, b), (sb, a)], 'eye', isl)
         rl, sl = rings[-1]
         for k in range(K):
             k2 = (k + 1) % K
-            a, b = kg.TAU * k / K, kg.TAU * k2 / K
-            ma.add_face([rl[k], rl[k2], cvt], [uvp(a, sl), uvp(b, sl), (.5, .5)], [(sl, a), (sl, b), (0, 0)], 'eye', isl)
+            a, b = kg.TAU * k / K, kg.TAU * (k + 1) / K
+            ma.add_face([rl[k], rl[k2], cvt], [uvp(a, sl), uvp(b, sl), (.5, .5)], [(sl, a), (sl, b), (0, 0.5 * (a + b))],
+                        'eye', isl)
         ma.orient_piece(first, c - sn * 0.05)
     return frames
 
