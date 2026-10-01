@@ -6,17 +6,19 @@ glowing red eyes, red rope harness with halo loop, chest gem and bead tassels.
 | | |
 |---|---|
 | Triangles | 9,932 (limit 10k) |
-| Bones | 60 (all deform; 4 per tail, eye bones), max 3 influences / vertex |
+| Bones | 61 (all deform; 4 per tail, eye bones, halo bone), max 3 influences / vertex |
 | Textures | 2048² colour, normal (OpenGL), roughness, emissive mask, metalness |
 | Size | shoulder height 4 studs, ~9 studs wide with tails |
 | Animations | Idle 4 s (120 f), Run 0.67 s (20 f), Sleep 5 s (150 f), 30 fps, seamless loops |
 
 Idle: breathing, look-around, ear flicks; the tail fan slowly lifts and spreads while a
 wave travels down every tail (phase-offset across the fan). Run: rotary gallop, tails
-stream back like banners with rolling waves. Sleep: curled flat on the ground, front
-legs forward with the chin between the paws, hind legs folded beside the haunches,
-eyes closed (Eye bones sink the lenses), tails wrapped round the left side with the
-tips by the face, slow breathing.
+stream back like banners with rolling waves. Sleep (sleep reference sheet): lying flat and
+straight, head resting on the front paws, ears up, eyes closed (Eye bones sink the
+lenses), hind legs folded beside the belly, halo rope laid back over the shoulders
+(Halo bone), all tails in a layered fan behind - lower ones on the ground, upper ones
+arching up, tips curling up - stirring slowly; slow breathing. Idle/Run also sway the
+halo.
 
 ## Files
 
@@ -41,6 +43,7 @@ All slots share one texture atlas; the emissive mask marks what glows.
 ```
 Root
 └ Hips ─ Spine ─ Chest ─ Neck1 ─ Neck2 ─ Head ─ Ear_L / Ear_R, Eye_L / Eye_R
+   │               ├ Halo
    │               ├ FrontLegUpper_L/R ─ FrontLegLower ─ FrontPaw
    │               └ Tassel_L/R
    ├ HindLegUpper_L/R ─ HindLegLower ─ HindFoot ─ HindPaw

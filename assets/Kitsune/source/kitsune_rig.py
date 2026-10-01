@@ -75,6 +75,9 @@ def bone_specs(ob=None):
             top = m(g.TASSEL_TOP)
         b.append(('Tassel' + sfx, tuple(top), tuple(top + v3(0, 0, -0.40)), 'Chest', False))
     b.append(('TailBase', g.TAIL_BASE, g.TAIL_BASE + v3(0, 0.14, 0.05), 'Hips', False))
+    # halo: pivots at the back of the collar, points up to the top of the ring
+    hc, hr, ht = g.HALO_C, g.HALO_R, math.radians(g.HALO_TILT)
+    b.append(('Halo', (0, -0.34, 1.05), tuple(hc + v3(0, math.sin(ht), math.cos(ht)) * hr), 'Chest', False))
     # eyes: tiny bones so the sleep pose can close them (lens sinks into the socket)
     for sx, sfx in ((1, '_L'), (-1, '_R')):
         ep = group_points(ob, 'Eye' + sfx) if ob is not None else None
@@ -285,6 +288,7 @@ def pose_idle(arm, f, N):
         P.world(f'{tn}_1', AX, -0.12)
     tail_wave(P, p, 0.11, freq=1, lag=0.80, spread=0.85)
     P.world('Hips', (0, 1, 0), 0.01 * math.sin(p))
+    P.world('Halo', AX, 0.03 * math.sin(p - 0.8))            # halo sways gently with the breath
     return P
 
 
@@ -326,63 +330,56 @@ def pose_run(arm, f, N):
         P.toward(f'{tn}_1', (0, 1, 0.05), 0.40)
     tail_fan(P, 0.10)
     tail_wave(P, p, 0.13, freq=1, lag=1.05, spread=0.55, side_amp=0.10, harm=0.15)
+    P.world('Halo', AX, -0.12 + 0.10 * math.sin(p - 1.6))    # halo bounces with the stride
     return P
 
 
 def pose_sleep(arm, f, N):
-    """Curled up like a sleeping fox (reference): lying flat, legs tucked under,
-    chin resting on the ground, eyes closed, the tails swept round the left side
-    so the tips lie beside the face.  Slow breathing, a sleepy tail-tip twitch."""
+    """Sleeping kitsune (sleep reference sheet): lying flat and straight, head
+    resting on the front paws (paws together under the chin), ears up, eyes
+    closed, hind legs folded beside the belly, the halo rope laid down around the
+    neck, and all tails fanned out behind in layers - lower ones on the ground,
+    upper ones arching up, tips curling upward.  Slow breathing, tails stir."""
     P = Pose(arm)
     p = 2 * math.pi * f / N
     s = S()
     br = math.sin(2 * p)                     # two slow breaths per loop (5 s)
     P.move('Root', (0, 0, -0.46 * s))
-    # body: flat on the belly, gently curved toward the tails (left)
-    P.world('Hips', ZAX, -0.22)                           # body curls into a C toward the left
-    P.world('Spine', ZAX, 0.30)
-    P.world('Chest', ZAX, 0.30)
     P.world('Spine', AX, -0.015 * br)
     P.world('Chest', AX, 0.025 * br)
     P.move('Chest', (0, 0, 0.007 * s * br))
     for sfx, sx in SIDES:
-        # legs rest ON the ground, clear of the body (folding them under made
-        # them disappear into the belly): front legs stretched forward under
-        # the chin, hind legs folded beside the haunches like a resting fox
-        P.set_dir('FrontLegUpper' + sfx, (sx * 0.14, -0.82, -0.55))
-        P.set_dir('FrontLegLower' + sfx, (sx * 0.04, -0.99, -0.06))
-        P.set_dir('FrontPaw' + sfx, (0.0, -0.99, -0.04))
-        P.set_dir('HindLegUpper' + sfx, (sx * 0.68, -0.55, -0.42))
-        P.set_dir('HindLegLower' + sfx, (sx * 0.35, 0.93, -0.08))
-        P.set_dir('HindFoot' + sfx, (sx * 0.22, -0.97, -0.06))
-        P.set_dir('HindPaw' + sfx, (sx * 0.10, -0.99, -0.03))
-        # ears relaxed back, eyes closed (lens sinks into the socket)
-        P.world('Ear' + sfx, AX, -0.40)
-        P.world('Ear' + sfx, (0, 1, 0), -0.20 * sx)
-        P.move('Eye' + sfx, tuple(-EYE_N[sx] * 0.040 * s))
-        P.world('Tassel' + sfx, (0, 1, 0), 0.9 * sx)        # tassels resting on the ground
-    # head: neck lowered, chin on the ground, turned a little toward the tails
-    P.world('Neck1', AX, 0.85)
-    P.world('Neck2', AX, 0.40 + 0.012 * br)
-    P.world('Neck1', ZAX, 0.38)
-    P.world('Head', AX, -0.85)
-    P.world('Head', ZAX, 0.35)
-    P.world('Head', (0, 1, 0), 0.10)
-    # tails: one fluffy blanket swept round the LEFT side toward the head, lying
-    # on the ground.  Every bone is steered along an explicit curled path
-    # (heading 0 = straight back, 90 = left side, 180 = toward the head).
-    order = [6, 3, 7, 1, 0, 2, 4, 5]                      # bottom of the stack -> top
-    for rank, i in enumerate(order):
-        tn = TAILS[i]
-        h0 = 50 + rank * 4.0                               # first bone: back-left
-        dh = 60 - rank * 1.5                               # extra curl per bone (tips fan by the face)
+        # front legs forward on the ground, paws together under the chin
+        P.set_dir('FrontLegUpper' + sfx, (sx * 0.02, -0.66, -0.75))
+        P.set_dir('FrontLegLower' + sfx, (-sx * 0.10, -0.99, -0.05))
+        P.set_dir('FrontPaw' + sfx, (-sx * 0.05, -0.99, -0.03))
+        # hind legs folded beside the belly, paw forward
+        P.set_dir('HindLegUpper' + sfx, (sx * 0.62, -0.62, -0.42))
+        P.set_dir('HindLegLower' + sfx, (sx * 0.30, 0.94, -0.08))
+        P.set_dir('HindFoot' + sfx, (sx * 0.18, -0.97, -0.06))
+        P.set_dir('HindPaw' + sfx, (sx * 0.08, -0.99, -0.03))
+        P.world('Ear' + sfx, AX, -0.10)                     # ears stay up, relaxed
+        P.move('Eye' + sfx, tuple(-EYE_N[sx] * 0.040 * s))  # eyes closed
+        P.world('Tassel' + sfx, (0, 1, 0), 0.9 * sx)         # tassels resting on the ground
+    # head down, chin resting on the paws, facing forward
+    P.world('Neck1', AX, 0.80)
+    P.world('Neck2', AX, 0.35 + 0.012 * br)
+    P.world('Head', AX, -0.70)
+    # halo rope laid back over the shoulders around the neck
+    P.world('Halo', AX, -1.15)
+    # tails: layered fan behind the body (heading 0 = straight back, + = left)
+    specs = kg.tuned_specs()
+    for i, tn in enumerate(TAILS):
+        tip = specs[i][1]
+        side = max(-1.0, min(1.0, tip[0] / 1.1))
+        layer = max(-0.6, min(1.0, (tip[2] - 0.6) / 0.9))   # low tails .. +1 top tails
+        head0 = math.radians(58 * side)
         for k in range(NB):
-            hd = math.radians(h0 + dh * k)
-            pitch = -0.55 if k == 0 else (0.06 if k == 1 else 0.0) + 0.025 * (rank % 4)
+            hd = head0 * (1.0 + 0.10 * k)
+            pitch = [-0.18 + 0.48 * layer, 0.12 + 0.36 * layer, 0.18 + 0.26 * layer, 0.55][k]
+            pitch += 0.03 * math.sin(p - i * 0.7 - k * 0.6)  # tails stir in their sleep
             d = (math.sin(hd) * math.cos(pitch), math.cos(hd) * math.cos(pitch), math.sin(pitch))
             P.set_dir(f'{tn}_{k + 1}', d)
-        twitch = 0.05 * math.sin(p - rank * 0.6)          # sleepy tip twitch
-        P.local(f'{tn}_{NB}', (0, 0, 1), twitch)
     return P
 
 

@@ -699,6 +699,19 @@ def eye_frame(head, sx):
     return p, n, along, acr
 
 
+def halo_weight(p):
+    """Halo rope: the ring itself follows its own 'Halo' bone (so poses can lay it
+    down); the ends that run down the neck blend into the chest."""
+    w = float(np.clip((p[2] - 1.06) / 0.12, 0.0, 1.0))
+    w = w * w * (3 - 2 * w)
+    out = {}
+    if w < 1.0:
+        out['Chest'] = 1.0 - w
+    if w > 0.0:
+        out['Halo'] = w
+    return out
+
+
 def build_kitsune():
     """Returns (md_body, md_acc, info).  md_body holds the closed organic forms
     that get fused + sculpted; md_acc holds tails, harness and ornaments."""
@@ -893,7 +906,7 @@ def build_kitsune():
             ends.append(ext)
         pts = ends[0][::-1] + arc + ends[1]
         build_tube(ma, 'rope', pts, rope_r * 0.85, 6,
-                   lambda i, t, p: {'Chest': 1.0} if p[2] < 1.15 else {'Neck1': 0.5, 'Chest': 0.5}, cap_ends=True)
+                   lambda i, t, p: halo_weight(p), cap_ends=True)
     # wrapped ties where the halo meets the collar
     for sx in (1, -1):
         tie = neck.point(coll_s, sx * math.radians(98), rope_r * 2.2 + 0.03)[0]

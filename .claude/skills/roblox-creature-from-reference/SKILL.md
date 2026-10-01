@@ -121,6 +121,11 @@ the harness (collar ties) — floating ends look disconnected.
 - **Aim chains with an FK-aware helper** (`set_dir`: convert the target world
   direction through the parents' *posed* rotation). Aiming each bone from its rest
   orientation ignores the parent pose, so curls and legs end up wrong.
+- Rigid accessories that should move in a pose (a halo loop lying down when asleep)
+  get their own bone; blend the weight into the parent where the piece attaches.
+- Ask which sleep style the user wants and follow their sheet: e.g. "head on paws,
+  straight body, tails in a layered fan behind (low ones on the ground, upper ones
+  arching, tips curling up)" vs a curled fox.
 - Sleep (curled fox): body flat and curved into a C, tails steered bone-by-bone along
   a curled path on the ground round one side so the tips lie by the face, chin on
   the ground between forward-stretched front legs, hind legs folded *beside* the
