@@ -22,10 +22,10 @@ import kitsune_fur as kf
 P = PART_IDS
 
 # ---- palette (sRGB), calibrated from k-means clusters of the reference sheet
-PURPLE_DK = np.array([0.105, 0.070, 0.330])
-PURPLE = np.array([0.215, 0.150, 0.570])
-PURPLE_LT = np.array([0.345, 0.270, 0.780])
-PURPLE_HEAD = np.array([0.255, 0.170, 0.620])
+PURPLE_DK = np.array([0.180, 0.100, 0.480])      # v22: brighter violet, sampled from the in-game model
+PURPLE = np.array([0.330, 0.200, 0.670])
+PURPLE_LT = np.array([0.550, 0.400, 0.840])
+PURPLE_HEAD = np.array([0.400, 0.250, 0.740])
 CYAN_DK = np.array([0.070, 0.560, 0.800])
 CYAN = np.array([0.090, 0.870, 0.975])
 CYAN_LT = np.array([0.470, 0.930, 0.985])
@@ -322,7 +322,7 @@ def paint_samples(s, ctx):
         # inner ear: deep indigo with soft vertical strands
         strands = 0.5 + 0.5 * np.sin(ec / 0.011 + 1.5 * vnoise(ec * 40, ea * 8, 4))
         inner = front * smoothstep(0.0, 0.004, dist - rw_) * (1 - mk)
-        c = lerp3(c, lerp3(PURPLE_DK * 0.55, PURPLE_DK * 1.0, strands * 0.5), inner)
+        # v22: inner ear keeps the body's purple (in-game look)
         cy_col = lerp3(CYAN, CYAN_LT, smoothstep(E['a_tip'] - 0.10, E['a_tip'], ea))
         c = lerp3(c, cy_col, mk)
         col[m], hgt[m], emi[m] = c, np.where(mk > 0.5, 0.3, h), mk

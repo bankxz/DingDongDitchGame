@@ -488,7 +488,7 @@ def build_leaf_clump(md, part, root, nrm, flow, length, width, weight, lift=0.25
     md.orient_piece(first, root - nrm * width)
 
 
-def build_flame_lock(md, part, root, d, skin_n, length, width, thick, weight, n=8, curl_k=0.18):
+def build_flame_lock(md, part, root, d, skin_n, length, width, thick, weight, n=8, curl_k=0.18, curl_dir=None):
     """Closed, flattened flame-shaped fur lock (pointed leaf) growing from root
     along d.  It lies roughly parallel to the skin (flattened along the skin
     normal) and its tip curls further back.  Loft params: t 0 root -> 1 tip,
@@ -496,7 +496,7 @@ def build_flame_lock(md, part, root, d, skin_n, length, width, thick, weight, n=
     d = norm(d)
     flat = norm(skin_n - np.dot(skin_n, d) * d)           # thickness axis
     wax = norm(np.cross(d, flat))                         # width axis
-    back = v3(0, 1, 0)
+    back = v3(0, 1, 0) if curl_dir is None else np.asarray(curl_dir, float)
     curl = norm(back - np.dot(back, d) * d) * curl_k * length
     fs = [0.0, 0.14, 0.30, 0.46, 0.62, 0.77, 0.89]
     centers = [root + d * length * f + curl * f * f for f in fs]
@@ -616,8 +616,8 @@ HIND_LEG = [v3(0.22, 0.56, 0.84), v3(0.265, 0.45, 0.53), v3(0.28, 0.74, 0.24), v
 FRONT_PAW_C = v3(0.285, -0.385, 0.060)          # pad centre
 HIND_PAW_C = v3(0.285, 0.665, 0.060)
 HEAD_LIFT = v3(0.0, 0.05, 0.06)            # v19: head sits higher / further back on a more upright neck
-EAR_BASE = v3(0.135, -0.66, 1.45) + HEAD_LIFT
-EAR_TIP = v3(0.335, -0.655, 1.655) + HEAD_LIFT         # v17: short, pointed, splayed ~45 deg (in-game ears)
+EAR_BASE = v3(0.135, -0.66, 1.485) + HEAD_LIFT
+EAR_TIP = v3(0.335, -0.655, 1.690) + HEAD_LIFT         # v17: short, pointed, splayed ~45 deg (in-game ears)
 KNOT = v3(0.0, 0.14, 1.03)
 TASSEL_TOP = v3(0.33, 0.14, 0.84)
 
@@ -632,6 +632,7 @@ HEAD_KEYS_TB = np.array([   # y, top z, bottom z, half width  (domed skull, stop
     [-0.82, 1.378, 1.158, 0.140], [-0.87, 1.345, 1.142, 0.112], [-0.92, 1.320, 1.136, 0.098], [-0.97, 1.296, 1.136, 0.085],
     [-1.01, 1.276, 1.141, 0.071], [-1.045, 1.256, 1.151, 0.053]])
 HEAD_KEYS_TB = HEAD_KEYS_TB + np.array([[HEAD_LIFT[1], HEAD_LIFT[2], HEAD_LIFT[2], 0.0]])
+HEAD_KEYS_TB[:5, 1] += [0.030, 0.050, 0.055, 0.045, 0.020]     # v22: taller forehead / skull dome
 HEAD_KEYS = np.c_[HEAD_KEYS_TB[:, 0], (HEAD_KEYS_TB[:, 1] + HEAD_KEYS_TB[:, 2]) / 2, HEAD_KEYS_TB[:, 3],
                   (HEAD_KEYS_TB[:, 1] - HEAD_KEYS_TB[:, 2]) / 2 * 0.92, (HEAD_KEYS_TB[:, 1] - HEAD_KEYS_TB[:, 2]) / 2 * 1.08]
 EYE_S, EYE_TH = 0.38, math.radians(40)
@@ -641,11 +642,12 @@ EYE_S, EYE_TH = 0.38, math.radians(40)
 # bases fuse into the cheek; the tips separate into sharp tongues.
 # (head s, head th deg, direction weights (out along the skin normal, back, up),
 #  length, half width)
-CHEEK_LOCKS = [   # (head s, head th deg, direction (out, back, up), length, half width, half thickness)
-    (0.30, 88, (1.00, 0.30, 0.30), 0.170, 0.046, 0.024),     # long main point, out and a little up
-    (0.31, 102, (1.00, 0.40, -0.28), 0.120, 0.036, 0.020),   # lower point
-    (0.27, 92, (0.70, 0.80, 0.05), 0.110, 0.032, 0.018),     # point sweeping back
-    (0.28, 76, (0.90, 0.45, 0.60), 0.085, 0.027, 0.015),     # small upper point
+CHEEK_LOCKS = [   # (head s, th deg, direction (out, back, up), length, half width, half thickness,
+                  #  curl amount, curl direction (back, up))
+    (0.29, 88, (1.00, 0.30, -0.30), 0.210, 0.050, 0.025, 0.32, (0.20, 1.0)),   # BIG tuft: sweeps out, tip hooks up
+    (0.31, 102, (1.00, 0.30, -0.40), 0.085, 0.028, 0.016, 0.20, (0.5, 0.5)),   # small spikes stepping down
+    (0.31, 114, (0.95, 0.35, -0.58), 0.070, 0.024, 0.014, 0.20, (0.5, 0.5)),   # the cheek
+    (0.30, 126, (0.85, 0.40, -0.75), 0.055, 0.020, 0.013, 0.20, (0.5, 0.5)),
 ]
 # in-game cheek tuft outline (u along the tuft from the root, v across), unit = 0.19
 CHEEK_TUFT_OUTLINE = [   # a small fan of thin sharp spikes (in-game cheek tuft)
@@ -791,10 +793,11 @@ def build_kitsune():
     # eye, flaring out sideways with a long main point and smaller side points.
     # Solid flame-shaped volumes (kept out of the remesh so the points stay sharp)
     for sx in (1, -1):
-        for s_, thd, (o, b, u), L, w, tk in CHEEK_LOCKS:
+        for s_, thd, (o, b, u), L, w, tk, ck, (cb, cu) in CHEEK_LOCKS:
             p, n, _ = head.point(s_, sx * math.radians(thd), 0.0)
             d = norm(n * o + v3(0, b, u))
-            build_flame_lock(ma, 'tuft_cheek', p - n * 0.030, d, n, L + 0.030, w, tk, {'Head': 1.0}, n=6, curl_k=0.12)
+            build_flame_lock(ma, 'tuft_cheek', p - n * 0.030, d, n, L + 0.030, w, tk, {'Head': 1.0}, n=6,
+                             curl_k=ck, curl_dir=v3(0, cb, cu))
 
     # ------------------------------------------------------------------- legs + paws
     toe_tips = []
