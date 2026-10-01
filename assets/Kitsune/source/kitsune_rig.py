@@ -75,10 +75,15 @@ def bone_specs(ob=None):
             top = m(g.TASSEL_TOP)
         b.append(('Tassel' + sfx, tuple(top), tuple(top + v3(0, 0, -0.40)), 'Chest', False))
     b.append(('TailBase', g.TAIL_BASE, g.TAIL_BASE + v3(0, 0.14, 0.05), 'Hips', False))
+    # eyes: tiny bones so the sleep pose can close them (lens sinks into the socket)
+    for sx, sfx in ((1, '_L'), (-1, '_R')):
+        ep = group_points(ob, 'Eye' + sfx) if ob is not None else None
+        c = ep.mean(0) if ep is not None else kg.mx(v3(0.14, -0.80, 1.40), sx)
+        b.append(('Eye' + sfx, tuple(c), tuple(c + kg.norm(v3(sx * 0.42, -0.46, 0.78)) * 0.05), 'Head', False))
     for spec in g.tuned_specs():
         pts = g.tail_bone_points(spec)
         par = 'TailBase'
-        for k in range(3):
+        for k in range(g.TAIL_NB):
             nm = f'{spec[0]}_{k + 1}'
             b.append((nm, pts[k], pts[k + 1], par, k > 0))
             par = nm
@@ -180,6 +185,25 @@ class Pose:
         ang = d.angle(t) * weight
         self.world(name, ax.normalized(), ang)
 
+    def world_delta(self, name):
+        """Accumulated world-space rotation of a bone relative to its rest pose."""
+        b = self.arm.data.bones[name]
+        qp = self.world_delta(b.parent.name) if b.parent else Quaternion()
+        B = b.matrix_local.to_3x3()
+        R = self.rot.get(name, Quaternion()).to_matrix()
+        return qp @ (B @ R @ B.inverted()).to_quaternion()
+
+    def set_dir(self, name, target_dir):
+        """Point a bone along a world direction, taking the parents' current pose
+        into account (proper FK chain aiming)."""
+        b = self.arm.data.bones[name]
+        d = (b.tail_local - b.head_local).normalized()
+        qc = d.rotation_difference(Vector(target_dir).normalized())
+        qp = self.world_delta(b.parent.name) if b.parent else Quaternion()
+        B = b.matrix_local.to_3x3()
+        M = B.inverted() @ (qp.inverted() @ qc).to_matrix() @ B
+        self.rot[name] = M.to_quaternion()
+
     def move(self, name, world_vec):
         loc = self._R(name).inverted() @ Vector(world_vec)
         self.loc[name] = self.loc.get(name, Vector()) + loc
@@ -194,17 +218,43 @@ class Pose:
 
 SIDES = (('_L', 1), ('_R', -1))
 TAILS = [s[0] for s in kg.TAIL_SPECS]
+NB = kg.TAIL_NB
 AX = (1, 0, 0)   # +angle about world X: tops tip forward (-Y), feet swing back (+Y)
+ZAX = (0, 0, 1)
+EYE_N = {1: kg.norm(kg.v3(0.42, -0.46, 0.78)), -1: kg.norm(kg.v3(-0.42, -0.46, 0.78))}
 
 
-def tail_sway(P, p, amp, freq=1, lag=0.75, spread=0.9, side_amp=None):
-    side_amp = amp * 1.2 if side_amp is None else side_amp
+def tail_tip_side(i):
+    """-1 / 0 / +1: which side of the fan a tail sits on (for fanning in / out)."""
+    x = kg.tuned_specs()[i][1][0]
+    return 0 if abs(x) < 0.1 else (1 if x > 0 else -1)
+
+
+def tail_wave(P, p, amp, freq=1, lag=0.75, spread=0.85, side_amp=None, harm=0.25):
+    """Majestic flowing tails: a wave travels from the base to the tip of every
+    tail (later bones lag behind and swing wider), each tail offset in phase so
+    the fan ripples like flames.  A second harmonic keeps it from looking
+    mechanical.  Integer freq keeps the loop seamless."""
+    side_amp = amp * 1.15 if side_amp is None else side_amp
     for i, tn in enumerate(TAILS):
         ph = i * spread
-        for k in range(3):
-            a = amp * (0.6 + 0.4 * k)
-            P.local(f'{tn}_{k + 1}', (1, 0, 0), a * math.sin(freq * p - lag * k - ph))
-            P.local(f'{tn}_{k + 1}', (0, 0, 1), side_amp * (0.6 + 0.4 * k) * math.sin(freq * p - lag * k - ph * 1.3 + 1.1))
+        for k in range(NB):
+            w = 0.45 + 0.55 * k / (NB - 1)                       # tips swing wider
+            q = freq * p - lag * k - ph
+            P.local(f'{tn}_{k + 1}', (1, 0, 0), amp * w * (math.sin(q) + harm * math.sin(2 * q + 0.7)))
+            P.local(f'{tn}_{k + 1}', (0, 0, 1),
+                    side_amp * w * (math.sin(q * 1.0 - ph * 0.3 + 1.1) + harm * math.sin(2 * q + 2.1)))
+
+
+def tail_fan(P, ang):
+    """Spread (ang > 0) or gather (ang < 0) the whole fan around the tail root."""
+    for i, tn in enumerate(TAILS):
+        sd = tail_tip_side(i)
+        if sd:
+            P.world(f'{tn}_1', ZAX, -sd * ang)
+            P.world(f'{tn}_1', (0, 1, 0), sd * ang * 0.6)
+        else:
+            P.world(f'{tn}_1', AX, -ang * 0.8)
 
 
 # -------------------------------------------------------------- animations
@@ -217,9 +267,9 @@ def pose_idle(arm, f, N):
     P.world('Chest', AX, 0.018 * br)
     P.move('Chest', (0, 0, 0.006 * s * br))
     P.world('Neck1', AX, 0.03 * math.sin(p + 0.6))
-    P.world('Head', (0, 0, 1), 0.12 * math.sin(p))       # slow look around
+    P.world('Head', ZAX, 0.12 * math.sin(p))             # slow look around
     P.world('Head', AX, 0.04 * math.sin(2 * p + 1.0))
-    P.world('Neck2', (0, 0, 1), 0.05 * math.sin(p - 0.4))
+    P.world('Neck2', ZAX, 0.05 * math.sin(p - 0.4))
     # ear flicks
     t = f / N
     for sfx, sx in SIDES:
@@ -227,10 +277,13 @@ def pose_idle(arm, f, N):
         P.world('Ear' + sfx, (0, 1, 0), -sx * 0.25 * flick)
         P.world('Tassel' + sfx, AX, 0.05 * math.sin(p + 0.5 * sx))
         P.world('Tassel' + sfx, (0, 1, 0), 0.03 * math.sin(2 * p + sx))
-    P.world('TailBase', AX, 0.03 * math.sin(p))
-    for tn in ('Tail6', 'Tail7', 'Tail8'):          # lower tails lifted a touch so they clear the ground
-        P.world(f'{tn}_1', AX, -0.10)
-    tail_sway(P, p, 0.06)
+    # tails: the fan slowly lifts and spreads, then settles, while every tail
+    # carries its own travelling wave
+    P.world('TailBase', AX, -0.05 - 0.05 * math.sin(p))
+    tail_fan(P, 0.07 + 0.07 * math.sin(p + 0.4))
+    for tn in ('Tail6', 'Tail7', 'Tail8'):               # lower tails clear the ground
+        P.world(f'{tn}_1', AX, -0.12)
+    tail_wave(P, p, 0.11, freq=1, lag=0.80, spread=0.85)
     P.world('Hips', (0, 1, 0), 0.01 * math.sin(p))
     return P
 
@@ -238,7 +291,6 @@ def pose_idle(arm, f, N):
 def pose_run(arm, f, N):
     P = Pose(arm)
     p = 2 * math.pi * f / N
-    s = S()
     # rotary gallop phase offsets (fraction of the stride)
     ph = {'HindLeg_L': 0.00, 'HindLeg_R': 0.10, 'FrontLeg_L': 0.46, 'FrontLeg_R': 0.56}
     for sfx, sx in SIDES:
@@ -267,56 +319,70 @@ def pose_run(arm, f, N):
     P.world('Neck1', AX, 0.30 + 0.06 * math.sin(p + 1.2))
     P.world('Neck2', AX, 0.12)
     P.world('Head', AX, -0.34 - 0.07 * math.sin(p + 1.2))
-    # tails stream behind: fan collapses toward +Y and lowers, with flowing waves
-    P.world('TailBase', AX, 0.10)
-    for i, tn in enumerate(kg.TAIL_SPECS):
-        P.toward(f'{tn[0]}_1', (0, 1, -0.15), 0.42)
-    tail_sway(P, p, 0.11, freq=1, lag=0.9, spread=0.7, side_amp=0.08)
+    # tails stream out behind like banners: the fan sweeps back and rises a
+    # little, stays spread, and long waves roll down every tail
+    P.world('TailBase', AX, 0.06 + 0.04 * math.sin(p - 1.0))
+    for tn in TAILS:
+        P.toward(f'{tn}_1', (0, 1, 0.05), 0.40)
+    tail_fan(P, 0.10)
+    tail_wave(P, p, 0.13, freq=1, lag=1.05, spread=0.55, side_amp=0.10, harm=0.15)
     return P
 
 
 def pose_sleep(arm, f, N):
+    """Curled up like a sleeping fox (reference): lying flat, legs tucked under,
+    chin resting on the ground, eyes closed, the tails swept round the left side
+    so the tips lie beside the face.  Slow breathing, a sleepy tail-tip twitch."""
     P = Pose(arm)
     p = 2 * math.pi * f / N
     s = S()
     br = math.sin(2 * p)                     # two slow breaths per loop (5 s)
-    P.move('Root', (0, 0, -0.50 * s))
-    # body curls slightly to the left, chest breathes
-    P.world('Hips', (0, 0, 1), -0.10)
-    P.world('Chest', (0, 0, 1), 0.14)
-    P.world('Spine', AX, -0.02 * br)
-    P.world('Chest', AX, 0.03 * br)
-    P.move('Chest', (0, 0, 0.008 * s * br))
-    # front legs: sphinx pose - elbows back on the ground, forearms forward
+    P.move('Root', (0, 0, -0.46 * s))
+    # body: flat on the belly, gently curved toward the tails (left)
+    P.world('Hips', ZAX, -0.22)                           # body curls into a C toward the left
+    P.world('Spine', ZAX, 0.30)
+    P.world('Chest', ZAX, 0.30)
+    P.world('Spine', AX, -0.015 * br)
+    P.world('Chest', AX, 0.025 * br)
+    P.move('Chest', (0, 0, 0.007 * s * br))
     for sfx, sx in SIDES:
-        P.world('FrontLegUpper' + sfx, AX, 0.55)
-        P.world('FrontLegLower' + sfx, AX, -2.05 + 0.04 * sx)
-        P.world('FrontPaw' + sfx, AX, 0.45)
-        # hind legs folded under the body
-        P.world('HindLegUpper' + sfx, AX, -0.95)
-        P.world('HindLegUpper' + sfx, (0, 1, 0), 0.25 * sx)
-        P.world('HindLegLower' + sfx, AX, 1.75)
-        P.world('HindFoot' + sfx, AX, -1.25)
-        P.world('HindPaw' + sfx, AX, 0.35)
-        P.world('Ear' + sfx, AX, -0.35)                     # relaxed, laid back
-        P.world('Ear' + sfx, (0, 1, 0), -0.25 * sx)
-        P.world('Tassel' + sfx, (0, 1, 0), 0.9 * sx)         # tassels resting on the ground
-    # head down, chin resting on the front paws, turned toward the curl
-    P.world('Neck1', AX, 0.70)
-    P.world('Neck2', AX, 0.35 + 0.015 * br)
-    P.world('Neck1', (0, 0, 1), 0.18)
-    P.world('Head', AX, -0.70)
-    P.world('Head', (0, 0, 1), 0.15)
-    # tails: lowered fan draped around the body and swept forward on the left side
-    order = [3, 1, 5, 0, 7, 2, 4, 6]            # stacking order around the body
+        # legs rest ON the ground, clear of the body (folding them under made
+        # them disappear into the belly): front legs stretched forward under
+        # the chin, hind legs folded beside the haunches like a resting fox
+        P.set_dir('FrontLegUpper' + sfx, (sx * 0.14, -0.82, -0.55))
+        P.set_dir('FrontLegLower' + sfx, (sx * 0.04, -0.99, -0.06))
+        P.set_dir('FrontPaw' + sfx, (0.0, -0.99, -0.04))
+        P.set_dir('HindLegUpper' + sfx, (sx * 0.68, -0.55, -0.42))
+        P.set_dir('HindLegLower' + sfx, (sx * 0.35, 0.93, -0.08))
+        P.set_dir('HindFoot' + sfx, (sx * 0.22, -0.97, -0.06))
+        P.set_dir('HindPaw' + sfx, (sx * 0.10, -0.99, -0.03))
+        # ears relaxed back, eyes closed (lens sinks into the socket)
+        P.world('Ear' + sfx, AX, -0.40)
+        P.world('Ear' + sfx, (0, 1, 0), -0.20 * sx)
+        P.move('Eye' + sfx, tuple(-EYE_N[sx] * 0.040 * s))
+        P.world('Tassel' + sfx, (0, 1, 0), 0.9 * sx)        # tassels resting on the ground
+    # head: neck lowered, chin on the ground, turned a little toward the tails
+    P.world('Neck1', AX, 0.85)
+    P.world('Neck2', AX, 0.40 + 0.012 * br)
+    P.world('Neck1', ZAX, 0.38)
+    P.world('Head', AX, -0.85)
+    P.world('Head', ZAX, 0.35)
+    P.world('Head', (0, 1, 0), 0.10)
+    # tails: one fluffy blanket swept round the LEFT side toward the head, lying
+    # on the ground.  Every bone is steered along an explicit curled path
+    # (heading 0 = straight back, 90 = left side, 180 = toward the head).
+    order = [6, 3, 7, 1, 0, 2, 4, 5]                      # bottom of the stack -> top
     for rank, i in enumerate(order):
-        tn = kg.TAIL_SPECS[i][0]
-        beta = math.radians(60 + rank * 16)      # 0 = straight back, 90 = left side, 180 = toward the head
-        tgt = (math.sin(beta) * 1.0, math.cos(beta), -0.05 + 0.06 * (rank % 3))
-        P.aim(f'{tn}_1', tgt, 1.0)
-        P.world(f'{tn}_2', (0, 0, 1), 0.28)      # curl toward the head
-        P.world(f'{tn}_3', (0, 0, 1), 0.32)
-    tail_sway(P, p, 0.025, freq=1, lag=0.8, spread=1.1, side_amp=0.02)
+        tn = TAILS[i]
+        h0 = 50 + rank * 4.0                               # first bone: back-left
+        dh = 60 - rank * 1.5                               # extra curl per bone (tips fan by the face)
+        for k in range(NB):
+            hd = math.radians(h0 + dh * k)
+            pitch = -0.55 if k == 0 else (0.06 if k == 1 else 0.0) + 0.025 * (rank % 4)
+            d = (math.sin(hd) * math.cos(pitch), math.cos(hd) * math.cos(pitch), math.sin(pitch))
+            P.set_dir(f'{tn}_{k + 1}', d)
+        twitch = 0.05 * math.sin(p - rank * 0.6)          # sleepy tip twitch
+        P.local(f'{tn}_{NB}', (0, 0, 1), twitch)
     return P
 
 

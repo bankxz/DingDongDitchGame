@@ -417,6 +417,7 @@ def add_eyes(ma, info, body_ob, S):
         c = np.array(loc) / S
         sn = np.array(sn)
         frames[sx] = (c, sn, along, acr)
+        eye_bone = 'Eye_L' if sx > 0 else 'Eye_R'      # lets the sleep pose close the eyes
         isl = ma.new_island('eye')
         first = len(ma.faces)
         rings = []
@@ -426,10 +427,10 @@ def add_eyes(ma, info, body_ob, S):
                 u_, v_ = eye_outline(kg.TAU * k / K)
                 q = c + (along * u_ + acr * v_) * sc_
                 l2, n2, _, _ = bvh.find_nearest(Vector(q * S))
-                ring.append(ma.add_vert(np.array(l2) / S + np.array(n2) * lift, {'Head': 1.0}))
+                ring.append(ma.add_vert(np.array(l2) / S + np.array(n2) * lift, {eye_bone: 1.0}))
             rings.append((ring, sc_))
         l2, n2, _, _ = bvh.find_nearest(Vector(c * S))
-        cvt = ma.add_vert(np.array(l2) / S + np.array(n2) * 0.0055, {'Head': 1.0})
+        cvt = ma.add_vert(np.array(l2) / S + np.array(n2) * 0.0055, {eye_bone: 1.0})
         R0 = EYE_RINGS[0][0]           # the buried skirt sits on the UV island border
         uvp = lambda a, r: (.5 + .5 * r / R0 * math.cos(a), .5 + .5 * r / R0 * math.sin(a))
         for ri in range(len(rings) - 1):

@@ -408,6 +408,7 @@ def tuned_specs():
     return out
 
 
+TAIL_NB = 4                                       # bones per tail
 TAIL_T = [0.0, 0.07, 0.15, 0.25, 0.36, 0.47, 0.58, 0.68, 0.77, 0.85, 0.92, 0.97]
 
 
@@ -445,7 +446,7 @@ def tail_radius(t, rmax):
 
 def tail_bone_points(spec):
     ctrl, broad, d = tail_curve(spec)
-    return [bezier(*ctrl, t) for t in (0.0, 0.33, 0.66, 1.0)]
+    return [bezier(*ctrl, k / TAIL_NB) for k in range(TAIL_NB + 1)]
 
 
 
@@ -846,8 +847,9 @@ def build_kitsune():
         rt = [r * 0.66 for r in rw]
         loft = Loft(cs, rw, rt, rt, broad, 9,
                     bulge=lambda i, th: 0.07 * math.cos(3 * th) * (1 if 2 < i < 10 else 0))
-        jt = [(0.0, 'TailBase'), (0.08, name + '_1'), (0.28, name + '_1'), (0.40, name + '_2'),
-              (0.62, name + '_2'), (0.74, name + '_3')]
+        # 4 bones per tail (smooth, flowing bends); weights blend between neighbours
+        jt = [(0.0, 'TailBase'), (0.06, name + '_1'), (0.18, name + '_1'), (0.30, name + '_2'),
+              (0.42, name + '_2'), (0.54, name + '_3'), (0.66, name + '_3'), (0.78, name + '_4')]
         loft.build(ma, 'tail', lambda i, t, p, jt=jt: blend_chain(t, jt), cap_end=tip, t_range=(0.0, 0.97))
         tails.append((spec, loft, jt))
 

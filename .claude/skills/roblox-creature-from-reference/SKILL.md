@@ -118,8 +118,18 @@ the harness (collar ties) — floating ends look disconnected.
   linear keys, frame 0 == frame N for seamless loops.
 - **Ground on the paws, not the whole mesh** — tails that dip below the floor will
   otherwise lift the creature. Sleep grounds on the whole body.
-- Sleep: curl the tails *around* the body toward the head (aim directions 60-180
-  deg), legs folded, head forward.
+- **Aim chains with an FK-aware helper** (`set_dir`: convert the target world
+  direction through the parents' *posed* rotation). Aiming each bone from its rest
+  orientation ignores the parent pose, so curls and legs end up wrong.
+- Sleep (curled fox): body flat and curved into a C, tails steered bone-by-bone along
+  a curled path on the ground round one side so the tips lie by the face, chin on
+  the ground between forward-stretched front legs, hind legs folded *beside* the
+  haunches. Folding legs straight under the body sinks them into the belly — keep
+  them on the ground and outside the torso. Close eyes with small eye bones that
+  sink the lenses into the sockets (Roblox animations can't scale bones).
+- Tails: 4 bones each; "majestic" motion = a wave travelling base->tip (later bones
+  lag and swing wider), phase offset per tail so the fan ripples, slow fan
+  spread/lift, a small 2nd harmonic; integer frequencies keep loops seamless.
 - Review with contact sheets (`scripts/anim_contact_sheet.py`), side + 3/4, 4-6
   frames per action, before exporting.
 
