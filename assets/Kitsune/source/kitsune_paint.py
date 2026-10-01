@@ -390,26 +390,28 @@ def paint_samples(s, ctx):
         tt = t[m]
         w = np.sin(th[m])
         aw = np.abs(w)
-        # purple only at the root (jagged flame front), then a clean cyan lock:
-        # darker cyan edges with a fine serration, bright centre highlight and
-        # fur streaks, white-cyan tip
-        flames = tri_wave(w * 1.2 + 0.5) ** 2.0
-        bound = 0.20 - 0.08 * flames
-        cy = smoothstep(bound - 0.010, bound + 0.010, tt)
-        streak = 0.5 + 0.5 * np.sin(w * 13 + tt * 3 + 1.2 * vnoise(w * 4, tt * 7, 31))
-        cc = lerp3(CYAN_DK, CYAN, smoothstep(0.24, 0.45, tt))
-        cc = lerp3(cc, CYAN_LT, smoothstep(0.55, 0.85, tt))
-        cc = lerp3(cc, TIP_WHITE, smoothstep(0.84, 1.0, tt))
-        cc = lerp3(cc, CYAN_LT, smoothstep(0.35, 0.0, aw) * smoothstep(0.30, 0.60, tt) * 0.55)    # centre highlight
-        serr = 0.80 - 0.10 * tri_wave(tt * 9.0) ** 2
-        cc = lerp3(cc, CYAN_DK, smoothstep(serr - 0.02, serr + 0.02, aw) * 0.55)                # edge shading
-        cc = lerp3(cc * 0.90, cc, 0.40 + 0.60 * streak)
-        base = lerp3(PURPLE_HEAD, CYAN_DK, 0.25)
-        c = lerp3(base, cc, cy)
-        col[m] = c * (0.70 + 0.30 * toplight[m])[:, None]
-        hgt[m] = 0.35 + 0.35 * (1 - aw) * streak
+        # clean, crisp bands (no noise): purple root -> deep-cyan base -> cyan
+        # body with a light centre stripe and darker edges -> white-cyan tip
+        cy = smoothstep(0.10, 0.17, tt)
+        cc = lerp3(CYAN_DK, CYAN, smoothstep(0.20, 0.34, tt))
+        stripe = smoothstep(0.34, 0.27, aw) * smoothstep(0.30, 0.40, tt)
+        cc = lerp3(cc, CYAN_LT, stripe * 0.85)
+        cc = lerp3(cc, CYAN_DK, smoothstep(0.80, 0.86, aw) * 0.6)
+        cc = lerp3(cc, TIP_WHITE, smoothstep(0.78, 0.92, tt))
+        c = lerp3(PURPLE_HEAD, cc, cy)
+        col[m] = c * (0.80 + 0.20 * toplight[m])[:, None]
+        hgt[m] = 0.3 + 0.4 * (1 - aw)
         emi[m] = cy
         reg[m] = np.where(cy > 0.5, REG_CYAN, REG_FUR)
+    m = sel('mane')
+    if m.any():
+        # nape mane: purple flame locks, dark roots, lighter ridge, lit tips
+        tt, aw = t[m], np.abs(np.sin(th[m]))
+        c = lerp3(PURPLE_DK, PURPLE, smoothstep(0.05, 0.35, tt))
+        c = lerp3(c, PURPLE_LT, smoothstep(0.40, 0.0, aw) * smoothstep(0.25, 0.55, tt) * 0.6)
+        c = lerp3(c, PURPLE_DK, smoothstep(0.78, 0.92, aw) * 0.5)
+        c = lerp3(c, PURPLE_LT, smoothstep(0.80, 1.0, tt) * 0.5)
+        col[m], hgt[m], emi[m], reg[m] = c * toplight[m][:, None], 0.3 + 0.4 * (1 - aw), 0.0, REG_FUR
     m = sel('ear_fur')
     if m.any():
         # sculpted ear fur: cyan locks, slightly deeper at the root, white-cyan tips

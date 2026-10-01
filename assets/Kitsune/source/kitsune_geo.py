@@ -21,7 +21,7 @@ PART_IDS = {
     'torso': 0, 'neck': 1, 'head': 2, 'ear': 3, 'leg_f': 4, 'leg_h': 5,
     'paw': 6, 'claw': 7, 'tail': 8, 'tuft': 9, 'tuft_cyan': 10, 'spike': 11,
     'tail_tuft': 12, 'rope': 13, 'knot': 14, 'gem': 15, 'frame': 16,
-    'bead': 17, 'tassel': 18, 'eye': 19, 'tuft_tip': 20, 'tuft_cheek': 21, 'ear_fur': 22,
+    'bead': 17, 'tassel': 18, 'eye': 19, 'tuft_tip': 20, 'tuft_cheek': 21, 'ear_fur': 22, 'mane': 23,
 }
 
 
@@ -577,6 +577,19 @@ CHEEK_TUFTS = [
     (0.31, 125, (0.95, 0.36, -0.46), 0.175, 0.039),
     (0.29, 141, (0.80, 0.34, -0.68), 0.140, 0.033),   # jaw
 ]
+# nape mane: (loft, s, th deg, direction weights (out, back, up), length, half width)
+MANE_LOCKS = [
+    ('head', 0.04, 0, (0.50, 0.80, 0.40), 0.230, 0.070),     # back of the skull, between the ears
+    ('head', 0.08, 40, (0.65, 0.70, 0.30), 0.200, 0.062),
+    ('neck', 0.92, 0, (0.50, 0.85, 0.20), 0.260, 0.075),     # nape crest, layered down the neck
+    ('neck', 0.84, 40, (0.75, 0.65, 0.10), 0.230, 0.066),
+    ('neck', 0.74, 0, (0.50, 0.85, 0.12), 0.250, 0.075),
+    ('neck', 0.64, 42, (0.80, 0.62, 0.0), 0.220, 0.064),
+    ('neck', 0.55, 0, (0.50, 0.85, 0.05), 0.230, 0.070),
+    ('neck', 0.46, 45, (0.85, 0.55, -0.05), 0.200, 0.060),
+]
+# upright harness hoops: (centre y on the back, half length, half height, yaw deg)
+HOOPS = [(-0.10, 0.30, 0.24, 9.0), (0.00, 0.24, 0.19, -9.0)]
 # sculpted cyan ear fur (reference ears): flame spikes growing out of the cyan rim
 # along both edges.  Left ear, in the ear frame:
 # (a along the ear, c across (+ outer edge), lift off the front face, direction
@@ -659,7 +672,7 @@ def build_kitsune():
     neck_c = catmull_open(nkeys, 3)
     nr = np.linspace(0, 1, len(neck_c))
     nrw = list(np.interp(nr, [0, 0.7, 1], [0.29, 0.20, 0.15]))
-    nrt = list(np.interp(nr, [0, 0.7, 1], [0.24, 0.16, 0.10]))
+    nrt = list(np.interp(nr, [0, 0.7, 1], [0.24, 0.20, 0.155]))     # thick nape, no dip at the skull
     nrb = list(np.interp(nr, [0, 0.7, 1], [0.30, 0.19, 0.13]))
     neck = Loft(neck_c, nrw, nrt, nrb, X, 20)
     neck_j = [(0.0, 'Chest'), (0.30, 'Neck1'), (0.70, 'Neck2'), (1.0, 'Head')]
@@ -700,6 +713,17 @@ def build_kitsune():
             d = norm(eside * dc + eax * da - eback * df)
             build_flame_lock(md, 'ear_fur', root * M, d * M, skin * M, L + 0.022, w, th_, {nm: 1.0}, n=6,
                              curl_k=0.10)
+
+    # ------------------------------------------------------------ nape mane
+    # spiky purple crest from the back of the skull down the top of the neck
+    # (reference side views): flame locks sweeping back / up, fused by the remesh
+    for loft_, s, thd, (o, b, u), L, w in MANE_LOCKS:
+        src = head if loft_ == 'head' else neck
+        for sx in ((1,) if thd == 0 else (1, -1)):
+            p, n, _ = src.point(s, sx * math.radians(thd), 0.0)
+            d = norm(n * o + v3(0, b, u))
+            build_flame_lock(md, 'mane', p - n * 0.04, d, n, L + 0.04, w, 0.022,
+                             {'Head': 1.0} if loft_ == 'head' else {'Neck2': 1.0}, curl_k=0.22)
 
     # ------------------------------------------------------------ cheek ruff
     # closed, flattened flame locks rooted inside the skull: the voxel remesh
@@ -783,6 +807,17 @@ def build_kitsune():
             lifts.append(lift)
         tb = build_tube(ma, 'rope', pts, rope_r, 6, lambda i, t, p: {'Chest': 1.0}, closed=True)
         ma.hug.append(dict(kind='tube', tube=tb, lift=lifts))
+    # two large upright hoops rising from the harness on the back, standing up
+    # behind the head (reference side / 3/4 views); they float, only their
+    # lowest point rests on the fur
+    for (cy, ry, rz, yaw) in HOOPS:
+        base_pt = back_pt(cy, 0.0, 0.0)
+        c = base_pt + v3(0, 0, rz + rope_r + 0.03)
+        ax_y = v3(math.sin(math.radians(yaw)), math.cos(math.radians(yaw)), 0)
+        pts = [c + ax_y * ry * math.sin(TAU * k / 22) - v3(0, 0, rz) * math.cos(TAU * k / 22) for k in range(22)]
+        hv0 = len(ma.verts)
+        build_tube(ma, 'rope', pts, rope_r * 0.95, 5, lambda i, t, p: {'Chest': 1.0}, closed=True)
+        ma.hug.append(dict(kind='rigid', v0=hv0, v1=len(ma.verts), anchor=c - v3(0, 0, rz), clear=rope_r + 0.004))
     front = back_pt(LOOP_Y0, 0.0, 0.06)
     cord = catmull_open([F0, (F0 + front) / 2 + v3(0, 0, 0.03), front], 3)
     tb = build_tube(ma, 'rope', cord, rope_r * 0.9, 6, lambda i, t, p: {'Chest': 0.6, 'Neck1': 0.4})

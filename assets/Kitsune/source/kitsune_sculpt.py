@@ -217,7 +217,7 @@ def build_sculpted_body(md, info, S, target_tris, voxel=0.0085, smooth_iters=5, 
     # fused locks (cheek ruff, ear fur): all corners of a face sample the SAME lock, so
     # the painted pattern never interpolates between two different locks
     lisl = src.tri_island[fidx][loop_face]
-    for p in (kg.PART_IDS['tuft_cheek'], kg.PART_IDS['ear_fur']):
+    for p in (kg.PART_IDS['tuft_cheek'], kg.PART_IDS['ear_fur'], kg.PART_IDS['mane']):
         for isl in np.unique(lisl[lpart == p]):
             m = np.where((lpart == p) & (lisl == isl))[0]
             i2, b2 = src.nearest(co[loops_v[m]], island=isl)

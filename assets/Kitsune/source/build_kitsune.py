@@ -41,12 +41,12 @@ MATERIAL_SLOTS = [                # (slot name, region id)
 PART_DEFAULT_REGION = {
     'rope': kp.REG_ROPE, 'knot': kp.REG_ROPE, 'gem': kp.REG_ORN, 'frame': kp.REG_ORN, 'bead': kp.REG_ORN,
     'tassel': kp.REG_ORN, 'eye': kp.REG_EYE, 'claw': kp.REG_CYAN, 'paw': kp.REG_CYAN, 'tuft_cyan': kp.REG_CYAN,
-    'tuft_tip': kp.REG_FUR, 'tuft_cheek': kp.REG_FUR, 'ear_fur': kp.REG_CYAN,
+    'tuft_tip': kp.REG_FUR, 'tuft_cheek': kp.REG_FUR, 'ear_fur': kp.REG_CYAN, 'mane': kp.REG_FUR,
 }
 UV_IMPORTANCE = {
     'head': 2.6, 'eye': 3.6, 'gem': 2.5, 'frame': 2.0, 'ear': 2.7, 'neck': 1.3, 'torso': 1.2, 'tail': 0.80,
     'leg_f': 1.1, 'leg_h': 1.1, 'paw': 1.4, 'claw': 0.6, 'tuft': 0.8, 'tuft_cyan': 1.3, 'spike': 0.8,
-    'tail_tuft': 0.8, 'tuft_tip': 1.0, 'tuft_cheek': 2.3, 'ear_fur': 2.4, 'rope': 0.9, 'knot': 0.9, 'bead': 1.3, 'tassel': 1.2,
+    'tail_tuft': 0.8, 'tuft_tip': 1.0, 'tuft_cheek': 2.3, 'ear_fur': 2.4, 'mane': 1.4, 'rope': 0.9, 'knot': 0.9, 'bead': 1.3, 'tassel': 1.2,
 }
 SLOT_EMISSION = {'M_Kitsune_Eyes_Red_EMISSIVE': 2.2}     # eyes glow hotter than the cyan fur markings
 
