@@ -258,7 +258,7 @@ def paint_samples(s, ctx):
         # cyan nose pad (reference / in-game): an inverted rounded triangle on the
         # front of the snout tip -- crisp edge, lighter upper centre, deeper rim
         zr = z - ctx['nose_z']
-        hw = 0.052 * np.clip((zr + 0.036) / 0.078, 0, 1) ** 0.70
+        hw = 0.039 * np.clip((zr + 0.036) / 0.078, 0, 1) ** 0.50
         nose_in = (x / np.maximum(hw, 1e-4)) ** 2.4 + np.clip((zr - 0.030) / 0.016, 0, None) ** 2
         front_ = smoothstep(ctx['nose_y'] + 0.050, ctx['nose_y'] + 0.038, y)
         nose = smoothstep(1.06, 0.94, nose_in) * (zr > -0.036) * front_
@@ -333,9 +333,16 @@ def paint_samples(s, ctx):
         if not m.any():
             continue
         c, h = fur(m, part)
-        k = 7
-        saw = 1 - np.abs(2 * (((th[m] * k / (2 * np.pi)) + 0.25 * vnoise(th[m] * 2, t[m] * 3, seed)) % 1.0) - 1)
-        bound = tb - 0.10 * saw ** 2.5
+        # cyan flames licking up into the purple (in-game legs): a few tall, curved,
+        # pointed tongues of different heights leaning around the leg
+        k = 4
+        xf = th[m] * k / (2 * np.pi) + 0.9 * (tb - t[m]) + 0.15 * vnoise(th[m] * 2, t[m] * 3, seed)
+        idx = np.floor(xf)
+        ph = xf - idx
+        tongue = (1 - np.abs(2 * ph - 1)) ** 2.4
+        small = (1 - np.minimum(1, np.abs(2 * ((ph + 0.5) % 1.0) - 1) * 1.0)) ** 6      # little flame between
+        flame_h = 0.13 + 0.09 * _hash2(idx, 3.0, seed)
+        bound = tb + 0.04 - flame_h * tongue - 0.05 * small
         cy = smoothstep(bound - 0.006, bound + 0.006, t[m])
         grad = smoothstep(tb, 1.0, t[m])
         cc = lerp3(CYAN, CYAN_LT, grad * 0.6)
@@ -418,11 +425,6 @@ def paint_samples(s, ctx):
         cc = lerp3(cc, CYAN_LT, stripe * 0.85)
         cc = lerp3(cc, CYAN_DK, smoothstep(0.80, 0.86, aw) * 0.6)
         cc = lerp3(cc, TIP_WHITE, smoothstep(0.78, 0.92, tt))
-        # darker fur-strand separations running from each notch toward the root
-        w_ = np.sin(th[m])
-        for wk, t0 in ((-0.26, 0.30), (0.12, 0.35), (0.50, 0.30)):
-            line = smoothstep(0.050, 0.025, np.abs(w_ - wk - 0.10 * (tt - 0.6))) * smoothstep(t0, t0 + 0.12, tt)
-            cc = lerp3(cc, CYAN_DK * 0.8, line * 0.75)
         c = lerp3(PURPLE_HEAD, cc, cy)
         col[m] = c * (0.80 + 0.20 * toplight[m])[:, None]
         hgt[m] = 0.3 + 0.4 * (1 - aw)

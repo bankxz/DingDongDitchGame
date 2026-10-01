@@ -642,14 +642,13 @@ EYE_S, EYE_TH = 0.38, math.radians(40)
 # (head s, head th deg, direction weights (out along the skin normal, back, up),
 #  length, half width)
 CHEEK_TUFTS = [
-    (0.31, 100, (0.80, 0.50, -0.30), 1.00),     # main tuft: cheek below the eye, sweeps back / out / down
-    (0.24, 72, (0.80, 0.55, 0.20), 0.62),       # smaller tuft layered above it, under the ear
+    (0.31, 104, (0.80, 0.50, -0.32), 1.00),     # main tuft on the cheek, sweeps back / out / down
+    (0.25, 80, (0.80, 0.55, -0.05), 0.72),      # smaller tuft just above / behind it
 ]
-# in-game cheek tuft: one broad flat lock whose end splits into saw-tooth points
-# (u along the lock from the root, v across), unit = 0.24
-CHEEK_TUFT_OUTLINE = [
-    (0.00, -0.12), (0.40, -0.14), (0.60, -0.16), (0.82, -0.25), (0.62, -0.06), (0.92, -0.05),
-    (0.70, 0.03), (1.00, 0.11), (0.66, 0.13), (0.72, 0.21), (0.48, 0.16), (0.25, 0.16), (0.00, 0.13),
+# in-game cheek tuft outline (u along the tuft from the root, v across), unit = 0.19
+CHEEK_TUFT_OUTLINE = [   # a small fan of thin sharp spikes (in-game cheek tuft)
+    (0.00, -0.15), (0.35, -0.21), (0.78, -0.30), (0.45, -0.17), (0.92, -0.16), (0.50, -0.06),
+    (1.00, -0.01), (0.52, 0.06), (0.94, 0.14), (0.48, 0.17), (0.78, 0.27), (0.35, 0.20), (0.00, 0.15),
 ]
 # nape mane: (loft, s, th deg, direction weights (out, back, up), length, half width)
 MANE_LOCKS = []                                # v18: the top of the neck stays smooth
@@ -731,9 +730,9 @@ def build_kitsune():
     nkeys = [v3(0, -0.34, 0.83), v3(0, -0.43, 0.99), v3(0, -0.50, 1.14), v3(0, -0.57, 1.27), v3(0, -0.65, 1.36)]   # upright
     neck_c = catmull_open(nkeys, 3)
     nr = np.linspace(0, 1, len(neck_c))
-    nrw = list(np.interp(nr, [0, 0.7, 1], [0.30, 0.22, 0.16]))
-    nrt = list(np.interp(nr, [0, 0.7, 1], [0.27, 0.22, 0.17]))     # thick nape, no dip at the skull
-    nrb = list(np.interp(nr, [0, 0.7, 1], [0.34, 0.25, 0.15]))     # fuller throat / chest
+    nrw = list(np.interp(nr, [0, 0.45, 1], [0.27, 0.18, 0.14]))     # v20: sleek neck
+    nrt = list(np.interp(nr, [0, 0.45, 1], [0.22, 0.155, 0.13]))
+    nrb = list(np.interp(nr, [0, 0.45, 1], [0.28, 0.17, 0.12]))
     neck = Loft(neck_c, nrw, nrt, nrb, X, 20)
     neck_j = [(0.0, 'Chest'), (0.30, 'Neck1'), (0.70, 'Neck2'), (1.0, 'Head')]
     neck.build(md, 'neck', lambda i, t, p: blend_chain(t, neck_j),
@@ -795,9 +794,10 @@ def build_kitsune():
             flat = norm(n - np.dot(n, d) * d)
             vax = norm(np.cross(flat, d))
             vax = vax if vax[2] >= 0 else -vax                     # +v = upper edge on both sides
-            unit = 0.30 * sc
+            unit = 0.22 * sc
             outline = [(uu * unit, vv * unit) for uu, vv in CHEEK_TUFT_OUTLINE]
-            build_slab(md, 'tuft_cheek', outline, p - n * 0.030 - d * 0.03, d, vax, 0.016, {'Head': 1.0})
+            # crisp separate piece (the remesh would melt the thin spikes), root sunk into the cheek
+            build_slab(ma, 'tuft_cheek', outline, p - n * 0.020 - d * 0.03, d, vax, 0.010, {'Head': 1.0})
 
     # ------------------------------------------------------------------- legs + paws
     toe_tips = []
