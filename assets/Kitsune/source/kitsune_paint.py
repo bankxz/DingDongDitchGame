@@ -295,16 +295,17 @@ def paint_samples(s, ctx):
         dist, arc = polyline_dist(ea, ec, E['outline'])
         front = smoothstep(0.15, -0.15, Nm @ E['back'])                # inner (forward-facing) side
         # rim with fur spikes pointing inward / down the ear, wider on the front
-        ph = arc / 0.028 + 0.8 * dist / 0.028 + 0.45 * vnoise(arc * 22, 0.5, 8)
+        # thick cyan border with long fur points reaching in over the navy inner ear
+        ph = arc / 0.034 + 0.9 * dist / 0.034 + 0.45 * vnoise(arc * 22, 0.5, 8)
         spk = tri_wave(ph) ** 3 * (0.55 + 0.45 * _hash2(np.floor(ph), 1.0, 9))
-        rim_w = np.where(front > 0.5, 0.017, 0.013) + 0.018 * spk
+        rim_w = np.where(front > 0.5, 0.028, 0.020) + 0.030 * spk
         tip_w = smoothstep(E['a_tip'] - 0.075, E['a_tip'] - 0.020, ea) * 0.05
         rw_ = np.maximum(rim_w, tip_w)
         mk = smoothstep(rw_ + 0.0011, rw_ - 0.0011, dist)
         # inner ear: deep indigo with soft vertical strands
         strands = 0.5 + 0.5 * np.sin(ec / 0.011 + 1.5 * vnoise(ec * 40, ea * 8, 4))
         inner = front * smoothstep(0.0, 0.004, dist - rw_) * (1 - mk)
-        c = lerp3(c, lerp3(PURPLE_DK * 0.75, PURPLE_DK * 1.25, strands * 0.6), inner)
+        c = lerp3(c, lerp3(PURPLE_DK * 0.55, PURPLE_DK * 1.0, strands * 0.5), inner)
         cy_col = lerp3(CYAN, CYAN_LT, smoothstep(E['a_tip'] - 0.10, E['a_tip'], ea))
         c = lerp3(c, cy_col, mk)
         col[m], hgt[m], emi[m] = c, np.where(mk > 0.5, 0.3, h), mk

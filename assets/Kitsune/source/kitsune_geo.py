@@ -546,7 +546,7 @@ HIND_LEG = [v3(0.22, 0.56, 0.84), v3(0.265, 0.45, 0.53), v3(0.28, 0.74, 0.24), v
 FRONT_PAW_C = v3(0.285, -0.385, 0.060)          # pad centre
 HIND_PAW_C = v3(0.285, 0.665, 0.060)
 EAR_BASE = v3(0.135, -0.66, 1.45)
-EAR_TIP = v3(0.245, -0.645, 1.75)
+EAR_TIP = v3(0.305, -0.655, 1.72)          # v16: splayed outward (in-game ears)
 KNOT = v3(0.0, 0.14, 1.03)
 TASSEL_TOP = v3(0.33, 0.14, 0.84)
 
@@ -595,13 +595,12 @@ HALO_C, HALO_R, HALO_TILT, HALO_SPAN = v3(0.0, -0.28, 1.27), 0.48, 46.0, 128.0
 # (a along the ear, c across (+ outer edge), lift off the front face, direction
 #  (across, along, forward), length, half width, half thickness)
 EAR_FUR = [
-    (0.030, 0.100, 0.0, (0.85, 0.53, 0.0), 0.090, 0.022, 0.012),     # outer rim: fur spikes
-    (0.085, 0.092, 0.0, (0.78, 0.63, 0.0), 0.080, 0.020, 0.012),     # sweeping out / up
-    (0.140, 0.078, 0.0, (0.70, 0.71, 0.0), 0.070, 0.018, 0.011),
-    (0.195, 0.060, 0.0, (0.60, 0.80, 0.0), 0.060, 0.016, 0.011),
-    (0.050, -0.094, 0.0, (-0.70, 0.71, 0.0), 0.075, 0.019, 0.012),   # inner rim: spikes
-    (0.110, -0.082, 0.0, (-0.62, 0.78, 0.0), 0.068, 0.017, 0.011),   # pointing in / up
-    (0.170, -0.066, 0.0, (-0.52, 0.85, 0.0), 0.058, 0.015, 0.011),
+    (0.030, 0.112, 0.0, (0.85, 0.53, 0.0), 0.080, 0.022, 0.012),     # outer rim: fur spikes
+    (0.085, 0.103, 0.0, (0.78, 0.63, 0.0), 0.070, 0.020, 0.012),     # sweeping out / up
+    (0.140, 0.088, 0.0, (0.70, 0.71, 0.0), 0.060, 0.018, 0.011),
+    (0.050, -0.106, 0.0, (-0.70, 0.71, 0.0), 0.070, 0.019, 0.012),   # inner rim: spikes
+    (0.110, -0.092, 0.0, (-0.62, 0.78, 0.0), 0.060, 0.017, 0.011),   # pointing in / up
+    (0.170, -0.074, 0.0, (-0.52, 0.85, 0.0), 0.050, 0.015, 0.011),
 ]
 
 
@@ -692,7 +691,7 @@ def build_kitsune():
         ax = norm(tip - base)
         pts = [base - ax * 0.06, base + (tip - base) * 0.28, base + (tip - base) * 0.58, base + (tip - base) * 0.84]
         ref = norm(v3(sx * 1.0, 0.12, 0))
-        ear = Loft(pts, [0.132, 0.112, 0.074, 0.034], [0.080, 0.066, 0.044, 0.022], [0.046, 0.040, 0.028, 0.014], ref, 10)
+        ear = Loft(pts, [0.150, 0.128, 0.086, 0.040], [0.080, 0.066, 0.044, 0.022], [0.046, 0.040, 0.028, 0.014], ref, 10)
         nm = 'Ear' + ('_L' if sx > 0 else '_R')
         ear.build(md, 'ear', lambda i, t, p, nm=nm: {'Head': 0.6, nm: 0.4} if i == 0 else {nm: 1.0},
                   cap_start=base - ax * 0.10, cap_end=tip)
@@ -802,18 +801,33 @@ def build_kitsune():
         ma.hug.append(dict(kind='tube', tube=tb, lift=[0.0] * len(tb['rings'])))
     # the big HALO loop (reference sheet + in-game views): a bundle of ropes forming
     # one large ring that stands behind the head, tilted back a little, circling the
-    # head in the front view; both ends come down onto the shoulders
+    # head in the front view; both ends come down over the shoulders and continue
+    # down the sides of the neck into the collar (reference harness overlay)
     C, R, tilt = HALO_C, HALO_R, math.radians(HALO_TILT)
     up_ = v3(0, math.sin(tilt), math.cos(tilt))                # ring "up" leans back
     side_ = v3(1, 0, 0)
     nrm_ = np.cross(side_, up_)                                 # ring plane normal
     for dr, dn in ((0.0, 0.0), (-0.035, 0.012), (-0.012, -0.035)):
-        pts = []
+        arc = []
         for k in range(25):
             ang = math.radians(-HALO_SPAN + 2 * HALO_SPAN * k / 24)
-            pts.append(C + side_ * (R + dr) * math.sin(ang) + up_ * (R + dr) * math.cos(ang) + nrm_ * dn)
+            arc.append(C + side_ * (R + dr) * math.sin(ang) + up_ * (R + dr) * math.cos(ang) + nrm_ * dn)
+        ends = []
+        for sx, end, prev in ((-1, arc[0], arc[1]), (1, arc[-1], arc[-2])):
+            tng = norm(end - prev)
+            tie = neck.point(coll_s, sx * math.radians(98), rope_r * 2.2 + 0.03)[0] + v3(0, 0, dn * 0.5)
+            mid = end + tng * 0.07
+            ext = catmull_open([end, mid, (mid + tie) / 2 + v3(sx * 0.02, 0, 0), tie], 2)[1:]
+            ends.append(ext)
+        pts = ends[0][::-1] + arc + ends[1]
         build_tube(ma, 'rope', pts, rope_r * 0.85, 6,
                    lambda i, t, p: {'Chest': 1.0} if p[2] < 1.15 else {'Neck1': 0.5, 'Chest': 0.5}, cap_ends=True)
+    # wrapped ties where the halo meets the collar
+    for sx in (1, -1):
+        tie = neck.point(coll_s, sx * math.radians(98), rope_r * 2.2 + 0.03)[0]
+        tv0 = len(ma.verts)
+        build_sphere(ma, 'knot', tie, (0.040, 0.045, 0.040), 6, 3, {'Neck1': 0.5, 'Chest': 0.5})
+        ma.hug.append(dict(kind='rigid', v0=tv0, v1=len(ma.verts), anchor=tie, clear=0.030))
     v0 = len(ma.verts)
     build_sphere(ma, 'knot', KNOT + v3(0, 0, 0.04), (0.060, 0.050, 0.040), 6, 3, {'Spine': 0.5, 'Chest': 0.5})
     ma.hug.append(dict(kind='rigid', v0=v0, v1=len(ma.verts), anchor=KNOT + v3(0, 0, 0.04), clear=0.030))
