@@ -420,7 +420,7 @@ def paint_samples(s, ctx):
         # purple root -> cyan flame tongues licking toward the tip (like the legs)
         xf = th[m] * 3 / (2 * np.pi) + 0.4 * tt
         tongue = (1 - np.abs(2 * (xf - np.floor(xf)) - 1)) ** 2.2
-        bound = 0.50 - 0.24 * tongue
+        bound = 0.36 - 0.20 * tongue
         cy = smoothstep(bound - 0.015, bound + 0.015, tt)
         cc = lerp3(CYAN, CYAN, smoothstep(0.20, 0.34, tt))
         stripe = smoothstep(0.34, 0.27, aw) * smoothstep(0.30, 0.40, tt)
