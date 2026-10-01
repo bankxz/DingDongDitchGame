@@ -21,7 +21,7 @@ PART_IDS = {
     'torso': 0, 'neck': 1, 'head': 2, 'ear': 3, 'leg_f': 4, 'leg_h': 5,
     'paw': 6, 'claw': 7, 'tail': 8, 'tuft': 9, 'tuft_cyan': 10, 'spike': 11,
     'tail_tuft': 12, 'rope': 13, 'knot': 14, 'gem': 15, 'frame': 16,
-    'bead': 17, 'tassel': 18, 'eye': 19, 'tuft_tip': 20, 'tuft_cheek': 21,
+    'bead': 17, 'tassel': 18, 'eye': 19, 'tuft_tip': 20, 'tuft_cheek': 21, 'ear_fur': 22,
 }
 
 
@@ -563,18 +563,32 @@ HEAD_KEYS_TB = np.array([   # y, top z, bottom z, half width  (domed skull, stop
 HEAD_KEYS = np.c_[HEAD_KEYS_TB[:, 0], (HEAD_KEYS_TB[:, 1] + HEAD_KEYS_TB[:, 2]) / 2, HEAD_KEYS_TB[:, 3],
                   (HEAD_KEYS_TB[:, 1] - HEAD_KEYS_TB[:, 2]) / 2 * 0.92, (HEAD_KEYS_TB[:, 1] - HEAD_KEYS_TB[:, 2]) / 2 * 1.08]
 EYE_S, EYE_TH = 0.38, math.radians(40)
-# cheek ruff (reference head close-ups): a fan of curved flame locks flaring back
-# and out from behind the eye, from under the ear down to the jaw.  Broad bases
-# fuse into one ruff; the tips separate into sharp tongues.
+# cheek ruff (reference head close-ups): a fan of curved flame locks growing ON the
+# cheek, beside and below the eye (temple under the ear -> cheek -> jaw), flaring
+# sideways and a little back so they frame the face in the front view.  Broad
+# bases fuse into the cheek; the tips separate into sharp tongues.
 # (head s, head th deg, direction weights (out along the skin normal, back, up),
 #  length, half width)
 CHEEK_TUFTS = [
-    (0.12, 55, (0.75, 0.55, 0.65), 0.170, 0.040),     # under the ear, sweeps up/back
-    (0.15, 72, (0.95, 0.55, 0.35), 0.215, 0.044),
-    (0.18, 88, (1.00, 0.50, 0.08), 0.245, 0.046),     # eye level, the longest flame
-    (0.20, 104, (1.00, 0.48, -0.22), 0.225, 0.044),
-    (0.21, 120, (0.90, 0.45, -0.48), 0.190, 0.040),
-    (0.20, 136, (0.70, 0.42, -0.70), 0.150, 0.034),   # jaw, runs into the neck ruff
+    (0.22, 60, (1.00, 0.45, 0.50), 0.160, 0.038),     # temple, under the ear, out + up
+    (0.26, 77, (1.00, 0.40, 0.28), 0.195, 0.042),
+    (0.29, 93, (1.00, 0.38, 0.04), 0.225, 0.045),     # cheek at eye level, the longest flame
+    (0.31, 109, (1.00, 0.38, -0.22), 0.205, 0.043),
+    (0.31, 125, (0.95, 0.36, -0.46), 0.175, 0.039),
+    (0.29, 141, (0.80, 0.34, -0.68), 0.140, 0.033),   # jaw
+]
+# sculpted cyan ear fur (reference ears): flame spikes growing out of the cyan rim
+# along both edges.  Left ear, in the ear frame:
+# (a along the ear, c across (+ outer edge), lift off the front face, direction
+#  (across, along, forward), length, half width, half thickness)
+EAR_FUR = [
+    (0.030, 0.100, 0.0, (0.85, 0.53, 0.0), 0.090, 0.022, 0.012),     # outer rim: fur spikes
+    (0.085, 0.092, 0.0, (0.78, 0.63, 0.0), 0.080, 0.020, 0.012),     # sweeping out / up
+    (0.140, 0.078, 0.0, (0.70, 0.71, 0.0), 0.070, 0.018, 0.011),
+    (0.195, 0.060, 0.0, (0.60, 0.80, 0.0), 0.060, 0.016, 0.011),
+    (0.050, -0.094, 0.0, (-0.70, 0.71, 0.0), 0.075, 0.019, 0.012),   # inner rim: spikes
+    (0.110, -0.082, 0.0, (-0.62, 0.78, 0.0), 0.068, 0.017, 0.011),   # pointing in / up
+    (0.170, -0.066, 0.0, (-0.52, 0.85, 0.0), 0.058, 0.015, 0.011),
 ]
 
 
@@ -669,6 +683,23 @@ def build_kitsune():
         nm = 'Ear' + ('_L' if sx > 0 else '_R')
         ear.build(md, 'ear', lambda i, t, p, nm=nm: {'Head': 0.6, nm: 0.4} if i == 0 else {nm: 1.0},
                   cap_start=base - ax * 0.10, cap_end=tip)
+        # sculpted cyan fur (fused into the ear by the voxel remesh)
+        M = v3(sx, 1, 1)
+        eax = norm(EAR_TIP - EAR_BASE)
+        eside = norm(norm(v3(1.0, 0.12, 0)) - np.dot(norm(v3(1.0, 0.12, 0)), eax) * eax)
+        eback = np.cross(eax, eside)
+        eback = eback if eback[1] > 0 else -eback
+        for a, c, lift, (dc, da, df), L, w, th_ in EAR_FUR:
+            root = EAR_BASE + eax * a + eside * c
+            if lift:                                    # on the front face: root just under the surface
+                root = root - eback * 0.030
+                skin = -eback
+            else:                                       # in the rim: flat in the ear plane, root inside the edge
+                root = root - eside * np.sign(c) * 0.022 - eback * 0.010
+                skin = eback
+            d = norm(eside * dc + eax * da - eback * df)
+            build_flame_lock(md, 'ear_fur', root * M, d * M, skin * M, L + 0.022, w, th_, {nm: 1.0}, n=6,
+                             curl_k=0.10)
 
     # ------------------------------------------------------------ cheek ruff
     # closed, flattened flame locks rooted inside the skull: the voxel remesh

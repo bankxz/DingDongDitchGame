@@ -214,10 +214,10 @@ def build_sculpted_body(md, info, S, target_tris, voxel=0.0085, smooth_iters=5, 
         i2, b2 = src.nearest(co[loops_v[m]], part=p)
         _, tt, tth = src.params(i2, b2)
         lt[m], lth[m] = tt, tth
-    # fused locks (cheek ruff): all corners of a face sample the SAME lock, so
+    # fused locks (cheek ruff, ear fur): all corners of a face sample the SAME lock, so
     # the painted pattern never interpolates between two different locks
     lisl = src.tri_island[fidx][loop_face]
-    for p in (kg.PART_IDS['tuft_cheek'],):
+    for p in (kg.PART_IDS['tuft_cheek'], kg.PART_IDS['ear_fur']):
         for isl in np.unique(lisl[lpart == p]):
             m = np.where((lpart == p) & (lisl == isl))[0]
             i2, b2 = src.nearest(co[loops_v[m]], island=isl)
@@ -364,6 +364,7 @@ def scale_uv_islands(ob, importance, S=1.0, part_attr='k_part'):
 
 
 EYE_K = 16                      # outline segments per eye
+EYE_HALF_LEN = 0.039            # half length of the almond (v13: halved)
 EYE_RINGS = ((1.07, -0.010), (1.0, 0.0), (0.70, 0.0035), (0.38, 0.0050))   # (outline scale, lift)
 EYE_TRIS = EYE_K * (2 * (len(EYE_RINGS) - 1) + 1)
 
@@ -374,7 +375,7 @@ def eye_outline(a):
     down toward the nose.  Shared by the lens builder and the texture painter."""
     ca_, sa_ = math.cos(a), math.sin(a)
     h = 0.021 * abs(sa_) ** 1.3 * (1.0 if sa_ > 0 else 0.66) * (1.0 - 0.45 * max(0.0, ca_) ** 3)
-    return 0.078 * ca_, h * np.sign(sa_) - 0.017 * max(0.0, -ca_) ** 1.5
+    return EYE_HALF_LEN * ca_, h * np.sign(sa_) - 0.017 * max(0.0, -ca_) ** 1.5
 
 
 def add_eyes(ma, info, body_ob, S):
