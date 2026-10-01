@@ -255,8 +255,14 @@ def paint_samples(s, ctx):
         vv = d @ C
         ww = d @ Nn
         near = smoothstep(0.06, 0.045, np.abs(ww))
-        # cyan nose tip
-        mk = np.maximum(mk, smoothstep(ctx['nose_y'] + 0.030, ctx['nose_y'] + 0.020, y))    # just the nose tip
+        # cyan nose pad (reference / in-game): an inverted rounded triangle on the
+        # front of the snout tip -- crisp edge, lighter upper centre, deeper rim
+        zr = z - ctx['nose_z']
+        hw = 0.052 * np.clip((zr + 0.036) / 0.078, 0, 1) ** 0.70
+        nose_in = (x / np.maximum(hw, 1e-4)) ** 2.4 + np.clip((zr - 0.030) / 0.016, 0, None) ** 2
+        front_ = smoothstep(ctx['nose_y'] + 0.050, ctx['nose_y'] + 0.038, y)
+        nose = smoothstep(1.06, 0.94, nose_in) * (zr > -0.036) * front_
+        mk_nose = nose
         # bold forehead diamond + crest diamond (centred)
         topw = smoothstep(0.15, 0.35, nzh)
         mk = np.maximum(mk, soft_in(x / 0.040 + np.abs(y - (ey + 0.080)) / 0.075) * topw)
@@ -279,6 +285,10 @@ def paint_samples(s, ctx):
         mk = np.clip(mk, 0, 1) * (1 - liner)
         c = lerp3(c, CYAN, mk)
         c = lerp3(c, EYELINER, liner)
+        nc = lerp3(CYAN, CYAN_LT, smoothstep(0.7, 0.1, nose_in) * smoothstep(-0.01, 0.025, zr) * 0.8)
+        nc = lerp3(nc, CYAN_DK, smoothstep(0.70, 0.95, nose_in) * 0.6)
+        c = lerp3(c, nc, mk_nose)
+        mk = np.maximum(mk, mk_nose)
         col[m], hgt[m], emi[m] = c * toplight[m][:, None], h * 0.5, mk
 
     # ears ------------------------------------------------------------------
@@ -408,6 +418,11 @@ def paint_samples(s, ctx):
         cc = lerp3(cc, CYAN_LT, stripe * 0.85)
         cc = lerp3(cc, CYAN_DK, smoothstep(0.80, 0.86, aw) * 0.6)
         cc = lerp3(cc, TIP_WHITE, smoothstep(0.78, 0.92, tt))
+        # darker fur-strand separations running from each notch toward the root
+        w_ = np.sin(th[m])
+        for wk, t0 in ((-0.26, 0.30), (0.12, 0.35), (0.50, 0.30)):
+            line = smoothstep(0.050, 0.025, np.abs(w_ - wk - 0.10 * (tt - 0.6))) * smoothstep(t0, t0 + 0.12, tt)
+            cc = lerp3(cc, CYAN_DK * 0.8, line * 0.75)
         c = lerp3(PURPLE_HEAD, cc, cy)
         col[m] = c * (0.80 + 0.20 * toplight[m])[:, None]
         hgt[m] = 0.3 + 0.4 * (1 - aw)

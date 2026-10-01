@@ -193,7 +193,7 @@ def paint_textures(ob, lofts, outdir):
     head = lofts['head']
     eye_c, eye_n, along, acr = lofts['eye_frames'][1]       # the seated lens frame (left eye)
     ctx = {'eye_center': eye_c, 'eye_n': eye_n, 'eye_along': along, 'eye_acr': acr,
-           'head_line': np.array([[c[1], c[2]] for c in head.c]), 'nose_y': float(kg.HEAD_KEYS[-1, 0]) - 0.033,
+           'head_line': np.array([[c[1], c[2]] for c in head.c]), 'nose_y': float(kg.HEAD_KEYS[-1, 0]) - 0.033, 'nose_z': float(kg.HEAD_KEYS[-1, 1]) + 0.01,
            'eye_poly': np.array([ks.eye_outline(kg.TAU * k / 256) for k in range(256)]), 'ear': ear_frame(tri)}
     img, em, ro, nrm, face_reg, has = kp.paint_all(tri['uv'], tri['t'], tri['th'], tri['P'], tri['N'], tri['part'],
                                                    tri['face'], tri['rl'], len(ob.data.polygons), ctx, TEX_SIZE)

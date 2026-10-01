@@ -509,6 +509,76 @@ def build_flame_lock(md, part, root, d, skin_n, length, width, thick, weight, n=
     return loft
 
 
+def ear_clip(poly):
+    """Triangulate a simple 2D polygon (CCW) by ear clipping -> index triples."""
+    P = [np.asarray(p, float) for p in poly]
+    idx = list(range(len(P)))
+    cross = lambda o, a, b: (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0])
+    out = []
+    guard = 0
+    while len(idx) > 3 and guard < 10000:
+        guard += 1
+        for k in range(len(idx)):
+            i0, i1, i2 = idx[k - 1], idx[k], idx[(k + 1) % len(idx)]
+            a, b, c = P[i0], P[i1], P[i2]
+            if cross(a, b, c) <= 1e-12:
+                continue
+            inside = False
+            for j in idx:
+                if j in (i0, i1, i2):
+                    continue
+                q = P[j]
+                if cross(a, b, q) >= 0 and cross(b, c, q) >= 0 and cross(c, a, q) >= 0:
+                    inside = True
+                    break
+            if not inside:
+                out.append((i0, i1, i2))
+                idx.pop(k)
+                break
+    out.append(tuple(idx))
+    return out
+
+
+def build_slab(md, part, outline, origin, ax_u, ax_v, thick, weight):
+    """Closed flat slab from a 2D outline (u along ax_u, v along ax_v), thickness
+    along ax_u x ax_v.  Loft-style params for the painter: t = u / max(u),
+    th = across position (sin(th) = v / max|v| on the faces, +-1 on the walls)."""
+    ol = [np.asarray(p, float) for p in outline]
+    area = sum(a[0] * b[1] - b[0] * a[1] for a, b in zip(ol, ol[1:] + ol[:1]))
+    if area < 0:
+        ol = ol[::-1]
+    nrm = norm(np.cross(ax_u, ax_v))
+    umax = max(p[0] for p in ol)
+    vmax = max(abs(p[1]) for p in ol)
+    isl = md.new_island(part)
+    first = len(md.faces)
+    top, bot = [], []
+    for u, v in ol:
+        base = origin + ax_u * u + ax_v * v
+        taper = 1.0 - 0.55 * max(0.0, u / umax) ** 1.5           # thinner toward the tips
+        top.append(md.add_vert(base + nrm * thick * taper, weight))
+        bot.append(md.add_vert(base - nrm * thick * taper, weight))
+    tpar = lambda p: max(0.0, p[0]) / umax
+    ang = lambda p: math.asin(max(-1.0, min(1.0, p[1] / vmax))) * 0.95
+    uv = lambda p, f: (p[0] + 0.0, p[1] + (0.0 if f == 0 else 2.2 * vmax))
+    for i0, i1, i2 in ear_clip(ol):
+        tri = (ol[i0], ol[i1], ol[i2])
+        md.add_face([top[i0], top[i1], top[i2]], [uv(q, 0) for q in tri], [(tpar(q), ang(q)) for q in tri], part, isl)
+        md.add_face([bot[i2], bot[i1], bot[i0]], [uv(q, 1) for q in tri[::-1]],
+                    [(tpar(q), math.pi - ang(q)) for q in tri[::-1]], part, isl)
+    n = len(ol)
+    L = 0.0
+    for i in range(n):
+        j = (i + 1) % n
+        seg = np.linalg.norm(ol[j] - ol[i])
+        w = math.copysign(math.pi / 2, (ol[i][1] + ol[j][1]) or 1.0)
+        md.add_face([top[i], bot[i], bot[j], top[j]],
+                    [(L, 4.5 * vmax), (L, 4.5 * vmax + 2 * thick), (L + seg, 4.5 * vmax + 2 * thick), (L + seg, 4.5 * vmax)],
+                    [(tpar(ol[i]), w), (tpar(ol[i]), w), (tpar(ol[j]), w), (tpar(ol[j]), w)], part, isl)
+        L += seg
+    md.orient_piece(first)
+
+
 def catmull_loop(pts, n_per):
     pts = [np.asarray(p, float) for p in pts]
     N = len(pts)
@@ -545,8 +615,9 @@ FRONT_LEG = [v3(0.23, -0.30, 0.82), v3(0.26, -0.27, 0.46), v3(0.275, -0.33, 0.13
 HIND_LEG = [v3(0.22, 0.56, 0.84), v3(0.265, 0.45, 0.53), v3(0.28, 0.74, 0.24), v3(0.28, 0.71, 0.09)]
 FRONT_PAW_C = v3(0.285, -0.385, 0.060)          # pad centre
 HIND_PAW_C = v3(0.285, 0.665, 0.060)
-EAR_BASE = v3(0.135, -0.66, 1.45)
-EAR_TIP = v3(0.335, -0.655, 1.655)         # v17: short, pointed, splayed ~45 deg (in-game ears)
+HEAD_LIFT = v3(0.0, 0.05, 0.06)            # v19: head sits higher / further back on a more upright neck
+EAR_BASE = v3(0.135, -0.66, 1.45) + HEAD_LIFT
+EAR_TIP = v3(0.335, -0.655, 1.655) + HEAD_LIFT         # v17: short, pointed, splayed ~45 deg (in-game ears)
 KNOT = v3(0.0, 0.14, 1.03)
 TASSEL_TOP = v3(0.33, 0.14, 0.84)
 
@@ -560,6 +631,7 @@ HEAD_KEYS_TB = np.array([   # y, top z, bottom z, half width  (domed skull, stop
     [-0.58, 1.44, 1.23, 0.155], [-0.64, 1.48, 1.21, 0.215], [-0.71, 1.475, 1.20, 0.235], [-0.77, 1.44, 1.18, 0.210],
     [-0.82, 1.378, 1.158, 0.140], [-0.87, 1.345, 1.142, 0.112], [-0.92, 1.320, 1.136, 0.098], [-0.97, 1.296, 1.136, 0.085],
     [-1.01, 1.276, 1.141, 0.071], [-1.045, 1.256, 1.151, 0.053]])
+HEAD_KEYS_TB = HEAD_KEYS_TB + np.array([[HEAD_LIFT[1], HEAD_LIFT[2], HEAD_LIFT[2], 0.0]])
 HEAD_KEYS = np.c_[HEAD_KEYS_TB[:, 0], (HEAD_KEYS_TB[:, 1] + HEAD_KEYS_TB[:, 2]) / 2, HEAD_KEYS_TB[:, 3],
                   (HEAD_KEYS_TB[:, 1] - HEAD_KEYS_TB[:, 2]) / 2 * 0.92, (HEAD_KEYS_TB[:, 1] - HEAD_KEYS_TB[:, 2]) / 2 * 1.08]
 EYE_S, EYE_TH = 0.38, math.radians(40)
@@ -570,17 +642,19 @@ EYE_S, EYE_TH = 0.38, math.radians(40)
 # (head s, head th deg, direction weights (out along the skin normal, back, up),
 #  length, half width)
 CHEEK_TUFTS = [
-    (0.22, 60, (1.00, 0.45, 0.50), 0.160, 0.038),     # temple, under the ear, out + up
-    (0.26, 77, (1.00, 0.40, 0.28), 0.195, 0.042),
-    (0.29, 93, (1.00, 0.38, 0.04), 0.225, 0.045),     # cheek at eye level, the longest flame
-    (0.31, 109, (1.00, 0.38, -0.22), 0.205, 0.043),
-    (0.31, 125, (0.95, 0.36, -0.46), 0.175, 0.039),
-    (0.29, 141, (0.80, 0.34, -0.68), 0.140, 0.033),   # jaw
+    (0.31, 100, (0.80, 0.50, -0.30), 1.00),     # main tuft: cheek below the eye, sweeps back / out / down
+    (0.24, 72, (0.80, 0.55, 0.20), 0.62),       # smaller tuft layered above it, under the ear
+]
+# in-game cheek tuft: one broad flat lock whose end splits into saw-tooth points
+# (u along the lock from the root, v across), unit = 0.24
+CHEEK_TUFT_OUTLINE = [
+    (0.00, -0.12), (0.40, -0.14), (0.60, -0.16), (0.82, -0.25), (0.62, -0.06), (0.92, -0.05),
+    (0.70, 0.03), (1.00, 0.11), (0.66, 0.13), (0.72, 0.21), (0.48, 0.16), (0.25, 0.16), (0.00, 0.13),
 ]
 # nape mane: (loft, s, th deg, direction weights (out, back, up), length, half width)
 MANE_LOCKS = []                                # v18: the top of the neck stays smooth
 # halo harness loop: centre, radius, backward tilt (deg), half arc (deg from the top)
-HALO_C, HALO_R, HALO_TILT, HALO_SPAN = v3(0.0, -0.28, 1.27), 0.48, 46.0, 128.0
+HALO_C, HALO_R, HALO_TILT, HALO_SPAN = v3(0.0, -0.25, 1.31), 0.48, 46.0, 128.0
 # sculpted cyan ear fur (in-game ears): a bold lock curling inward at the inner
 # base and one small spike on the inner edge; the outer edge stays clean.  Left ear, in the ear frame:
 # (a along the ear, c across (+ outer edge), lift off the front face, direction
@@ -654,12 +728,12 @@ def build_kitsune():
     # ------------------------------------------------------------------- neck
     # thick neck running INTO the back of the skull and under the jaw; the
     # remesh fuses it with the head into one continuous surface
-    nkeys = [v3(0, -0.34, 0.83), v3(0, -0.45, 0.97), v3(0, -0.54, 1.10), v3(0, -0.62, 1.22), v3(0, -0.70, 1.30)]
+    nkeys = [v3(0, -0.34, 0.83), v3(0, -0.43, 0.99), v3(0, -0.50, 1.14), v3(0, -0.57, 1.27), v3(0, -0.65, 1.36)]   # upright
     neck_c = catmull_open(nkeys, 3)
     nr = np.linspace(0, 1, len(neck_c))
-    nrw = list(np.interp(nr, [0, 0.7, 1], [0.29, 0.20, 0.15]))
-    nrt = list(np.interp(nr, [0, 0.7, 1], [0.24, 0.20, 0.155]))     # thick nape, no dip at the skull
-    nrb = list(np.interp(nr, [0, 0.7, 1], [0.30, 0.19, 0.13]))
+    nrw = list(np.interp(nr, [0, 0.7, 1], [0.30, 0.22, 0.16]))
+    nrt = list(np.interp(nr, [0, 0.7, 1], [0.27, 0.22, 0.17]))     # thick nape, no dip at the skull
+    nrb = list(np.interp(nr, [0, 0.7, 1], [0.34, 0.25, 0.15]))     # fuller throat / chest
     neck = Loft(neck_c, nrw, nrt, nrb, X, 20)
     neck_j = [(0.0, 'Chest'), (0.30, 'Neck1'), (0.70, 'Neck2'), (1.0, 'Head')]
     neck.build(md, 'neck', lambda i, t, p: blend_chain(t, neck_j),
@@ -670,7 +744,7 @@ def build_kitsune():
     hy, (hz, hrw, hrt, hrb) = smooth_rows(HEAD_KEYS, 16)
     head = Loft([v3(0, y, z) for y, z in zip(hy, hz)], hrw, hrt, hrb, X, 22)
     head.build(md, 'head', lambda i, t, p: {'Head': 1.0} if i > 0 else {'Head': 0.8, 'Neck2': 0.2},
-               cap_start=v3(0, -0.54, 1.335), cap_end=v3(0, -1.078, 1.205))
+               cap_start=v3(0, -0.54, 1.335) + HEAD_LIFT, cap_end=v3(0, -1.078, 1.205) + HEAD_LIFT)
 
     # ------------------------------------------------------------------- ears
     for sx in (1, -1):
@@ -715,10 +789,15 @@ def build_kitsune():
     # closed, flattened flame locks rooted inside the skull: the voxel remesh
     # fuses them into the face, so they are sculpted fur (no separate cards)
     for sx in (1, -1):
-        for s, thd, (o, b, u), L, w in CHEEK_TUFTS:
-            p, n, _ = head.point(s, sx * math.radians(thd), 0.0)
+        for s_, thd, (o, b, u), sc in CHEEK_TUFTS:
+            p, n, _ = head.point(s_, sx * math.radians(thd), 0.0)
             d = norm(n * o + v3(0, b, u))
-            build_flame_lock(md, 'tuft_cheek', p - n * 0.035, d, n, L + 0.035, w, 0.017, {'Head': 1.0}, curl_k=0.24)
+            flat = norm(n - np.dot(n, d) * d)
+            vax = norm(np.cross(flat, d))
+            vax = vax if vax[2] >= 0 else -vax                     # +v = upper edge on both sides
+            unit = 0.30 * sc
+            outline = [(uu * unit, vv * unit) for uu, vv in CHEEK_TUFT_OUTLINE]
+            build_slab(md, 'tuft_cheek', outline, p - n * 0.030 - d * 0.03, d, vax, 0.016, {'Head': 1.0})
 
     # ------------------------------------------------------------------- legs + paws
     toe_tips = []
