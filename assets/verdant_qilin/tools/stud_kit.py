@@ -269,7 +269,7 @@ def new_scene():
     return bpy.context.scene
 
 
-def make_material(name, color_png, normal_png=None, glow=False, emission=0.55):
+def make_material(name, color_png, normal_png=None, glow=False, emission=0.55, emissive_png=None):
     """Principled material on the atlas. Glow materials add emission (Blender preview only -
     in Roblox set that MeshPart to Neon/Glass)."""
     import bpy
@@ -287,6 +287,10 @@ def make_material(name, color_png, normal_png=None, glow=False, emission=0.55):
         ni.image.colorspace_settings.name = 'Non-Color'
         nm = nt.nodes.new('ShaderNodeNormalMap'); nm.inputs['Strength'].default_value = .8
         nt.links.new(ni.outputs['Color'], nm.inputs['Color']); nt.links.new(nm.outputs['Normal'], b.inputs['Normal'])
+    if emissive_png:
+        ei = nt.nodes.new('ShaderNodeTexImage'); ei.image = bpy.data.images.load(os.path.abspath(emissive_png), check_existing=True)
+        ei.image.colorspace_settings.name = 'sRGB'
+        nt.links.new(ei.outputs['Color'], b.inputs['Emission Color']); b.inputs['Emission Strength'].default_value = emission
     return m
 
 

@@ -14,7 +14,7 @@ def V(*a):
 
 K.init(os.path.join(HERE, 'textures', 'atlas_regions.json'), stud=0.3)
 BODY = K.MeshAcc('Qilin_Body')
-GLOW = K.MeshAcc('Qilin_Glow', glow=True)
+GLOW = BODY          # single mesh: glow comes from the emissive texture, not a second part
 W = K.W
 rnd = random.Random(7)
 Z = V((0, 0, 1)); Y = V((0, 1, 0)); X = V((1, 0, 0))
@@ -67,10 +67,15 @@ def frustum(acc, p0, p1, w0, w1, slot, wt, h0=None, h1=None, up=None, caps=(True
     solid(acc, pts, fs, slot, wt, slots)
 
 
-def leaf(acc, base, d, length, width, wt, slot, n=None, closed=True, ridge=0.26, widest=0.45,
-         droop=0.0, slot_b=None):
-    """Kite-shaped faceted leaf: 4 ridge facets on top (+n side) and a 2-tri back (closed)."""
-    d = V(d).normalized(); base = V(base); width = max(width, length * 0.52)
+LEAF_UV = {'b': (128, 252), 'R': (252, 143), 't': (128, 4), 'L': (4, 143), 'c': (128, 120)}   # px in the 256 leaf swatch
+LEAF_FLAT = (6, 6)                                                                             # plain colour outside the kite
+
+def leaf(acc, base, d, length, width, wt, slot, n=None, closed=True, ridge=0.28, widest=0.45,
+         droop=0.06, slot_b=None):
+    """Broad faceted kite leaf. Top = 4 ridge facets textured from the leaf swatch (studs + glowing rim,
+    see Emissive.png); optional 2-tri back."""
+    if slot == 'glowLeaf': slot = 'limeBright'
+    d = V(d).normalized(); base = V(base); width = max(width, length * 0.64)
     n = V(n) if n is not None else Z
     n = n - d * n.dot(d)
     if n.length < 1e-4: n = Z - d * Z.dot(d)
@@ -78,14 +83,16 @@ def leaf(acc, base, d, length, width, wt, slot, n=None, closed=True, ridge=0.26,
     n = n.normalized(); r = d.cross(n).normalized()
     wp = wt if isinstance(wt, dict) else wt(base)
     b = acc.add_v(base, wp)
-    L = acc.add_v(base + d * length * widest - r * width / 2, wp)
-    R = acc.add_v(base + d * length * widest + r * width / 2, wp)
+    L = acc.add_v(base + d * length * widest - r * width / 2 - n * width * 0.04, wp)
+    R = acc.add_v(base + d * length * widest + r * width / 2 - n * width * 0.04, wp)
     t = acc.add_v(base + d * length - n * droop * length, wp)
-    c = acc.add_v(base + d * length * (widest + 0.1) + n * width * ridge, wp)
-    acc.face([b, R, c], slot); acc.face([R, t, c], slot); acc.face([t, L, c], slot); acc.face([L, b, c], slot)
+    c = acc.add_v(base + d * length * (widest + 0.08) + n * width * ridge, wp)
+    uv = lambda k: K._uv_rect(slot, *LEAF_UV[k])
+    acc.face([b, R, c], slot, [uv('b'), uv('R'), uv('c')]); acc.face([R, t, c], slot, [uv('R'), uv('t'), uv('c')])
+    acc.face([t, L, c], slot, [uv('t'), uv('L'), uv('c')]); acc.face([L, b, c], slot, [uv('L'), uv('b'), uv('c')])
     if closed:
-        sb = slot_b or slot
-        acc.face([b, L, t], sb); acc.face([b, t, R], sb)
+        f = K._uv_rect(slot, *LEAF_FLAT)
+        acc.face([b, L, t], slot, [f, f, f]); acc.face([b, t, R], slot, [f, f, f])
 
 
 LEAF_SLOTS = ['limeBright', 'lime', 'mid', 'dark', 'deep']
@@ -250,7 +257,7 @@ def mane():
     wtf = lambda z: interp_w([(4.9, 'Chest'), (5.8, 'Neck1'), (6.6, 'Neck2'), (7.4, 'Head')], z)
     for layer, rad in enumerate((0.8, 1.05, 1.3)):
         for ti, t in enumerate([i / (8 if layer < 2 else 6) for i in range(9 if layer < 2 else 7)]):
-            nang = (13 if layer < 2 else 11) if t < 0.88 else 9
+            nang = (15 if layer < 2 else 12) if t < 0.88 else 9
             for k in range(nang):
                 ph = math.radians(-135 + 270 * (k + 0.5 * (ti % 2)) / nang) + rnd.uniform(-.08, .08)
                 o = B * math.cos(ph) + S * math.sin(ph)
@@ -259,10 +266,10 @@ def mane():
                 d = (o * (0.2 + 0.15 * layer) + sweep).normalized()
                 ln = rnd.uniform(1.5, 2.1) * (0.9 + 0.2 * layer) * (1.0 + 0.12 * (1 - t))
                 lit = 0.30 + 0.30 * o.z + 0.25 * abs(math.sin(ph)) + 0.12 * t + 0.1 * layer
-                slot = pick_slot(lit, -0.14)
+                slot = pick_slot(lit, 0.0)
                 glow = slot == 'limeBright' and rnd.random() < .5
                 leaf(GLOW if glow else BODY, base, d, ln, ln * rnd.uniform(.55, .68), wtf(base.z),
-                     'glowLeaf' if glow else slot, n=o)
+                     'glowLeaf' if glow else slot, n=o, closed=(layer == 0))
     # long top-of-mane leaves streaming back over the withers
     for i in range(9):
         x = rnd.uniform(-1.1, 1.1); t = rnd.uniform(0.2, 0.9)
@@ -293,7 +300,7 @@ def body_leaves():
                 b = V(s * (1.3 + 0.15 * layer), y + rnd.uniform(-.2, .2), z0 + rnd.uniform(-.15, .15))
                 d = V(s * 0.18, 0.9, -0.45 - 0.1 * layer).normalized()
                 ln = rnd.uniform(2.3, 3.0) - 0.2 * layer
-                leaf(BODY, b, d, ln, ln * .6, wpos(b), rnd.choice(slots_), n=V(s, 0, 0.8), ridge=.24)
+                leaf(BODY, b, d, ln, ln * .6, wpos(b), rnd.choice(slots_), n=V(s, 0, 0.8), closed=False)
     # spine row
     for y in [-6.0, -5.4, -4.8, -4.2, -3.6, -3.0, -2.4]:
         for x in (-1.0, -0.35, 0.35, 1.0):
@@ -302,7 +309,7 @@ def body_leaves():
             slot = pick_slot(0.55 + .3 * (1 - abs(x)) + rnd.uniform(-.1, .2))
             glow = slot == 'limeBright' and rnd.random() < .6
             ln = rnd.uniform(1.5, 2.1)
-            leaf(GLOW if glow else BODY, b, d, ln, ln * .6, wpos(b), 'glowLeaf' if glow else slot, n=Z + V(x * .3, 0, 0))
+            leaf(GLOW if glow else BODY, b, d, ln, ln * .6, wpos(b), 'glowLeaf' if glow else slot, n=Z + V(x * .3, 0, 0), closed=False)
     for s in (1, -1):
         for y, z in [(-3.2, 5.1)]:
             leaf(BODY, V(s * 1.5, y, z), V(s * 0.35, 0.7, -0.45), 1.7, 1.0, W('Pelvis'), rnd.choice(['mid', 'lime']), n=V(s, 0, 1))
@@ -321,9 +328,9 @@ def tail():
             q = i / (cnt - 1)
             lat = (q - .5) * 2 + rnd.uniform(-.12, .12)
             pitch = (0.7 - 2.6 * q) + rnd.uniform(-.15, .15)
-            d = V(lat * (0.18 + 0.08 * ring), 1.0, pitch).normalized()
+            d = V(lat * (0.32 + 0.1 * ring), 1.0, pitch).normalized()
             down = max(0, -d.z)
-            nn = (V(1 if lat > 0 else -1, 0, 0) * (0.5 + down) + Z * (1 - down) * 0.6).normalized()
+            nn = (V(1 if lat > 0 else -1, 0, 0) * (0.3 + rnd.uniform(0, .8) + 0.5 * down) + Z * rnd.uniform(0.2, 1.0) * (1 - 0.5 * down)).normalized()
             ln = (2.3 + 1.0 * (1 - abs(lat)) + 1.1 * down) * (0.8 + .1 * ring)
             slot = pick_slot(0.5 + 0.4 * (1 - ring / 3) + 0.2 * down, 0)
             b = base + V(lat * .25, 0.1 * ring, 0)
@@ -334,22 +341,22 @@ def tail():
 # ------------------------------------------------------------------ build all
 def build_geometry():
     torso(); hips(); neck(); head(); gem(); antler(); legs(); mane(); body_leaves(); tail()
-    print('tris body', BODY.tris(), 'glow', GLOW.tris(), 'total', BODY.tris() + GLOW.tris())
+    print('tris total', BODY.tris())
 
 
 def build_scene(out_blend):
     import bpy
     K.new_scene()
     tex = os.path.join(HERE, 'textures')
-    matb = K.make_material('QilinBody', os.path.join(tex, 'Color.png'), os.path.join(tex, 'Normal.png'))
-    matg = K.make_material('QilinGlow', os.path.join(tex, 'Color.png'), None, glow=True, emission=0.55)
-    body = K.build_object(BODY, matb); glow = K.build_object(GLOW, matg)
-    arm = K.build_armature('VerdantQilin', BONES, [body, glow])
+    matb = K.make_material('QilinBody', os.path.join(tex, 'Color.png'), os.path.join(tex, 'Normal.png'),
+                           emissive_png=os.path.join(tex, 'Emissive.png'), emission=0.7)
+    body = K.build_object(BODY, matb)
+    arm = K.build_armature('VerdantQilin', BONES, [body])
     import anim_clips
     anim_clips.make(arm, LEGBONES)
     os.makedirs(os.path.dirname(out_blend), exist_ok=True)
     bpy.ops.wm.save_as_mainfile(filepath=out_blend)
-    tris = sum(sum(len(p.vertices) - 2 for p in o.data.polygons) for o in (body, glow))
+    tris = sum(sum(len(p.vertices) - 2 for p in o.data.polygons) for o in (body,))
     print('final tris', tris)
 
 

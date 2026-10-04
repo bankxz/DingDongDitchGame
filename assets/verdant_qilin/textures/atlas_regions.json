@@ -62,42 +62,30 @@
    256,
    256
   ],
-  "glowLeaf": [
-   512,
-   512,
-   256,
-   256
-  ],
   "nose": [
-   768,
+   512,
    512,
    128,
    128
   ],
   "eye": [
-   768,
    640,
+   512,
    128,
    128
   ],
   "gem": [
-   896,
    512,
+   640,
    128,
    128
   ]
  },
  "studded": [
-  "limeBright",
-  "lime",
-  "mid",
-  "dark",
-  "deep",
   "olive",
   "brown",
   "brownD",
   "cream",
-  "creamB",
-  "glowLeaf"
+  "creamB"
  ]
 }

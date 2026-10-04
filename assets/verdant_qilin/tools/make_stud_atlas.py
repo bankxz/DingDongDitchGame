@@ -38,6 +38,7 @@ nrm_s /= np.linalg.norm(nrm_s, axis=-1, keepdims=True)
 
 img = np.zeros((S, S, 3), np.float32); img[...] = col(next(iter(pal), '#000000')) if pal else 0
 nmap = np.zeros((S, S, 3), np.float32); nmap[...] = (0.5, 0.5, 1.0)
+emi = np.zeros((S, S, 3), np.float32)
 
 def paint(rect, fn):
     x, y, w, h = rect
@@ -106,6 +107,40 @@ def gold(spec):
         d.rectangle([0, 0, w - 1, h - 1], outline=(0xb0, 0x78, 0x10), width=3)
     return fn
 
+
+def leaf_swatch(spec, rect):
+    """Faceted kite leaf: studs on the surface, glowing rim + facet ridges (also written to the emissive map)."""
+    x, y, w, h = rect; SS = 4
+    base = col(spec['color']); k = spec.get('emit', 1.0)
+    big = tile // 2 if False else 64 * 2                       # stud tile (2x2 studs) = 128 px -> ~4 studs across a leaf
+    shade_l = np.asarray(Image.fromarray((np.clip(shade, 0, 1.4) / 1.4 * 255).astype(np.uint8)).resize((big, big), Image.LANCZOS)).astype(np.float32) / 255 * 1.4
+    reps = (h // big + 1, w // big + 1)
+    sh = np.tile(shade_l, reps)[:h, :w]
+    pts = [(w / 2, h - 4), (w - 4, h * 0.56), (w / 2, 4), (4, h * 0.56)]       # base, right, tip, left
+    ctr = (w / 2, h * 0.47)
+    m = Image.new('L', (w * SS, h * SS), 0); ImageDraw.Draw(m).polygon([(px * SS, py * SS) for px, py in pts], fill=255)
+    inner = m.filter(ImageFilter.GaussianBlur(6 * SS)).point(lambda v: 255 if v > 232 else 0).filter(ImageFilter.GaussianBlur(2 * SS))
+    msk = np.asarray(m.resize((w, h), Image.LANCZOS)).astype(np.float32) / 255
+    inn = np.asarray(inner.resize((w, h), Image.LANCZOS)).astype(np.float32) / 255
+    rim = np.clip(msk - inn, 0, 1)
+    # facet tones (lit / shaded halves) so the ridge reads even without lighting
+    tone = np.ones((h, w), np.float32)
+    yy, xx = np.mgrid[0:h, 0:w]
+    tone *= np.where(xx < w / 2, 0.93, 1.06)
+    tone *= np.where(yy < h * 0.47, 1.0, 0.96)
+    c = np.broadcast_to(base, (h, w, 3)) * (sh * tone)[..., None]
+    lite = np.array([0.82, 1.0, 0.45], np.float32)
+    ridge = Image.new('L', (w, h), 0); rd = ImageDraw.Draw(ridge)
+    for p in pts: rd.line([ctr, p], fill=255, width=3)
+    rd.line([pts[0], pts[2]], fill=255, width=3)
+    rg = np.asarray(ridge.filter(ImageFilter.GaussianBlur(1.2))).astype(np.float32) / 255
+    glow = np.clip(rim * 1.0 + rg * 0.55, 0, 1)[..., None]
+    c = c * (1 - 0.4 * glow) + (base * 0.5 + lite * 0.5) * 0.4 * glow
+    out = np.where(msk[..., None] > 0.5, c, base * 0.5)
+    img[y:y + h, x:x + w] = np.clip(out, 0, 1)
+    emi[y:y + h, x:x + w] = np.clip((base * 0.4 + lite * 0.6) * glow * k, 0, 1) * (msk[..., None] > 0.5)
+    nmap[y:y + h, x:x + w] = np.tile(nrm_s, (h // tile + 1, w // tile + 1, 1))[:h, :w] * 0.5 + 0.5
+
 studded = []
 for name, spec in cfg['slots'].items():
     x, y, w, h = spec['rect']; kind = spec['kind']
@@ -123,11 +158,13 @@ for name, spec in cfg['slots'].items():
     elif kind == 'gradient': paint(spec['rect'], gradient(hexc(spec['from']), hexc(spec['to'])))
     elif kind == 'gold': paint(spec['rect'], gold(spec))
     elif kind == 'crystal': paint(spec['rect'], crystal(spec))
-    elif kind == 'eye': paint(spec['rect'], eye(spec))
-    elif kind == 'gem': paint(spec['rect'], gem(spec))
+    elif kind == 'eye': paint(spec['rect'], eye(spec)); emi[y:y + h, x:x + w] = img[y:y + h, x:x + w]
+    elif kind == 'gem': paint(spec['rect'], gem(spec)); emi[y:y + h, x:x + w] = img[y:y + h, x:x + w]
+    elif kind == 'leaf': leaf_swatch(spec, spec['rect'])
     else: raise SystemExit(f'unknown slot kind {kind}')
 
 Image.fromarray((np.clip(img, 0, 1) * 255).astype(np.uint8)).save(os.path.join(OUT, 'Color.png'))
+Image.fromarray((np.clip(emi, 0, 1) * 255).astype(np.uint8)).save(os.path.join(OUT, 'Emissive.png'))
 Image.fromarray((np.clip(nmap, 0, 1) * 255).astype(np.uint8)).save(os.path.join(OUT, 'Normal.png'))
 json.dump({'size': S, 'px_per_stud': PX, 'slots': {k: v['rect'] for k, v in cfg['slots'].items()}, 'studded': studded},
           open(os.path.join(OUT, 'atlas_regions.json'), 'w'), indent=1)
