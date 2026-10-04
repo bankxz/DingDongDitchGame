@@ -1,0 +1,21 @@
+{
+  "size": 1024, "px_per_stud": 32, "stud_strength": 0.55,
+  "palette": {
+    "olive": "#6f8433", "brown": "#6b4630", "cream": "#e9cfa8", "leafL": "#8fd12c",
+    "leafM": "#5aa72e", "leafD": "#2b6e2f", "leafX": "#1b4d26", "bark": "#563624", "nose": "#2a4a30"
+  },
+  "slots": {
+    "olive":  {"rect": [0, 0, 512, 512],     "kind": "studs", "color": "olive", "top_tint": ["#9ab33f", 0.2]},
+    "brown":  {"rect": [512, 0, 512, 256],   "kind": "studs", "color": "brown", "top_tint": ["#8a5d3e", 0.2]},
+    "cream":  {"rect": [512, 256, 512, 256], "kind": "studs", "color": "cream", "top_tint": ["#fff0d2", 0.25]},
+    "leafL":  {"rect": [0, 512, 256, 256],   "kind": "studs", "color": "leafL", "top_tint": ["#b6ee4a", 0.3]},
+    "leafM":  {"rect": [256, 512, 256, 256], "kind": "studs", "color": "leafM", "top_tint": ["#7cc443", 0.25]},
+    "leafD":  {"rect": [512, 512, 256, 128], "kind": "studs", "color": "leafD", "top_tint": ["#3f8a3a", 0.2]},
+    "leafX":  {"rect": [512, 640, 256, 128], "kind": "studs", "color": "leafX", "top_tint": ["#2b6a30", 0.2]},
+    "bark":   {"rect": [768, 512, 256, 128], "kind": "studs", "color": "bark", "top_tint": ["#7a4f35", 0.2]},
+    "nose":   {"rect": [768, 640, 128, 128], "kind": "flat", "color": "nose"},
+    "glowleaf": {"rect": [0, 768, 256, 256], "kind": "glowleaf", "base": "#3fae2c", "tip": "#d6ff7a", "edge": "#c8ff5c", "emit": 0.95, "emit_pow": 1.4},
+    "gem":    {"rect": [256, 768, 256, 256], "kind": "gem", "hi": "#a8ffb8", "mid": "#36f95d", "lo": "#0a9a38", "emit": 1.0},
+    "eye":    {"rect": [512, 768, 128, 128], "kind": "eye", "glow": "#4dff5a", "pupil": "#0d5a22", "aspect": 2.2, "emit": 1.0}
+  }
+}

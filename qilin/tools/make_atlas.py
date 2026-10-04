@@ -1,0 +1,179 @@
+"""Build a 1024x1024 colour atlas (+ matching normal atlas) for stud-style Roblox models.
+
+Usage:
+  python3 make_stud_atlas.py <Roblox-HD-Studs checkout> <atlas_config.json> <out_dir>
+
+Studded swatches bake the Roblox stud relief (dudeax/Roblox-HD-Studs, MIT) into the
+colour so the look survives a plain MeshPart.TextureID; the normal atlas is optional
+for SurfaceAppearance. Other swatch kinds: flat, gradient, gold, crystal, eye, gem.
+Writes <out>/Color.png, <out>/Normal.png and <out>/atlas_regions.json (slot rects,
+px_per_stud, studded slot names) which stud_kit.py reads.
+"""
+import json, os, sys
+import numpy as np
+from PIL import Image, ImageDraw, ImageFilter
+
+STUDS, CFG, OUT = sys.argv[1], sys.argv[2], sys.argv[3]
+cfg = json.load(open(CFG)); os.makedirs(OUT, exist_ok=True)
+S = cfg.get('size', 1024); PX = cfg.get('px_per_stud', 32); STRENGTH = cfg.get('stud_strength', 0.5)
+hexc = lambda h: tuple(int(h.lstrip('#')[i:i + 2], 16) for i in (0, 2, 4))
+pal = {k: hexc(v) for k, v in cfg.get('palette', {}).items()}
+col = lambda c: np.array(pal.get(c, hexc(c) if isinstance(c, str) and c.startswith('#') else (128, 128, 128)), np.float32) / 255
+lerp = lambda a, b, t: tuple(int(a[i] + (b[i] - a[i]) * t) for i in range(3))
+
+def load(p, size):
+    return np.asarray(Image.open(p).convert('RGBA').resize((size, size), Image.LANCZOS)).astype(np.float32) / 255
+
+tile = 2 * PX                                                   # source tiles are 2x2 studs
+ao = load(os.path.join(STUDS, '2x2 Textures/Diffuse Maps/Studs 2x2 AO Diffuse.png'), tile)[..., 0]
+inlet = load(os.path.join(STUDS, '2x2 Textures/Diffuse Maps/Inlets 2x2 AO Diffuse.png'), tile)[..., 0]
+nrm = load(os.path.join(STUDS, '2x2 Textures/Smooth/Studs 2x2 Normal.png'), tile)[..., :3] * 2 - 1
+L = np.array([-0.45, 0.55, 0.70]); L /= np.linalg.norm(L)          # baked light from top-left
+lam = np.clip((nrm * L).sum(-1), 0, 1)
+shade = np.clip(0.80 + 0.20 * ao, 0, 1) * (1.0 + 0.9 * (lam - L[2]))
+shade = 1.0 + STRENGTH * (shade - 1.0)                              # stud opacity / strength
+stud_mask = np.clip((inlet.max() - inlet) / max(1e-6, inlet.max() - inlet.min()) * 1.6, 0, 1)
+nrm_s = nrm * STRENGTH + np.array([0, 0, 1.0]) * (1 - STRENGTH)
+nrm_s /= np.linalg.norm(nrm_s, axis=-1, keepdims=True)
+
+img = np.zeros((S, S, 3), np.float32); img[...] = col(next(iter(pal), '#000000')) if pal else 0
+nmap = np.zeros((S, S, 3), np.float32); nmap[...] = (0.5, 0.5, 1.0)
+emis = np.zeros((S, S, 3), np.float32)   # emissive mask atlas (black = no glow)
+
+def paint(rect, fn):
+    x, y, w, h = rect
+    im = Image.new('RGB', (w, h)); fn(ImageDraw.Draw(im), w, h, im)
+    img[y:y + h, x:x + w] = np.asarray(im).astype(np.float32) / 255
+
+def crystal(spec):
+    base, tipc = hexc(spec.get('base', '#1c8cf2')), hexc(spec.get('tip', '#7cdcff'))
+    def fn(d, w, h, im):
+        for j in range(h):
+            t = 1 - j / (h - 1)
+            for i in range(w):
+                c = lerp(base, tipc, t ** 0.8)
+                c = lerp(c, (0x9c, 0xe6, 0xff), max(0, 1 - abs(i / (w - 1) - 0.5) * 4) * 0.35)
+                d.point((i, j), fill=c)
+        P = lambda u, v: (u * (w - 1), (1 - v) * (h - 1))
+        # facet edges for BOTH shard UV layouts in stud_kit.shard (4-tri blade and 12-tri hero)
+        edges = [((0, 0), (.5, 1)), ((1, 0), (.5, 1)), ((0, .32), (.5, 1)), ((1, .32), (.5, 1)),
+                 ((.2, 0), (0, .32)), ((.8, 0), (1, .32)), ((0, .32), (1, .32)), ((0, 0), (1, 0))]
+        halo = im.copy(); hd = ImageDraw.Draw(halo)
+        for a, b in edges: hd.line([P(*a), P(*b)], fill=(0x7c, 0xe8, 0xff), width=9)
+        im.paste(Image.blend(im, halo.filter(ImageFilter.GaussianBlur(3)), 0.7))
+        d = ImageDraw.Draw(im)
+        for a, b in [((.5, .05), (.5, .95)), ((.2, .18), (.5, .6)), ((.82, .12), (.55, .55))]:
+            d.line([P(*a), P(*b)], fill=(0xa8, 0xee, 0xff), width=2)
+        for a, b in edges: d.line([P(*a), P(*b)], fill=(0xf2, 0xfd, 0xff), width=3)
+    return fn
+
+def eye(spec):
+    glow = hexc(spec.get('glow', '#2eb8fa')); i0, i1 = (hexc(c) for c in spec.get('iris', ['#3ac4ff', '#e4fdff']))
+    pupil = hexc(spec.get('pupil', '#051036')); A = spec.get('aspect', 2.3)
+    def fn(d, w, h, im):
+        im.paste(glow, [0, 0, w, h]); cx, cy = w * 0.56, h * 0.5
+        for k in range(60, 0, -1):
+            t = 1 - k / 60; rx, ry = w * .55 * k / 60, h * .55 * k / 60
+            d.ellipse([cx - rx, cy - ry, cx + rx, cy + ry], fill=lerp(glow, (0xf6, 0xff, 0xff), min(1, t * 1.8)))
+        iry = h * .42; irx = iry / A                      # pre-squashed so the iris reads round on a w:h=A surface
+        for k in range(30, 0, -1):
+            d.ellipse([cx - irx * k / 30, cy - iry * k / 30, cx + irx * k / 30, cy + iry * k / 30], fill=lerp(i0, i1, 1 - k / 30))
+        pry = h * .34; prx = max(2.0, pry * .16 / A)
+        d.ellipse([cx - prx, cy - pry, cx + prx, cy + pry], fill=pupil)
+        d.ellipse([cx + irx * .25, cy - iry * .55, cx + irx * .7, cy - iry * .3], fill=(255, 255, 255))
+    return fn
+
+def gem(spec):
+    def fn(d, w, h, im):
+        im.paste((0x2a, 0xb4, 0xfb), [0, 0, w, h]); c = (w / 2, h / 2)
+        for (a, b), s in zip([((0, 0), (w, 0)), ((w, 0), (w, h)), ((w, h), (0, h)), ((0, h), (0, 0))],
+                             [(0x9a, 0xee, 0xff), (0x4d, 0xd9, 0xfe), (0x16, 0x8c, 0xf0), (0x6c, 0xe2, 0xff)]):
+            d.polygon([a, b, c], fill=s)
+        d.line([(0, 0), (w, h)], fill=(0xe8, 0xfc, 0xff), width=2); d.line([(w, 0), (0, h)], fill=(0xe8, 0xfc, 0xff), width=2)
+    return fn
+
+def gem_g(spec):
+    """Emerald diamond: facets from deep green (edges) to white-hot green (centre)."""
+    hi = hexc(spec.get('hi', '#d8ffe0')); mid = hexc(spec.get('mid', '#36f95d')); lo = hexc(spec.get('lo', '#0c9a3a'))
+    def fn(d, w, h, im):
+        im.paste(mid, [0, 0, w, h]); c = (w / 2, h / 2)
+        for (a, b), s in zip([((0, 0), (w, 0)), ((w, 0), (w, h)), ((w, h), (0, h)), ((0, h), (0, 0))],
+                             [lerp(mid, hi, .5), lerp(mid, lo, .15), lerp(lo, mid, .2), lerp(mid, hi, .25)]):
+            d.polygon([a, b, c], fill=s)
+        for k in range(40, 0, -1):
+            t = k / 40; r = w * .32 * t
+            d.ellipse([c[0] - r, c[1] - r * h / w, c[0] + r, c[1] + r * h / w], fill=lerp(hi, mid, min(1, t * 1.1)))
+        d.line([(0, 0), (w, h)], fill=lerp(mid, hi, .8), width=2); d.line([(w, 0), (0, h)], fill=lerp(mid, hi, .8), width=2)
+    return fn
+
+def eye_g(spec):
+    """Hot green slit eye: white-hot core, green glow, dark vertical pupil slit."""
+    glow = hexc(spec.get('glow', '#36f95d')); A = spec.get('aspect', 2.0)
+    def fn(d, w, h, im):
+        im.paste(glow, [0, 0, w, h]); cx, cy = w * .5, h * .5
+        for k in range(60, 0, -1):
+            t = 1 - k / 60; rx, ry = w * .5 * k / 60, h * .5 * k / 60
+            d.ellipse([cx - rx, cy - ry, cx + rx, cy + ry], fill=lerp(glow, (0xf4, 0xff, 0xe8), min(1, t * 1.6)))
+        pry = h * .30; prx = max(2.0, pry * .12 / A)
+        d.ellipse([cx - prx, cy - pry, cx + prx, cy + pry], fill=hexc(spec.get('pupil', '#0d5a22')))
+    return fn
+
+def glowleaf(spec):
+    """Leaf-shaped UV layout (u across, v along, tip at top): dark base -> neon edges/tip."""
+    base = hexc(spec.get('base', '#3fae2c')); tipc = hexc(spec.get('tip', '#d6ff7a')); edge = hexc(spec.get('edge', '#c8ff5c'))
+    def fn(d, w, h, im):
+        for j in range(h):
+            t = 1 - j / (h - 1)
+            for i in range(w):
+                u = i / (w - 1); across = abs(u - .5) * 2
+                c = lerp(base, tipc, min(1, t ** 1.5 * .9 + across ** 2 * .35))
+                d.point((i, j), fill=c)
+        P = lambda u, v: (u * (w - 1), (1 - v) * (h - 1))
+        for a, b in [((.5, 0), (0, .38)), ((.5, 0), (1, .38)), ((0, .38), (.5, 1)), ((1, .38), (.5, 1))]:
+            d.line([P(*a), P(*b)], fill=edge, width=5)
+        for a, b in [((.5, .02), (.5, .96)), ((.5, .28), (.04, .38)), ((.5, .28), (.96, .38))]:
+            d.line([P(*a), P(*b)], fill=lerp(tipc, (255, 255, 255), .5), width=2)
+    return fn
+
+def gradient(a, b):
+    def fn(d, w, h, im):
+        for j in range(h): d.line([(0, j), (w, j)], fill=lerp(a, b, j / max(1, h - 1)))
+    return fn
+
+def gold(spec):
+    def fn(d, w, h, im):
+        gradient((0xff, 0xe0, 0x80), (0xd8, 0x98, 0x20))(d, w, h, im)
+        d.rectangle([0, 0, w - 1, h - 1], outline=(0xb0, 0x78, 0x10), width=3)
+    return fn
+
+studded = []
+for name, spec in cfg['slots'].items():
+    x, y, w, h = spec['rect']; kind = spec['kind']
+    if kind == 'studs':
+        studded.append(name)
+        reps = (h // tile + 1, w // tile + 1)
+        cc = np.broadcast_to(col(spec['color']), (h, w, 3)).copy()
+        if 'top_tint' in spec:                               # brighter stud tops (optional)
+            tc, a = spec['top_tint']
+            m = np.tile(stud_mask, reps)[:h, :w][..., None] * a
+            cc = cc * (1 - m) + col(tc)[None, None] * m
+        img[y:y + h, x:x + w] = np.clip(cc * np.tile(shade, reps)[:h, :w][..., None], 0, 1)
+        nmap[y:y + h, x:x + w] = np.tile(nrm_s, reps + (1,))[:h, :w] * 0.5 + 0.5
+    elif kind == 'flat': img[y:y + h, x:x + w] = col(spec['color'])
+    elif kind == 'gradient': paint(spec['rect'], gradient(hexc(spec['from']), hexc(spec['to'])))
+    elif kind == 'gold': paint(spec['rect'], gold(spec))
+    elif kind == 'crystal': paint(spec['rect'], crystal(spec))
+    elif kind == 'eye': paint(spec['rect'], eye_g(spec))
+    elif kind == 'gem': paint(spec['rect'], gem_g(spec))
+    elif kind == 'glowleaf': paint(spec['rect'], glowleaf(spec))
+    else: raise SystemExit(f'unknown slot kind {kind}')
+    if spec.get('emit'):   # emissive mask = colour * strength (painted gradients make rims/tips glow harder)
+        e = spec['emit']; sub = img[y:y + h, x:x + w]
+        emis[y:y + h, x:x + w] = np.clip((sub ** spec.get('emit_pow', 1.0)) * e, 0, 1)
+
+Image.fromarray((np.clip(img, 0, 1) * 255).astype(np.uint8)).save(os.path.join(OUT, 'Color.png'))
+Image.fromarray((np.clip(nmap, 0, 1) * 255).astype(np.uint8)).save(os.path.join(OUT, 'Normal.png'))
+Image.fromarray((np.clip(emis, 0, 1) * 255).astype(np.uint8)).save(os.path.join(OUT, 'Emissive.png'))
+json.dump({'size': S, 'px_per_stud': PX, 'slots': {k: v['rect'] for k, v in cfg['slots'].items()}, 'studded': studded},
+          open(os.path.join(OUT, 'atlas_regions.json'), 'w'), indent=1)
+print('atlas written:', OUT, 'studded slots:', studded)
