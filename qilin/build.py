@@ -24,7 +24,7 @@ SIDES = (1, -1)
 
 
 # ----------------------------------------------------------------------------- leaf
-def leaf(base, d, up, L, Wd, slot=None, glow=False, thick=0.28, curl=0.0, bottom=True):
+def leaf(base, d, up, L, Wd, slot=None, glow=False, thick=0.28, curl=0.0, bottom=True, raw=False):
     """Faceted leaf plate (8 tris): base -> widest at 38% -> pointed tip, ridge on top.
     d = growth direction, up = which way the top face looks. Glow leaves use the leaf-shaped
     glowleaf swatch with explicit UVs (neon rim + tip) and live in the glow mesh."""
@@ -32,7 +32,8 @@ def leaf(base, d, up, L, Wd, slot=None, glow=False, thick=0.28, curl=0.0, bottom
     s = d.cross(up)
     if s.length < .2: s = d.cross(V((0, 0, 1)) if abs(d.z) < .9 else V((1, 0, 0)))
     s.normalize(); u = s.cross(d).normalized()
-    base = V(base); base.x *= .9; k = min(1.0, max(0.0, (base.z - 1.2) / 3.0)); base.z += .9 * k * k * (3 - 2 * k); h = Wd * thick
+    base = V(base); h = Wd * thick
+    if not raw: base.x *= .9; k = min(1.0, max(0.0, (base.z - 1.2) / 3.0)); base.z += .9 * k * k * (3 - 2 * k)
     b = base
     l = base + d * (.38 * L) - s * (Wd / 2); r = base + d * (.38 * L) + s * (Wd / 2)
     T = base + d * L + u * (curl * L)
@@ -78,13 +79,14 @@ def torso():
         K.loft(BODY, rs, 8, lambda n, c, i: 'olive', cap0='olive', cap1='olive')
 
 
-def leg(x, pts, hs, hoof_y):
-    """pts: [(y, z)] joints top->bottom (angled), hs: half-sizes (across x, along y)."""
-    rings = [dict(c=(x, y, z), rx=hx, ry=hy, w=R, T=(0, 0, -1), up=(0, 1, 0)) for (y, z), (hx, hy) in zip(pts, hs)]
+def leg(pts, hs, hoof_y):
+    """pts: [(x, y, z)] joints top->bottom (angled/splayed), hs: half-sizes (across x, along y)."""
+    rings = [dict(c=p, rx=hx, ry=hy, w=R, T=(0, 0, -1), up=(0, 1, 0)) for p, (hx, hy) in zip(pts, hs)]
     K.loft(BODY, rings, 8, lambda n, c, i: 'brown', cap0='brown', cap1='brown')
+    x = pts[-1][0]
     K.box(BODY, (x, hoof_y + .1, 1.0), (1.8, 1.6, 1.0), 'brown', R, taper=.9)
     for dx in (-.55, .55):
-        K.box(BODY, (x + dx * 1.2, hoof_y - .35, .55), (1.2, 2.2, 1.1), 'cream', R, taper=.75)
+        K.box(BODY, (x + dx * 1.2, hoof_y - .35, .55), (1.2, 2.2, 1.3), 'cream', R, taper=.7)
 
 
 def belly():
@@ -93,8 +95,10 @@ def belly():
 
 def legs():
     for sd in SIDES:
-        leg(sd * 2.5, [(-3.9, 5.4), (-4.8, 3.6), (-5.8, 2.0), (-6.4, 1.2)], [(1.15, 1.2), (1.05, 1.05), (.9, .9), (1.0, 1.0)], -6.5)
-        leg(sd * 2.4, [(3.2, 5.2), (5.2, 3.5), (5.1, 2.0), (5.0, 1.2)], [(1.15, 1.3), (1.0, 1.0), (.85, .85), (.95, .95)], 4.95)
+        leg([(sd * 2.1, -3.9, 5.4), (sd * 2.6, -4.8, 3.6), (sd * 3.1, -5.8, 2.0), (sd * 3.3, -6.4, 1.2)],
+            [(1.2, 1.5), (1.1, 1.3), (.95, 1.1), (1.0, 1.15)], -6.5)
+        leg([(sd * 2.2, 3.0, 5.2), (sd * 2.5, 4.6, 3.5), (sd * 2.55, 4.5, 2.0), (sd * 2.6, 4.4, 1.2)],
+            [(1.2, 1.6), (1.05, 1.2), (.9, 1.0), (.95, 1.05)], 4.4)
 
 
 def neck_head():
@@ -103,24 +107,26 @@ def neck_head():
     K.loft(BODY, rings, 8, lambda n, c, i: 'cream' if n.y < -.15 else 'olive', cap0='olive', cap1='olive')
     P = V((0, -5.95, 10.9)); M = Matrix.Rotation(math.radians(8), 3, 'X')
     hb = lambda off, size, slot, taper=1.0, slots=None: K.box(BODY, P + M @ V(off), size, slot, R, M, taper, slots)
-    hb((0, .1, 0), (3.0, 2.4, 2.5), 'olive')                        # skull
+    sk = [dict(c=P + M @ V((0, y, z)), rx=hw, ry=hh, w=R, T=M @ V((0, -1, 0)), up=M @ V((0, 0, 1)))
+          for y, z, hw, hh in [(1.2, .1, 1.2, 1.2), (.3, .1, 1.5, 1.35), (-.75, .05, 1.5, 1.3), (-.95, .0, 1.4, 1.2)]]
+    K.loft(BODY, sk, 8, lambda n, c, i: 'olive', cap0='olive', cap1='olive')                                    # faceted skull
     mz = M @ V((0, 0, 1)); mt = M @ V((0, -1, 0))
     rings = [dict(c=P + M @ V((0, y, z)), rx=hw, ry=hh, w=R, T=mt, up=mz)
-             for y, z, hw, hh in [(-.6, -.2, 1.45, 1.3), (-1.5, -.45, 1.15, 1.15), (-2.3, -.55, .85, .9), (-2.75, -.55, .55, .65)]]
+             for y, z, hw, hh in [(-.7, -.2, 1.15, 1.2), (-1.5, -.45, 1.0, 1.1), (-2.3, -.55, .8, .9), (-2.75, -.5, .4, .45)]]
     K.loft(BODY, rings, 8, lambda n, c, i: 'cream' if n.z < -.3 else 'olive', cap0='olive', cap1='nose')    # tapered muzzle
     K.solid_spike(BODY, P + M @ V((0, -2.0, -1.0)), (0, -.35, -1), 1.5, 1.5, R, 'cream')                      # chin point
     for sd in SIDES:
-        c = P + M @ V((sd * 1.2, -1.17, .05)); n = M @ V((sd * .35, -.94, 0))
-        K.eye_lens(GLOW, c + n * .03, n, M @ V((0, 0, 1)), M @ V((-sd, -.1, .12)), R, scale=1.35)
+        c = P + M @ V((sd * .98, -.99, .2)); n = M @ V((sd * .2, -.97, 0))
+        K.eye_lens(GLOW, c + n * .03, n, M @ V((-sd * .3, 0, 1)), M @ V((-sd, -.25, -.15)), R, scale=1.5)
     K.gem_plate(GLOW, (0, -6.45, 6.4), (0, -1, 0), (0, 0, 1), .9, 1.4, .6, R)    # chest emerald
 
 
 ANTLER = [  # (points (x,y,z), half-size start, half-size end) - measured from the front + side panels
-    ([(0.6, -6.6, 11.8), (1.4, -5.9, 12.7), (2.4, -4.9, 13.4), (3.4, -3.9, 14.0), (4.0, -2.4, 14.4), (4.6, -1.0, 15.2)], .5, .22),
-    ([(1.8, -5.5, 13.2), (1.85, -5.4, 14.5), (1.9, -5.4, 15.7)], .36, .13),
-    ([(0.9, -6.2, 12.3), (1.0, -5.9, 13.2), (1.05, -5.7, 14.2)], .34, .13),
-    ([(3.5, -3.4, 14.0), (4.2, -3.2, 14.9), (4.8, -3.0, 15.8)], .3, .12),
-    ([(1.6, -5.4, 12.9), (2.6, -4.6, 12.8), (3.7, -4.0, 12.6)], .3, .12),
+    ([(0.8, -5.9, 11.7), (1.5, -5.6, 12.6), (2.4, -4.9, 13.4), (3.4, -3.9, 14.0), (4.0, -2.4, 14.4), (4.6, -1.0, 15.2)], .62, .26),
+    ([(1.8, -5.5, 13.2), (1.85, -5.4, 14.4), (1.9, -5.4, 15.4)], .5, .2),
+    ([(1.0, -5.6, 12.3), (1.05, -5.4, 13.2), (1.1, -5.3, 14.0)], .46, .2),
+    ([(3.5, -3.4, 14.0), (4.2, -3.2, 14.9), (4.8, -3.0, 15.7)], .42, .18),
+    ([(1.6, -5.4, 12.9), (2.6, -4.6, 12.8), (3.7, -4.0, 12.6)], .4, .16),
 ]
 
 
@@ -160,10 +166,10 @@ def mane():
             if nrm.z < -.55 or (i < 2 and nrm.z < -.1): continue
             p = c + rad
             if p.y < -6.0 and abs(p.x) < 1.8 and p.z < 12.4: continue
-            d = (ax * .9 + nrm * (.4 + .2 * (1 - t))).normalized()
+            d = (ax * .9 + nrm * (.7 + .2 * (1 - t))).normalized()
             L = rnd.uniform(1.9, 2.8) * (.9 + .25 * t)
             outer = .5 + .45 * (nrm.z > .3) + rnd.uniform(-.2, .2) - .1 * t
-            leaf(p - nrm * .2, d, nrm, L, L * .5, slot=pick(outer), glow=(rnd.random() < .1), bottom=False)
+            leaf(p - nrm * .2, d, V((math.copysign(1, nrm.x) * .9, 0, 0)) + nrm * .4, L, L * .5, slot=pick(outer), glow=(rnd.random() < .1), bottom=False)
 
 
 def crown_and_face():
@@ -226,6 +232,29 @@ def chest_flower():
                  2.0, .95, pick(.6))
 
 
+def trace(leaves):
+    """Hand-traced leaves: (bx, by, tx, ty, width_px, slot, x_depth, glow) in left-view panel pixels
+    (40 px = 1 stud, ground at py 695, y=0 at px 345). Built on both sides."""
+    P = lambda px, py, x: V((x, (px - 345) / 40, (695 - py) / 40))
+    for bx, by, tx, ty, w, slot, xd, gl in leaves:
+        for sd in SIDES:
+            b = P(bx, by, sd * xd); tip = P(tx, ty, sd * xd); d = tip - b
+            leaf(b, d, (sd * 1, 0, .3), d.length, w / 40, slot, glow=gl, raw=True, curl=.05)
+
+
+TRACED = [
+    # shoulder plates (rising back/up over the shoulder)
+    (140, 478, 255, 370, 55, 'leafL', 3.3, False), (235, 392, 315, 342, 45, 'leafL', 3.3, False),
+    (290, 405, 380, 392, 40, 'leafL', 3.2, False), (335, 352, 430, 326, 32, 'leafM', 2.6, False),
+    # mane / face leaves around the head
+    (112, 258, 162, 228, 28, 'leafL', 1.9, False), (122, 272, 165, 302, 24, 'leafL', 1.9, False),
+    (150, 285, 195, 340, 28, 'leafD', 2.1, False), (195, 225, 262, 255, 26, 'leafM', 2.2, False),
+    (245, 238, 335, 262, 40, 'leafL', 2.3, False), (235, 270, 285, 300, 25, 'leafL', 2.2, False),
+    (205, 320, 225, 350, 22, 'leafL', 2.2, False), (300, 345, 385, 325, 25, 'leafL', 2.2, False),
+    (215, 180, 293, 212, 22, 'leafM', 2.0, False), (50, 255, 55, 195, 22, 'leafL', 1.0, False),
+]
+
+
 def shoulder_wings():
     """Big flat shoulder plates (measured: ~3.5-4 long, ~2 wide) lying over the barrel, light on top, dark behind."""
     for sd in SIDES:
@@ -248,15 +277,15 @@ def back_ridge():
         for sd in (-1, 1):
             if i % 2 and sd > 0: continue
             L = rnd.uniform(1.4, 1.9)
-            leaf((sd * .55, y, 7.2), (sd * .3, .8, .35), (sd * .3, 0, 1), L, L * .45, pick(.6), glow=(i % 4 == 0 and sd > 0))
+            leaf((sd * .55, y, 7.2), (sd * .3, .8, .35), (sd * 1, 0, .5), L, L * .55, pick(.6), glow=(i % 4 == 0 and sd > 0))
         leaf((0, y + .3, 7.25), (0, .8, .4), (0, 0, 1), 1.5, .7, 'leafL' if i % 2 else 'leafM')
 
 
 def tail():
     rings = [dict(c=c, rx=rx, ry=ry, w=R) for c, rx, ry in
-             [((0, 4.2, 7.3), .62, .5), ((0, 5.2, 7.5), .55, .48), ((0, 6.2, 7.4), .5, .44), ((0, 7.0, 7.1), .42, .38)]]
+             [((0, 4.2, 7.3), .62, .5), ((0, 5.4, 7.5), .55, .48), ((0, 6.7, 7.3), .5, .44), ((0, 7.7, 6.9), .42, .38)]]
     K.loft(BODY, rings, 8, lambda n, c, i: 'bark' if i > 0 else 'olive', cap0='olive', cap1='bark')
-    ax = unit(0, .9, -.4); anchor = V((0, 7.0, 5.6))
+    ax = unit(0, .9, -.4); anchor = V((0, 7.9, 5.9))
     for i in range(64):
         radial = V((rnd.uniform(-1, 1), rnd.uniform(-.4, .4), rnd.uniform(-1, 1)))
         radial -= ax * radial.dot(ax); radial.normalize()
@@ -266,17 +295,17 @@ def tail():
         leaf(p, d, radial + V((0, 0, .5)), L, L * .5, pick(.35 + .5 * rnd.random()), glow=(rnd.random() < .08))
     for i in range(9):   # hanging centre cluster (reaches low in the back view)
         d = unit(rnd.uniform(-.25, .25), .35, -1)
-        leaf(anchor + V((rnd.uniform(-.4, .4), rnd.uniform(.3, 1.4), -.2)), d, (rnd.uniform(-1, 1), -1, .2), rnd.uniform(4.2, 5.8), 1.7, pick(.35 + .5 * rnd.random()), glow=(i % 5 == 0))
+        leaf(anchor + V((rnd.uniform(-.4, .4), rnd.uniform(.3, 1.4), -.2)), d, (rnd.uniform(-1, 1), -1, .2), rnd.uniform(3.0, 4.2), 1.7, pick(.35 + .5 * rnd.random()), glow=(i % 5 == 0))
     for i in range(6):   # upward-flicking leaves on the tuft
         d = unit(rnd.uniform(-.6, .6), .55, .45 + rnd.random() * .3)
         leaf(anchor + V((rnd.uniform(-.3, .3), rnd.uniform(-.8, .2), .2)), d, (0, 0, 1), rnd.uniform(2.0, 3.0), 1.1, pick(.7), glow=rnd.random() < .3)
 
 
 def leg_leaves():
-    specs = [(-6.5, True), (4.95, False)]
+    specs = [(-6.5, True), (4.4, False)]
     for sd in SIDES:
         for y, front in specs:
-            x = sd * (3.1 if front else 3.0)
+            x = sd * (3.4 if front else 2.9)
             yy = y - (.2 if front else 0)
             leaf((x + sd * .35, yy - .2, 1.0), (sd * .12, -.15 if front else .1, 1), (sd, 0, .2), 2.9, 1.3, 'leafL', thick=.2)
             leaf((x + sd * .85, yy + .2, 1.0), (sd * .5, .1, 1), (sd, 0, .3), 2.0, .95, 'leafM')
@@ -327,7 +356,7 @@ def recolor_from_reference():
 
 def build():
     torso(); belly(); legs(); neck_head(); antlers()
-    mane(); head_halo(); face_frame(); throat(); crown_and_face(); chest_flower(); shoulder_wings(); back_ridge(); tail(); leg_leaves()
+    mane(); head_halo(); trace(TRACED); face_frame(); throat(); crown_and_face(); chest_flower(); shoulder_wings(); back_ridge(); tail(); leg_leaves()
     recolor_from_reference()
     print('tris body', BODY.tris(), 'glow', GLOW.tris(), 'total', BODY.tris() + GLOW.tris())
 
