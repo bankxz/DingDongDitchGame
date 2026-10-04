@@ -113,7 +113,7 @@ def eye_g(spec):
         im.paste(glow, [0, 0, w, h]); cx, cy = w * .5, h * .5
         for k in range(60, 0, -1):
             t = 1 - k / 60; rx, ry = w * .5 * k / 60, h * .5 * k / 60
-            d.ellipse([cx - rx, cy - ry, cx + rx, cy + ry], fill=lerp(glow, (0xf4, 0xff, 0xe8), min(1, t * 1.6)))
+            d.ellipse([cx - rx, cy - ry, cx + rx, cy + ry], fill=lerp(glow, (0xd8, 0xff, 0xc8), min(1, t * .75)))
         pry = h * .30; prx = max(2.0, pry * .12 / A)
         d.ellipse([cx - prx, cy - pry, cx + prx, cy + pry], fill=hexc(spec.get('pupil', '#0d5a22')))
     return fn

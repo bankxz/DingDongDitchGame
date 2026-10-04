@@ -15,14 +15,17 @@ lo = V((min(p.x for p in pts), min(p.y for p in pts), min(p.z for p in pts))); h
 C = (lo + hi) / 2; size = max(hi - lo)
 print('bbox', tuple(round(x, 2) for x in lo), tuple(round(x, 2) for x in hi))
 
+DOWN = False
 def setup(bg):
     w = bpy.data.worlds.new('W'); sc.world = w; w.use_nodes = True
     bgn = w.node_tree.nodes['Background']; bgn.inputs[0].default_value = bg + (1,); bgn.inputs[1].default_value = 1.0
     for l in [o for o in bpy.data.objects if o.type == 'LIGHT']: bpy.data.objects.remove(l)
-    for nm, rot, e, col in (('key', (52, 0, -40), 1.9, (1, .96, .88)), ('fill', (65, 0, 140), .8, (.85, .92, 1)),
+    for nm, rot, e, col in (('key', (52, 0, -40), 2.6, (1, .96, .88)), ('fill', (65, 0, 140), 1.2, (.85, .92, 1)),
                             ('rim', (-55, 0, 175), 1.0, (.9, 1, .9)), ('top', (0, 0, 0), .5, (1, 1, 1))):
         l = bpy.data.lights.new(nm, 'SUN'); l.energy = e; l.color = col; o = bpy.data.objects.new(nm, l); sc.collection.objects.link(o)
         o.rotation_euler = [math.radians(a) for a in rot]
+    if bg[0] < .05 and DOWN:
+        l = bpy.data.lights.new('under', 'SUN'); l.energy = 2.2; o = bpy.data.objects.new('under', l); sc.collection.objects.link(o); o.rotation_euler = (math.radians(180), 0, 0)
     sc.use_nodes = True; nt = sc.node_tree; nt.nodes.clear()
     rl = nt.nodes.new('CompositorNodeRLayers'); gl = nt.nodes.new('CompositorNodeGlare'); co = nt.nodes.new('CompositorNodeComposite')
     gl.glare_type = 'FOG_GLOW'; gl.threshold = 1.0; gl.size = 7; gl.quality = 'MEDIUM'; gl.mix = -0.35
@@ -41,13 +44,13 @@ VIEWS = {  # name: (loc, tgt, up, ortho_scale|None, lens, bg)
     'back':  (V((0, D, 8.1)), V((0, 0, 8.1)), V((0, 0, 1)), 17.0, 0, (.009, .017, .035)),
     'left':  (V((D, 2.0, 7.6)), V((0, 2.0, 7.6)), V((0, 0, 1)), 23.5, 0, (.009, .017, .035)),
     'right': (V((-D, 2.0, 7.6)), V((0, 2.0, 7.6)), V((0, 0, 1)), 23.5, 0, (.009, .017, .035)),
-    'top':   (V((0, 1.5, D)), V((0, 1.5, 0)), V((1, 0, 0)), 22.5, 0, (.009, .017, .035)),
+    'top':   (V((0, 1.5, D)), V((0, 1.5, 0)), V((-1, 0, 0)), 22.5, 0, (.009, .017, .035)),
     'bottom': (V((0, 1.5, -D)), V((0, 1.5, 0)), V((1, 0, 0)), 22.5, 0, (.009, .017, .035)),
     'hero':  (V((-21, -24, 9.5)), V((0.6, 0.8, 7.3)), V((0, 0, 1)), None, 42, (.2, .62, .95)),
 }
 want = sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else list(VIEWS)
 for nm in want:
-    loc, tgt, upv, osc, lens, bg = VIEWS[nm]; setup(bg)
+    loc, tgt, upv, osc, lens, bg = VIEWS[nm]; DOWN = (nm == 'bottom'); setup(bg)
     if osc: cd.type = 'ORTHO'; cd.ortho_scale = osc
     else: cd.type = 'PERSP'; cd.lens = lens; cd.sensor_width = 36
     sc.render.resolution_x = int(RES * .78) if nm == 'hero' else RES; sc.render.resolution_y = int(RES * 1.05) if nm == 'hero' else RES
