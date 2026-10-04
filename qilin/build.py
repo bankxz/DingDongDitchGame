@@ -93,8 +93,8 @@ def belly():
 
 def legs():
     for sd in SIDES:
-        leg(sd * 2.5, [(-3.8, 5.4), (-4.5, 3.6), (-5.3, 2.0), (-5.9, 1.2)], [(1.15, 1.2), (1.05, 1.05), (.9, .9), (1.0, 1.0)], -6.0)
-        leg(sd * 2.4, [(3.2, 5.2), (4.8, 3.5), (4.6, 2.0), (4.5, 1.2)], [(1.15, 1.3), (1.0, 1.0), (.85, .85), (.95, .95)], 4.4)
+        leg(sd * 2.5, [(-3.9, 5.4), (-4.8, 3.6), (-5.8, 2.0), (-6.4, 1.2)], [(1.15, 1.2), (1.05, 1.05), (.9, .9), (1.0, 1.0)], -6.5)
+        leg(sd * 2.4, [(3.2, 5.2), (5.2, 3.5), (5.1, 2.0), (5.0, 1.2)], [(1.15, 1.3), (1.0, 1.0), (.85, .85), (.95, .95)], 4.95)
 
 
 def neck_head():
@@ -111,7 +111,7 @@ def neck_head():
     K.solid_spike(BODY, P + M @ V((0, -2.0, -1.0)), (0, -.35, -1), 1.5, 1.5, R, 'cream')                      # chin point
     for sd in SIDES:
         c = P + M @ V((sd * 1.2, -1.17, .05)); n = M @ V((sd * .35, -.94, 0))
-        K.eye_lens(GLOW, c + n * .03, n, M @ V((0, 0, 1)), M @ V((-sd, -.1, .12)), R, scale=1.1)
+        K.eye_lens(GLOW, c + n * .03, n, M @ V((0, 0, 1)), M @ V((-sd, -.1, .12)), R, scale=1.35)
     K.gem_plate(GLOW, (0, -6.45, 6.4), (0, -1, 0), (0, 0, 1), .9, 1.4, .6, R)    # chest emerald
 
 
@@ -149,7 +149,7 @@ def sphere_pts(n, c, r):
 
 def mane():
     """Dense layered rows of mid-size leaves down the neck (head -> withers), each row a ring around the neck axis."""
-    c0, c1 = V((0, -5.2, 12.0)), V((0, -1.6, 8.4)); ax = (c1 - c0).normalized()
+    c0, c1 = V((0, -5.2, 11.3)), V((0, -1.6, 7.9)); ax = (c1 - c0).normalized()
     rows = 17
     for i in range(rows):
         t = i / (rows - 1); c = c0.lerp(c1, t); rx = 1.3 + .9 * t; rz = 1.5 + .8 * t
@@ -195,6 +195,13 @@ def face_frame():
         leaf(p, rad * .75 + V((0, .75, 0)), rad + V((0, -.6, 0)), rnd.uniform(1.7, 2.3), 1.0, pick(.55 + .2 * (k % 2)), glow=(k % 5 == 0))
 
 
+def head_halo():
+    for sd in SIDES:
+        for k, (yy, zz, L, sl) in enumerate([(-4.4, 12.4, 2.8, 'leafL'), (-4.0, 11.4, 3.0, 'leafM'), (-4.2, 10.4, 2.8, 'leafL'), (-3.6, 12.2, 2.6, 'leafL'),
+                                              (-3.2, 11.0, 3.0, 'leafM'), (-4.6, 9.4, 2.4, 'leafD'), (-3.4, 9.6, 2.8, 'leafL'), (-3.0, 12.4, 2.5, 'leafM')]):
+            leaf((sd * 1.6, yy, zz - .9), (sd * 1.0, .75, .12 + .08 * (k % 3)), (sd * 1, 0, .4), L, L * .45, sl, glow=(k == 3))
+
+
 def throat():
     for k in range(12):
         a = k / 12 * 2 * math.pi; z = 7.6 + (k % 3) * .9
@@ -222,11 +229,13 @@ def chest_flower():
 def shoulder_wings():
     """Big flat shoulder plates (measured: ~3.5-4 long, ~2 wide) lying over the barrel, light on top, dark behind."""
     for sd in SIDES:
-        for row, z in enumerate([7.8, 7.0, 6.2, 5.4]):
+        for row, z in enumerate([7.7, 6.8, 5.9]):
             for j in range(3):
-                y = -4.4 + j * 1.5 + row * .35 + rnd.uniform(-.2, .2)
-                L = rnd.uniform(3.4, 4.2) - .15 * row
-                leaf((sd * 3.45, y, z), (sd * .25, .75, -.22 - .08 * row), (sd * 1, 0, .35), L, L * .5, 'leafL' if (j + row) % 3 else 'leafM', thick=.16)
+                y = -4.4 + j * 1.25 + row * .35 + rnd.uniform(-.2, .2)
+                L = rnd.uniform(3.0, 3.8) - .2 * row
+                tilt = rnd.uniform(-.45, .1)
+                leaf((sd * 3.45, y, z), (sd * (.3 + .2 * rnd.random()), .7, tilt), (sd * 1, 0, .3 + .4 * rnd.random()), L, L * .52,
+                     'leafL' if (j + row) % 3 else 'leafM', thick=.2, curl=.08)
         for j in range(6):   # dark flank leaves behind the plates
             y = -2.0 + j * .6; z = 5.8 - (j % 3) * .6
             leaf((sd * 3.3, y, z), (sd * .2, .6, -.7), (sd * 1, 0, .4), rnd.uniform(2.0, 2.7), 1.2, 'leafD' if j % 2 else 'leafX')
@@ -247,21 +256,24 @@ def tail():
     rings = [dict(c=c, rx=rx, ry=ry, w=R) for c, rx, ry in
              [((0, 4.2, 7.3), .62, .5), ((0, 5.2, 7.5), .55, .48), ((0, 6.2, 7.4), .5, .44), ((0, 7.0, 7.1), .42, .38)]]
     K.loft(BODY, rings, 8, lambda n, c, i: 'bark' if i > 0 else 'olive', cap0='olive', cap1='bark')
-    ax = unit(0, .92, -.3); anchor = V((0, 7.0, 6.2))
+    ax = unit(0, .9, -.4); anchor = V((0, 7.0, 5.6))
     for i in range(64):
         radial = V((rnd.uniform(-1, 1), rnd.uniform(-.4, .4), rnd.uniform(-1, 1)))
         radial -= ax * radial.dot(ax); radial.normalize()
         d = (ax + radial * rnd.uniform(.35, 1.1)).normalized()
-        L = rnd.uniform(3.4, 5.2) * (1.0 - .25 * abs(radial.x))
+        L = rnd.uniform(3.8, 6.0) * (1.0 - .25 * abs(radial.x))
         p = anchor + V((rnd.uniform(-.4, .4), rnd.uniform(-.8, .6), rnd.uniform(-.4, .3)))
         leaf(p, d, radial + V((0, 0, .5)), L, L * .5, pick(.35 + .5 * rnd.random()), glow=(rnd.random() < .08))
+    for i in range(9):   # hanging centre cluster (reaches low in the back view)
+        d = unit(rnd.uniform(-.25, .25), .35, -1)
+        leaf(anchor + V((rnd.uniform(-.4, .4), rnd.uniform(.3, 1.4), -.2)), d, (rnd.uniform(-1, 1), -1, .2), rnd.uniform(4.2, 5.8), 1.7, pick(.35 + .5 * rnd.random()), glow=(i % 5 == 0))
     for i in range(6):   # upward-flicking leaves on the tuft
         d = unit(rnd.uniform(-.6, .6), .55, .45 + rnd.random() * .3)
         leaf(anchor + V((rnd.uniform(-.3, .3), rnd.uniform(-.8, .2), .2)), d, (0, 0, 1), rnd.uniform(2.0, 3.0), 1.1, pick(.7), glow=rnd.random() < .3)
 
 
 def leg_leaves():
-    specs = [(-6.0, True), (4.4, False)]
+    specs = [(-6.5, True), (4.95, False)]
     for sd in SIDES:
         for y, front in specs:
             x = sd * (3.1 if front else 3.0)
@@ -315,7 +327,7 @@ def recolor_from_reference():
 
 def build():
     torso(); belly(); legs(); neck_head(); antlers()
-    mane(); face_frame(); throat(); crown_and_face(); chest_flower(); shoulder_wings(); back_ridge(); tail(); leg_leaves()
+    mane(); head_halo(); face_frame(); throat(); crown_and_face(); chest_flower(); shoulder_wings(); back_ridge(); tail(); leg_leaves()
     recolor_from_reference()
     print('tris body', BODY.tris(), 'glow', GLOW.tris(), 'total', BODY.tris() + GLOW.tris())
 
@@ -328,7 +340,7 @@ def material():
     e.image.colorspace_settings.name = 'sRGB'
     nt.links.new(c.outputs['Color'], b.inputs['Base Color'])
     add = nt.nodes.new('ShaderNodeVectorMath'); add.operation = 'ADD'
-    sc_ = nt.nodes.new('ShaderNodeVectorMath'); sc_.operation = 'SCALE'; sc_.inputs['Scale'].default_value = .35
+    sc_ = nt.nodes.new('ShaderNodeVectorMath'); sc_.operation = 'SCALE'; sc_.inputs['Scale'].default_value = .2
     nt.links.new(c.outputs['Color'], sc_.inputs[0]); nt.links.new(e.outputs['Color'], add.inputs[0]); nt.links.new(sc_.outputs[0], add.inputs[1])
     nt.links.new(add.outputs[0], b.inputs['Emission Color']); b.inputs['Emission Strength'].default_value = 1.0
     n = nt.nodes.new('ShaderNodeNormalMap'); n.inputs['Strength'].default_value = .8
