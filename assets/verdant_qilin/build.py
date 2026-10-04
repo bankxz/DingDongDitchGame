@@ -249,72 +249,52 @@ def legs():
 
 # ------------------------------------------------------------------ foliage
 def mane():
-    """Lion-like ruff of broad leaves wrapped around neck + head, tips sweeping back."""
-    P0, P1 = V(0, -5.9, 4.9), V(0, -7.0, 6.9)
+    """Lion-style mane: neat shingle rows of leaves hanging down the neck, one leaf layer, tips sweeping back."""
+    P0, P1 = V(0, -5.4, 5.2), V(0, -7.1, 6.9)
     T = (P1 - P0).normalized()
     B = Y - T * Y.dot(T); B.normalize()
     S = X
     wtf = lambda z: interp_w([(4.9, 'Chest'), (5.8, 'Neck1'), (6.6, 'Neck2'), (7.4, 'Head')], z)
-    for layer, rad in enumerate((0.8, 1.05, 1.3)):
-        for ti, t in enumerate([i / (8 if layer < 2 else 6) for i in range(9 if layer < 2 else 7)]):
-            nang = (15 if layer < 2 else 12) if t < 0.88 else 9
-            for k in range(nang):
-                ph = math.radians(-135 + 270 * (k + 0.5 * (ti % 2)) / nang) + rnd.uniform(-.08, .08)
+    # two aligned shells of shingles: dark inner coat, lighter outer coat - every leaf points the same way
+    for shell, (rad, rows, nang, ln, pal) in enumerate([(1.1, 9, 11, 2.4, ['deep', 'dark', 'mid']),
+                                                        (1.65, 8, 10, 2.3, ['mid', 'lime', 'limeBright'])]):
+        for ri in range(rows):
+            t = (ri + 0.5 * shell) / (rows - 1 + 0.5)
+            odd = (ri + shell) % 2
+            for k in range(nang - odd):
+                ph = math.radians(-128 + 256 * (k + 0.5 * odd) / (nang - 1))
                 o = B * math.cos(ph) + S * math.sin(ph)
-                base = P0 + (P1 - P0) * t + o * (rad - 0.3 * t * layer * 0.5 - 0.1 * t)
-                sweep = Y * 1.0 + Z * (-0.32 + 0.3 * t)
-                d = (o * (0.2 + 0.15 * layer) + sweep).normalized()
-                ln = rnd.uniform(1.5, 2.1) * (0.9 + 0.2 * layer) * (1.0 + 0.12 * (1 - t))
-                lit = 0.30 + 0.30 * o.z + 0.25 * abs(math.sin(ph)) + 0.12 * t + 0.1 * layer
-                slot = pick_slot(lit, 0.0)
-                glow = slot == 'limeBright' and rnd.random() < .5
-                leaf(GLOW if glow else BODY, base, d, ln, ln * rnd.uniform(.55, .68), wtf(base.z),
-                     'glowLeaf' if glow else slot, n=o, closed=(layer == 0))
-    # long top-of-mane leaves streaming back over the withers
-    for i in range(9):
-        x = rnd.uniform(-1.1, 1.1); t = rnd.uniform(0.2, 0.9)
-        base = P0 + (P1 - P0) * t + V(x, 0.3, 0.6)
-        d = V(x * 0.25, 1.0, -0.05 + 0.1 * t).normalized()
-        leaf(BODY, base, d, rnd.uniform(2.0, 2.6), 1.3, wtf(base.z), pick_slot(.75, .1), n=Z)
-    # head crest, cheeks, brow
+                base = P0 + (P1 - P0) * t + o * (rad - 0.1 * t) + Z * 0.05
+                d = (Y * 0.85 - T * 0.4 + o * 0.35).normalized()
+                l = ln * (1.0 - 0.18 * t)
+                tone = (0.5 + 0.5 * o.z) + (0.15 if (ri + k) % 2 == 0 else -0.15)
+                slot = pal[0] if tone < 0.35 else (pal[1] if tone < 0.75 else pal[2])
+                leaf(BODY, base, d, l, l * 0.7, wtf(base.z), slot, n=o, closed=False, ridge=.3)
+    # head: one crest leaf, a flanking pair and one cheek leaf per side
     H = WH
-    leaf(BODY, hp((0, -0.2, 0.75)), hn((0, -0.25, 1)), 2.1, 1.15, H, 'lime', n=hn((0, -1, 0.3)), ridge=.3)
-    leaf(BODY, hp((0, 0.15, 0.7)), hn((0, 0.2, 1)), 2.4, 1.25, H, 'mid', n=hn((0, -1, 0.1)), ridge=.3)
+    leaf(BODY, hp((0, -0.2, 0.75)), hn((0, -0.25, 1)), 2.1, 1.2, H, 'lime', n=hn((0, -1, 0.3)), ridge=.3)
     for s in (1, -1):
-        leaf(BODY, hp((s * 0.4, 0.0, 0.8)), hn((s * 0.5, 0.0, 1)), 1.8, 1.0, H, 'limeBright', n=hn((s * 0.6, -0.5, 0.6)))
-        leaf(BODY, hp((s * 0.8, 0.1, 0.6)), hn((s * 0.9, 0.2, 0.8)), 1.6, 0.9, H, 'lime', n=hn((s, -0.3, 0.3)))
-        leaf(BODY, hp((s * 0.95, 0.35, -0.1)), hn((s * 0.9, 0.7, 0.0)), 1.9, 1.05, H, 'limeBright', n=hn((s, -.1, .5)))
-        leaf(BODY, hp((s * 0.95, 0.55, -0.5)), hn((s * 0.8, 0.8, -0.4)), 1.7, 0.95, H, 'mid', n=hn((s, 0, .3)))
-        leaf(BODY, hp((s * 0.95, 0.0, 0.7)), hn((s * 0.9, -0.1, 0.5)), 1.3, 0.7, H, 'deep', n=hn((s, 0, 0.6)))
-        leaf(BODY, hp((s * 0.5, 0.65, -0.85)), hn((s * 0.4, 0.6, -0.5)), 1.2, 0.65, H, 'dark', n=Z)
+        leaf(BODY, hp((s * 0.45, 0.0, 0.8)), hn((s * 0.5, 0.0, 1)), 1.7, 1.0, H, 'limeBright', n=hn((s * 0.6, -0.5, 0.6)))
+        leaf(BODY, hp((s * 0.95, 0.35, -0.05)), hn((s * 0.9, 0.7, 0.0)), 1.8, 1.05, H, 'limeBright', n=hn((s, -.1, .5)))
+        leaf(BODY, hp((s * 0.95, 0.6, -0.5)), hn((s * 0.8, 0.8, -0.4)), 1.5, 0.9, H, 'mid', n=hn((s, 0, .3)))
 
 
 def body_leaves():
     for s in (1, -1):
-        # big flank 'wing' leaves in three layers, tips pointing back and down
-        for layer, (z0, slots_, ys) in enumerate([
-                (4.9, ['dark', 'deep', 'mid'], [-6.7, -5.8, -4.9, -4.1]),
-                (4.3, ['lime', 'mid', 'dark'], [-6.5, -5.5, -4.6]),
-                (3.7, ['limeBright', 'lime', 'mid'], [-6.4, -5.4])]):
-            for y in ys:
-                b = V(s * (1.3 + 0.15 * layer), y + rnd.uniform(-.2, .2), z0 + rnd.uniform(-.15, .15))
-                d = V(s * 0.18, 0.9, -0.45 - 0.1 * layer).normalized()
-                ln = rnd.uniform(2.3, 3.0) - 0.2 * layer
-                leaf(BODY, b, d, ln, ln * .6, wpos(b), rnd.choice(slots_), n=V(s, 0, 0.8), closed=False)
-    # spine row
-    for y in [-6.0, -5.4, -4.8, -4.2, -3.6, -3.0, -2.4]:
-        for x in (-1.0, -0.35, 0.35, 1.0):
-            b = V(x + rnd.uniform(-.1, .1), y + rnd.uniform(-.15, .15), 5.15 - 0.15 * abs(x))
-            d = V(x * 0.45, 0.85, 0.3).normalized()
-            slot = pick_slot(0.55 + .3 * (1 - abs(x)) + rnd.uniform(-.1, .2))
-            glow = slot == 'limeBright' and rnd.random() < .6
-            ln = rnd.uniform(1.5, 2.1)
-            leaf(GLOW if glow else BODY, b, d, ln, ln * .6, wpos(b), 'glowLeaf' if glow else slot, n=Z + V(x * .3, 0, 0), closed=False)
+        # shoulder 'wing': two neat rows of broad leaves lying on the flank, tips back and down
+        for row, (z0, slots_) in enumerate([(4.8, ['dark', 'mid', 'dark']), (4.0, ['lime', 'limeBright', 'lime'])]):
+            for i, y in enumerate([-6.5, -5.3, -4.1]):
+                b = V(s * 1.55, y + 0.15 * (row % 2), z0)
+                d = V(s * 0.12, 0.9, -0.4).normalized()
+                leaf(BODY, b, d, 2.5, 1.6, wpos(b), slots_[i], n=V(s, 0, 0.55), closed=False)
+    # spine: one tidy row down the back
+    for i, y in enumerate([-5.8, -4.9, -4.0, -3.1, -2.3]):
+        for x in (-0.5, 0.5):
+            b = V(x, y + (0.25 if x > 0 else 0), 5.2)
+            leaf(BODY, b, V(x * 0.3, 0.9, 0.25), 1.8, 1.15, wpos(b), 'lime' if i % 2 == 0 else 'mid', n=Z, closed=False)
     for s in (1, -1):
-        for y, z in [(-3.2, 5.1)]:
-            leaf(BODY, V(s * 1.5, y, z), V(s * 0.35, 0.7, -0.45), 1.7, 1.0, W('Pelvis'), rnd.choice(['mid', 'lime']), n=V(s, 0, 1))
-        for i, (x, z, ln, sl) in enumerate([(1.9, 5.0, 2.6, 'lime'), (2.1, 4.4, 2.7, 'limeBright'), (2.1, 3.8, 2.4, 'lime'), (1.5, 5.4, 2.2, 'mid'), (2.2, 3.2, 1.9, 'mid')]):
-            leaf(BODY, V(s * x, -6.9 + 0.25 * i, z), V(s * 0.55, 0.3, -0.5).normalized(), ln, ln * .6, W('Chest'), sl, n=V(s, -0.3, 0.7))
+        for i, (x, z, ln, sl) in enumerate([(1.9, 4.9, 2.4, 'lime'), (2.1, 4.2, 2.4, 'limeBright'), (2.1, 3.5, 2.1, 'lime')]):
+            leaf(BODY, V(s * x, -6.9 + 0.3 * i, z), V(s * 0.55, 0.3, -0.5).normalized(), ln, ln * .64, W('Chest'), sl, n=V(s, -0.3, 0.7), closed=False)
 
 
 def tail():
@@ -322,20 +302,15 @@ def tail():
     frustum(BODY, V(0, -0.9, 4.7), V(0, 0.5, 5.1), 0.95, 0.75, 'olive', W('Tail1'), h0=0.95, h1=0.75, caps=(False, False))
     frustum(BODY, V(0, 0.5, 5.1), V(0, 1.4, 4.95), 0.75, 0.6, 'brown', W('Tail2'), caps=(False, True))
     base = V(0, 1.2, 4.95)
-    for ring in range(4):
-        cnt = 22 if ring % 2 else 18
-        for i in range(cnt):
-            q = i / (cnt - 1)
-            lat = (q - .5) * 2 + rnd.uniform(-.12, .12)
-            pitch = (0.7 - 2.6 * q) + rnd.uniform(-.15, .15)
-            d = V(lat * (0.32 + 0.1 * ring), 1.0, pitch).normalized()
-            down = max(0, -d.z)
-            nn = (V(1 if lat > 0 else -1, 0, 0) * (0.3 + rnd.uniform(0, .8) + 0.5 * down) + Z * rnd.uniform(0.2, 1.0) * (1 - 0.5 * down)).normalized()
-            ln = (2.3 + 1.0 * (1 - abs(lat)) + 1.1 * down) * (0.8 + .1 * ring)
-            slot = pick_slot(0.5 + 0.4 * (1 - ring / 3) + 0.2 * down, 0)
-            b = base + V(lat * .25, 0.1 * ring, 0)
-            glow = slot in ('limeBright', 'lime') and rnd.random() < .55
-            leaf(GLOW if glow else BODY, b, d, ln, ln * .62, (lambda p: wt(p)), 'glowLeaf' if glow else slot, n=nn, ridge=.22)
+    # neat feather fan in the side plane: leaves radiate from the stem tip, alternating sides, one layer
+    angles = [75 - 150 * i / 10 for i in range(11)]                  # +up ... down (degrees above horizontal)
+    for col, sx in enumerate((1, -1)):
+        for i, ang in enumerate(angles):
+            a = math.radians(ang + (7 if col else 0))
+            d = V(sx * 0.18, math.cos(a), math.sin(a)).normalized()
+            ln = 2.6 + 0.9 * math.cos(a * 0.8) + (0.5 if ang < -20 else 0)
+            slot = ['limeBright', 'lime', 'mid', 'lime'][(i + col) % 4] if ang > -40 else ['lime', 'limeBright'][(i + col) % 2]
+            leaf(BODY, base + V(sx * 0.2, 0.05 * i, 0), d, ln, ln * 0.62, (lambda p: wt(p)), slot, n=V(sx, 0, 0.15), closed=True, ridge=.25)
 
 
 # ------------------------------------------------------------------ build all
