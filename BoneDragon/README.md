@@ -4,7 +4,7 @@ Built from `reference/bone_dragon_reference.webp` with the stud-style pipeline (
 
 | | |
 |---|---|
-| Triangles | **3,480** (body 3,130 + glow 350) – under the 5k budget |
+| Triangles | **3,500** (body 3,150 + glow 350) – under the 5k budget |
 | Bones | 40 (Root → Torso → Chest/Neck/Head/Jaw, 5 tail, 4 legs × 3, 2 wings × 8) |
 | Weights | max 2 influences per vertex (Roblox limit is 4) |
 | Texture | 1024² atlas; the stud pattern is **texture only** (no stud geometry) – stud tiles from [dudeax/Roblox-HD-Studs](https://github.com/dudeax/Roblox-HD-Studs) (MIT, vendored in `tools/studs`) |

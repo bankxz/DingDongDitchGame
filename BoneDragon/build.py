@@ -183,15 +183,18 @@ def stations(acc, stn, wt, slot_fn, cap0=None, cap1=None):
 
 # ---- cranium rebuilt from measured landmarks (reference front/left grids): 12-point rings along 10 stations
 SK_Y = [-1.5, -1.9, -2.3, -2.8, -3.3, -3.8, -4.2, -4.6, -4.95, -5.3]
-SK_T = [6.0, 6.3, 6.75, 7.0, 7.0, 6.85, 6.5, 6.05, 5.6, 5.3]      # top (centre ridge) z
-SK_B = [5.0, 4.8, 4.7, 4.65, 4.55, 4.55, 4.55, 4.55, 4.65, 4.75]    # palate z
-SK_W = [.7, 1.0, 1.15, 1.25, 1.25, 1.1, .92, .72, .6, .5]          # half width at eye level
+SK_T = [6.0, 6.3, 6.75, 7.0, 7.0, 6.85, 6.5, 6.05, 5.65, 5.45]      # top (centre ridge) z
+SK_B = [5.0, 4.8, 4.7, 4.65, 4.55, 4.55, 4.55, 4.55, 4.6, 4.6]    # palate z
+SK_W = [.7, 1.0, 1.15, 1.25, 1.25, 1.1, .92, .74, .64, .58]          # half width at eye level
 
 
 def skull_ring(y, T, B, W):
     h = T - B
     half = [(0, T), (.3 * W, T - .02 * h), (.7 * W, T - .2 * h), (W, T - .45 * h), (.88 * W, T - .72 * h), (.52 * W, B + .06 * h), (0, B)]
     pts = half + [(-x, z) for x, z in reversed(half[1:-1])]
+    if y < -5.2:   # nose end: bottom pushed forward so the end face slopes (faces forward + up) and can carry the nostrils
+        pts = pts
+        return [(x, y - .38 * (T - z) / (T - B), z) for x, z in pts]
     return [(x, y, z) for x, z in pts]
 
 
@@ -211,27 +214,32 @@ def build_skull():
 _ids = build_skull()
 
 
-def nose_with_nostrils(ring, depth=.34):
-    """Nose end cap with two real slanted slit holes cut through it, each leading into a dark pocket."""
+def nose_with_nostrils(ring, depth=.3):
+    """Sloped nose end face with two real teardrop nostril holes (tips pointing down toward the centre), each leading into a dark pocket."""
     from mathutils.geometry import tessellate_polygon
-    outer = [BODY.v[j] for j in ring]; holes = []; hole_ids = []; pockets = []
+    outer = [BODY.v[j] for j in ring]
+    vt = max(outer, key=lambda v: v.z); vb = min(outer, key=lambda v: v.z)
+    t = (vt - vb).normalized(); nrm = t.cross(V(X)).normalized()
+    if nrm.y > 0: nrm = -nrm
+    P = lambda x, z: vb + t * ((z - vb.z) / t.z) + V((x, 0, 0))
+    TEAR = [(-.08, -.25), (.09, -.1), (.13, .1), (-.01, .25), (-.12, .08)]
+    holes = []; hole_ids = []; pockets = []
     for sg in (1, -1):
-        c = V((sg * .26, -5.3, 5.0)); ax = V((sg * .35, 0, 1)).normalized(); wd = (V(X) - ax * V(X).dot(ax)).normalized()
-        q = [c + ax * .17, c + wd * .07, c - ax * .17, c - wd * .07]
+        q = [P(sg * (.3 + u + .28 * dz), 5.04 + dz) for u, dz in TEAR]; c = sum(q, V()) / len(q)
         holes.append(q); hole_ids.append([BODY.add_v(pt, H) for pt in q])
-        inner = [c + (pt - c) * .55 + V((0, depth, 0)) for pt in q]
-        pockets.append((hole_ids[-1], [BODY.add_v(pt, H) for pt in inner]))
+        pockets.append((hole_ids[-1], [BODY.add_v(c + (pt - c) * .5 - nrm * depth, H) for pt in q]))
     allids = list(ring) + hole_ids[0] + hole_ids[1]
     for a, b, c_ in tessellate_polygon([outer, holes[0], holes[1]]):
         f = [allids[a], allids[b], allids[c_]]; vs = [BODY.v[i] for i in f]
-        if (vs[1] - vs[0]).cross(vs[2] - vs[0]).y > 0: f = f[::-1]
+        if (vs[1] - vs[0]).cross(vs[2] - vs[0]).dot(nrm) < 0: f = f[::-1]
         BODY.face(f, 'bone')
     for outer_q, inner_q in pockets:
-        faces = [[outer_q[i], outer_q[(i + 1) % 4], inner_q[(i + 1) % 4], inner_q[i]] for i in range(4)] + [inner_q[::-1]]
-        cp = sum((BODY.v[i] for i in outer_q + inner_q), V()) / 8
+        n_ = len(outer_q)
+        faces = [[outer_q[i], outer_q[(i + 1) % n_], inner_q[(i + 1) % n_], inner_q[i]] for i in range(n_)] + [inner_q[::-1]]
+        cp = sum((BODY.v[i] for i in outer_q + inner_q), V()) / (2 * n_)
         for f in faces:
-            vs = [BODY.v[i] for i in f]; n = (vs[1] - vs[0]).cross(vs[2] - vs[0]); fc = sum(vs, V()) / len(vs)
-            BODY.face(f if n.dot(fc - cp) < 0 else f[::-1], 'dark')
+            vs = [BODY.v[i] for i in f]; nn = (vs[1] - vs[0]).cross(vs[2] - vs[0]); fc = sum(vs, V()) / len(vs)
+            BODY.face(f if nn.dot(fc - cp) < 0 else f[::-1], 'dark')
 
 
 nose_with_nostrils(_ids[-1])
@@ -262,19 +270,28 @@ for sg in (1, -1):
     spike(BODY, (sg * 1.15, -2.7, 6.4), (sg * .8, .2, .55), .8, .6, H)                       # outer crown shard
     spike(BODY, (sg * .9, -2.1, 5.95), (sg * .2, 1, .1), .6, .5, H)                          # rear skull spike
 spike(BODY, (0, -2.95, 6.75), (0, .25, 1), .8, .8, H)                                      # central crown spike
-# teeth: many small fangs
-for sg in (1, -1):
-    for i, y in enumerate((-5.05, -4.75, -4.45, -4.15, -3.85, -3.55, -3.25)):
-        L = .34 if i in (0, 1) else .24
-        spike(BODY, (sg * (.36 + .07 * i), y, 4.55), (0, 0, -1), L + .1, .19, H, 'tooth')
-    for i, y in enumerate((-4.75, -4.45, -4.15, -3.85, -3.55, -3.25)):
-        spike(BODY, (sg * (.34 + .08 * i), y, 4.02 + .1 * i), (0, 0, 1), .2 + (.08 if i == 0 else 0), .17, JW, 'tooth')
 # lower jaw
-JR = [(-4.8, 3.85, .42, .22), (-3.7, 4.12, .85, .30), (-2.7, 4.45, 1.2, .42)]
+JR = [(-4.8, 3.87, .45, .3), (-3.7, 4.03, .85, .4), (-2.7, 4.19, 1.2, .5)]
 rings = [{'c': (0, y, cz), 'rx': rx, 'ry': rz, 'w': JW, 'T': (0, -1, 0)} for y, cz, rx, rz in JR]
 prim(K.loft, BODY, rings, 8, lambda n, c, i: 'dark' if n.z > .5 else ('boneD' if n.z < -.4 else 'bone'), cap0='bone', cap1='bone')
+plate(BODY, (0, -3.75, 4.38), (1.1, 1.9, .5), (1, 0, 0), (0, -1, 0), 'dark', H)   # dark mouth interior between palate and jaw
+# ---- teeth: many short, wide-based triangular fangs along the real skull / jaw edges (reference), dark mouth behind
+import numpy as _np
+def _tab(ys, vals, y): return float(_np.interp(y, ys[::-1], vals[::-1]))
+def fang(acc, base, d, length, wy, wx, wt, slot='tooth'):
+    d = V(d).normalized(); b = V(base)
+    q = [acc.add_v(b + V((sx * wx / 2, sy * wy / 2, 0)), wt) for sx, sy in ((-1, -1), (1, -1), (1, 1), (-1, 1))]
+    tip = acc.add_v(b + d * length, wt); s0 = len(acc.f)
+    for k in range(4): acc.face([q[k], q[(k + 1) % 4], tip], slot)
+    fix(acc, s0)
 for sg in (1, -1):
-    plate(BODY, (sg * .72, -4.0, 3.62), (.3, 1.8, .24), (sg, 0, 0), (0, -1, .1), 'bone', JW)
+    for i, y in enumerate(_np.linspace(-5.05, -3.2, 9)):
+        W_ = _tab(SK_Y, SK_W, y); T_ = _tab(SK_Y, SK_T, y); B_ = _tab(SK_Y, SK_B, y); zb = B_ + .06 * (T_ - B_) - .04
+        fang(BODY, (sg * .5 * W_, y, zb), (sg * .1, 0, -1), .36 if i == 0 else (.26 if i % 2 else .3), .27, .14, H)
+    for i, y in enumerate(_np.linspace(-4.65, -2.95, 7)):
+        rx_ = _tab([r[0] for r in JR], [r[2] for r in JR], y); cz_ = _tab([r[0] for r in JR], [r[1] for r in JR], y); rz_ = _tab([r[0] for r in JR], [r[3] for r in JR], y)
+        fang(JBODY if False else BODY, (sg * .5 * rx_, y, cz_ + .92 * rz_ - .05), (sg * -.1, 0, 1), .3 if i == 0 else .22, .25, .13, JW)
+for sg in (1, -1):
     _n = V((sg * .6, -.78, .15)).normalized(); _c = V((sg * .98, -4.05, 5.72))
     prim(K.eye_lens, BODY, _c - _n * .1, _n, (0, 0, 1), (0, -1, 0), H, outline=EYE_OUT, scale=1.2, dome=.0, slot='dark')   # dark socket
     prim(K.eye_lens, GLOW, _c - _n * .07, _n, (0, 0, 1), (0, -1, 0), H, outline=EYE_OUT, scale=1.0, dome=.12)
