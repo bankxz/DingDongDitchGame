@@ -161,6 +161,11 @@ for name, spec in cfg['slots'].items():
     elif kind == 'eye': paint(spec['rect'], eye(spec)); emi[y:y + h, x:x + w] = img[y:y + h, x:x + w]
     elif kind == 'gem': paint(spec['rect'], gem(spec)); emi[y:y + h, x:x + w] = img[y:y + h, x:x + w]
     elif kind == 'leaf': leaf_swatch(spec, spec['rect'])
+    elif kind == 'image':
+        im = Image.open(spec['path']).convert('RGB').resize((w, h), Image.LANCZOS); a = np.asarray(im).astype(np.float32) / 255
+        img[y:y + h, x:x + w] = a
+        lum = a @ np.array([.3, .59, .11], np.float32); sat = a.max(-1) - a.min(-1)
+        emi[y:y + h, x:x + w] = a * np.clip((lum - 0.55) / 0.3, 0, 1)[..., None] * (sat > 0.25)[..., None] * spec.get('emit', 0.8)
     else: raise SystemExit(f'unknown slot kind {kind}')
 
 Image.fromarray((np.clip(img, 0, 1) * 255).astype(np.uint8)).save(os.path.join(OUT, 'Color.png'))

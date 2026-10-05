@@ -266,8 +266,8 @@ def leaf_cores():
 
 # ------------------------------------------------------------------ build all
 def build_geometry():
-    torso(); hips(); neck(); head(); gem(); antler(); legs(); tail(); leaf_cores()
-    import ref_leaves; ref_leaves.place(globals())
+    torso(); hips(); neck(); head(); gem(); antler(); legs(); tail()
+    import clumps; clumps.build(globals())
     print('tris total', BODY.tris())
 
 
