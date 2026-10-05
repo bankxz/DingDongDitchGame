@@ -98,6 +98,49 @@ def auto_rows(manual):
     return rows
 
 
+MANE_POLY = [(52, 78), (62, 64), (84, 60), (106, 64), (122, 80), (136, 98), (128, 114), (150, 126), (152, 142), (110, 146), (66, 142), (50, 128), (48, 100)]
+
+
+def _inside(poly, x, y):
+    c = False
+    for (x0, y0), (x1, y1) in zip(poly, poly[1:] + poly[:1]):
+        if (y0 > y) != (y1 > y) and x < (x1 - x0) * (y - y0) / (y1 - y0) + x0: c = not c
+    return c
+
+
+def mane_rows(ref_leaves):
+    """Dense lion-style mane: leaves sampled across the reference's mane silhouette (left view), each one oriented along
+    the flow of the nearest reference leaves, sized from them and coloured from the reference pixel underneath."""
+    import os, random
+    from PIL import Image
+    here = os.path.dirname(os.path.abspath(__file__))
+    img = Image.open(os.path.join(here, 'ref', 'left_view.png')).convert('RGB')
+    rnd = random.Random(11); rows = []
+    for gy in range(56, 148, 8):
+        for gx in range(36, 156, 8):
+            px, py = gx + rnd.uniform(-3, 3), gy + rnd.uniform(-3, 3)
+            if not _inside(MANE_POLY, px, py): continue
+            near = sorted(ref_leaves, key=lambda r: math.hypot((r[0] + r[2]) / 2 - px, (r[1] + r[3]) / 2 - py))[:5]
+            dx = dy = ws = ln = 0.0
+            for r in near:
+                L = math.hypot(r[2] - r[0], r[3] - r[1]); d = math.hypot((r[0] + r[2]) / 2 - px, (r[1] + r[3]) / 2 - py) + 6
+                wgt = 1 / d; dx += (r[2] - r[0]) / max(L, 1e-6) * wgt; dy += (r[3] - r[1]) / max(L, 1e-6) * wgt; ws += wgt; ln += L * wgt
+            n = math.hypot(dx, dy)
+            if n < 1e-6: continue
+            dx, dy = dx / n, dy / n; L = min(max(ln / ws * 1.1, 26), 52)
+            while L >= 22 and not _inside(MANE_POLY, px + dx * 0.65 * L, py + dy * 0.65 * L): L *= 0.88      # keep tips inside the reference mane outline
+            if L < 22: continue
+            r_, g_, b_ = img.getpixel((int(min(max(px, 0), 364)), int(min(max(py, 0), 289))))
+            lum = 0.3 * r_ + 0.59 * g_ + 0.11 * b_
+            if g_ < r_ * 0.9 or g_ < 40: continue                      # skip antler / muzzle / background pixels
+            c = 'L' if lum > 190 else 'l' if lum > 150 else 'm' if lum > 105 else 'd' if lum > 72 else 'D'
+            dist = math.hypot(px - 62, py - 112)
+            xb = min(2.6, 0.75 + dist / 34 + 0.5 * lum / 255 + rnd.uniform(-0.1, 0.1))
+            flare = 0.7 + 0.9 * min(1.0, max(0.0, (py - 70) / 70))          # leaves fan outward so the mane reads wide from the front
+            rows.append((px - dx * 0.35 * L, py - dy * 0.35 * L, px + dx * 0.65 * L, py + dy * 0.65 * L, L * 0.56, c, xb, xb + flare))
+    return rows
+
+
 def place(g):
     leaf, BODYACC, WH, wpos, interp_w, W, Z = g['leaf'], g['BODY'], g['WH'], g['wpos'], g['interp_w'], g['W'], g['Z']
     def weight(sec, p, sx, bx):
@@ -126,7 +169,8 @@ def place(g):
                  SLOT[c], n=n, closed=True, ridge=0.1, droop=0.0)
     manual = HEAD + MANE + BODY + LEGS + TAIL
     AUTO = auto_rows(manual)
-    for sec, rows in (('HEAD', HEAD), ('MANE', MANE), ('BODY', BODY), ('LEGS', LEGS), ('TAIL', TAIL), ('ANTLER', ANTLER), ('AUTO', AUTO)):
+    MANE2 = mane_rows(manual + AUTO)
+    for sec, rows in (('HEAD', HEAD), ('MANE', MANE), ('BODY', BODY), ('LEGS', LEGS), ('TAIL', TAIL), ('ANTLER', ANTLER), ('AUTO', AUTO), ('MANE', MANE2)):
         for bx, by, tx, ty, w, c, xb, xt in rows:
             if sec == 'LEGS' or (sec == 'AUTO' and by > 205):
                 sides = (-1,) if 125 < bx < 190 else ((1,) if bx >= 190 else (1, -1))      # far hind leg / near hind leg / front pair
@@ -136,5 +180,5 @@ def place(g):
                 b = V((sx * xb, to_y(bx), to_z(by))); t = V((sx * xt, to_y(tx), to_z(ty)))
                 d = t - b; L = d.length
                 if L < 1e-3: continue
-                n = V((sx, 0, 0)) if (xb or xt) else V((1, 0, 0))
+                n = V((sx, -0.5 if sec == 'MANE' else 0, 0)).normalized() if (xb or xt) else V((1, 0, 0))
                 leaf(BODYACC, b, d, L * 1.04, w * 2.3 / PXU, weight(sec, b, sx, bx), SLOT[c], n=n, closed=(sec not in ('BODY', 'AUTO')), ridge=0.1, droop=0.0)
