@@ -182,10 +182,10 @@ def stations(acc, stn, wt, slot_fn, cap0=None, cap1=None):
 
 STN = [  # y, top, upper(x,z), mid, lower, bottom
     (-1.5, 6.3, (.5, 6.2), (.85, 5.7), (.7, 5.2), 4.95),
-    (-1.9, 6.6, (.7, 6.45), (1.15, 5.9), (1.0, 5.1), 4.8),
-    (-2.6, 7.05, (.85, 6.9), (1.5, 6.05), (1.3, 5.1), 4.6),
-    (-3.3, 6.65, (.95, 6.5), (1.45, 5.85), (1.2, 5.0), 4.5),
-    (-4.0, 6.05, (.65, 5.9), (1.0, 5.35), (.85, 4.8), 4.45),
+    (-1.9, 6.55, (.85, 6.4), (1.2, 5.85), (1.0, 5.1), 4.8),
+    (-2.6, 6.95, (1.05, 6.75), (1.5, 6.0), (1.3, 5.1), 4.6),
+    (-3.3, 6.6, (1.1, 6.4), (1.45, 5.8), (1.2, 5.0), 4.5),
+    (-4.0, 6.0, (.8, 5.85), (1.05, 5.35), (.85, 4.8), 4.45),
     (-4.6, 5.45, (.5, 5.4), (.8, 5.05), (.7, 4.7), 4.4),
     (-5.3, 5.05, (.45, 5.0), (.62, 4.82), (.54, 4.55), 4.35)]
 _ids = stations(BODY, STN, H, lambda i, k: 'dark' if k in (3, 4) else ('boneD' if k in (2, 5) and i > 2 else 'bone'), cap0='bone', cap1=None)
@@ -215,17 +215,32 @@ def nose_with_nostrils(ring, depth=.34):
 
 
 nose_with_nostrils(_ids[-1])
+def leaf_plate(acc, A, B, width, thick, wt, slot='bone', sink=.08):
+    """Narrow tapered leaf-shaped plate from A to B (pointed ends, widest ~35% along), flat-ish, sunk slightly into the skull."""
+    A, B = V(A), V(B); d = B - A; L = d.length; d.normalize()
+    w = d.cross(V(Z)).normalized(); n = w.cross(d).normalized()
+    prof = [(0, 0), (.3, .5), (.68, .42), (1, 0), (.68, -.42), (.3, -.5)]
+    top = [acc.add_v(A + d * L * f + w * width * o + n * (thick / 2 - sink), wt) for f, o in prof]
+    bot = [acc.add_v(A + d * L * f + w * width * o - n * (thick / 2 + sink), wt) for f, o in prof]
+    s0 = len(acc.f)
+    for i in range(1, 5):
+        acc.face([top[0], top[i], top[i + 1]], slot); acc.face([bot[0], bot[i + 1], bot[i]], slot)
+    for i in range(6):
+        j = (i + 1) % 6; acc.face([bot[i], bot[j], top[j], top[i]], slot)
+    fix(acc, s0)
+
+
 for sg in (1, -1):
-    # brow plate: slanted slab over the eye, pitched down toward the snout
-    plate(BODY, (sg * .98, -3.3, 6.42), (1.1, 1.3, .2), (-sg * .8, 0, -.6), (0, -1, -.35), 'bone', H)
-    # cheek block + flare spikes
-    plate(BODY, (sg * 1.25, -3.35, 5.15), (.45, 1.0, .5), (sg, 0, .15), (0, -1, -.1), 'bone', H)
-    spike(BODY, (sg * 1.35, -2.95, 5.95), (sg * .55, .85, .25), .85, .65, H)
-    spike(BODY, (sg * 1.2, -2.3, 5.2), (sg * .5, .9, -.1), .7, .55, H)
+    # eyebrow: narrow tapered ridge sloping down from the outer corner over the eye toward the snout
+    leaf_plate(BODY, (sg * 1.5, -2.8, 6.45), (sg * .5, -4.0, 5.98), .5, .24, H)
+    # cheek plate + spikes (all bases sunk into the skull surface)
+    plate(BODY, (sg * 1.2, -3.35, 5.15), (.45, 1.0, .5), (sg, 0, .15), (0, -1, -.1), 'bone', H)
+    spike(BODY, (sg * 1.2, -2.95, 5.9), (sg * .55, .85, .25), 1.0, .65, H)
+    spike(BODY, (sg * 1.0, -2.3, 5.2), (sg * .5, .9, -.1), .85, .55, H)
     # crown spikes flanking the central one
-    spike(BODY, (sg * .8, -2.6, 6.9), (sg * .3, .15, 1), .7, .65, H)
-    spike(BODY, (sg * 1.4, -2.5, 6.6), (sg * .9, .1, .55), .75, .7, H)
-spike(BODY, (0, -2.7, 6.95), (0, .12, 1), .8, .8, H)
+    spike(BODY, (sg * .8, -2.6, 6.6), (sg * .3, .15, 1), .95, .65, H)
+    spike(BODY, (sg * 1.0, -2.55, 6.4), (sg * .9, .1, .55), .95, .7, H)
+spike(BODY, (0, -2.7, 6.7), (0, .12, 1), 1.05, .8, H)
 # teeth
 for sg in (1, -1):
     for i, y in enumerate((-5.05, -4.65, -4.25, -3.85, -3.45)):
@@ -332,11 +347,11 @@ flame(tip + V((0, .55, .25)), (0, 1, .35), 1.7, .3, {'Tail5': 1}, seed=41, n=3, 
 # ------------------------------------------------------------------- legs
 def foot(sg, ank, parent, size=1.0):
     w = {parent: 1}; ax, ay, az = ank
-    plate(BODY, (sg * ax, ay - .4, .45), (1.2 * size, 1.2 * size, .6), (sg, 0, 0), (0, -1, -.12), 'boneD', w, taper=.85)
+    plate(BODY, (sg * ax, ay - .35, .32), (1.2 * size, 1.1 * size, .55), (sg, 0, 0), (0, -1, -.05), 'boneD', w, taper=.9)
     for dx, yaw in ((-.46, -.18), (0, 0), (.46, .18)):
         x = sg * (ax + dx * size)
-        obox(BODY, (x, ay - 1.0 * size, .52), (.46 * size, .5, .44), (sg * yaw, -1, -.12), 'dark', w)
-        claw(BODY, (x, ay - 1.2 * size, .36), (sg * yaw * 1.4, -1, 0), .58 * size, .3, .42 * size, .4, w)
+        obox(BODY, (x, ay - .95 * size, .3), (.46 * size, .55, .44), (sg * yaw, -1, 0), 'dark', w)
+        claw(BODY, (x, ay - 1.15 * size, .3), (sg * yaw * 1.4, -1, 0), .62 * size, .27, .4 * size, .36, w)
 
 
 for sg in (1, -1):
@@ -375,7 +390,7 @@ def wing(sg):
         seg(BODY, p(WW), p(j), .15, .13, 'bone', w(f'Finger{i}a'), n=4)
         seg(BODY, p(j), p(t), .13, .08, 'bone', w(f'Finger{i}b'), n=4)
         obox(BODY, p(j), (.3, .3, .3), (0, 1, 0), 'bone', w(f'Finger{i}a'))
-        spike(BODY, p(t), (V(p(t)) - V(p(j))).normalized(), .55, .24, w(f'Finger{i}b'))
+        spike(BODY, V(p(t)) - (V(p(t)) - V(p(j))).normalized() * .12, (V(p(t)) - V(p(j))).normalized(), .67, .24, w(f'Finger{i}b'))
     flame(p(WW) + V((0, 0, .2)), (0, 0, 1), 1.35, .3, w('WingFore'), seed=30 + sg, n=3, spread=.55, side=(0, 1, 0))
     flame(p(WW) + V((0, .05, .15)), (0, .3, 1), 1.0, .28, w('WingFore'), seed=33 + sg, n=3, spread=.6, side=(1, 0, 0))
     # membrane

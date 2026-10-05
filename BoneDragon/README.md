@@ -4,7 +4,7 @@ Built from `reference/bone_dragon_reference.webp` with the stud-style pipeline (
 
 | | |
 |---|---|
-| Triangles | **3,246** (body 2,894 + glow 352) – under the 5k budget |
+| Triangles | **3,268** (body 2,916 + glow 352) – under the 5k budget |
 | Bones | 40 (Root → Torso → Chest/Neck/Head/Jaw, 5 tail, 4 legs × 3, 2 wings × 8) |
 | Weights | max 2 influences per vertex (Roblox limit is 4) |
 | Texture | 1024² atlas; the stud pattern is **texture only** (no stud geometry) – stud tiles from [dudeax/Roblox-HD-Studs](https://github.com/dudeax/Roblox-HD-Studs) (MIT, vendored in `tools/studs`) |
@@ -26,7 +26,7 @@ pip install bpy==4.2.0 pillow numpy
 python3 build.py                       # textures + BoneDragon.blend
 python3 tools/export_roblox.py BoneDragon.blend out BoneDragon
 ```
-Checks used: `tools/check_normals.py` (no inside-out geometry – the 2 "open islands" it lists are the two-sided wing membranes), `tools/check_clips.py` (root drift 0, loop seam 0), `tools/verify_export.py` (tris, bones, weights, textures embedded).
+Checks used: `tools/check_normals.py` (no inside-out geometry – the 2 "open islands" it lists are the two-sided wing membranes), `tools/check_clips.py` (root drift 0, loop seam 0), `tools/check_attached.py` (no floating spikes or plates), `tools/verify_export.py` (tris, bones, weights, textures embedded).
 
 ## Reference vs model
 `renders/compare_*.png` show the reference panel next to the model render for every view; `renders/contact_*.png` are the animation contact sheets.
