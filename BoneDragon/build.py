@@ -185,25 +185,37 @@ def stations(acc, stn, wt, slot_fn, cap0=None, cap1=None):
 SK_Y = [-1.5, -1.9, -2.3, -2.8, -3.3, -3.8, -4.2, -4.6, -4.95, -5.3]
 SK_T = [6.0, 6.3, 6.75, 7.0, 7.0, 6.85, 6.5, 6.05, 5.65, 5.45]      # top (centre ridge) z
 SK_B = [5.0, 4.8, 4.7, 4.65, 4.55, 4.55, 4.55, 4.55, 4.6, 4.6]    # palate z
-SK_W = [.7, 1.0, 1.15, 1.25, 1.25, 1.1, .92, .74, .64, .58]          # half width at eye level
+SK_W = [.7, 1.0, 1.15, 1.25, 1.25, 1.12, .9, .68, .58, .52]          # half width: nose bridge / snout flank tapers so the eyes face forward
+# denser stations around the eyes carry the carved socket (pocket depth D per station)
+import numpy as _np0
+SK2_Y = [-1.5, -1.9, -2.3, -2.8, -3.3, -3.55, -3.8, -4.05, -4.3, -4.55, -4.95, -5.3]
+SK2_D = [0, 0, 0, 0, 0, 0, .08, .24, .3, .22, 0, 0]
+_ip = lambda arr: [float(_np0.interp(y, SK_Y[::-1], arr[::-1])) for y in SK2_Y]
+SK2_T, SK2_B, SK2_W = _ip(SK_T), _ip(SK_B), _ip(SK_W)
+SOCKET_FRAC = .445       # socket centre, as a fraction of skull height below the top ridge
 
 
-def skull_ring(y, T, B, W):
+def skull_ring(y, T, B, W, D):
     h = T - B
-    half = [(0, T), (.3 * W, T - .02 * h), (.7 * W, T - .2 * h), (W, T - .45 * h), (.88 * W, T - .72 * h), (.52 * W, B + .06 * h), (0, B)]
+    # half ring: top, forehead shoulder, brow side, UPPER RIM, socket FLOOR (recessed), LOWER RIM (cheek bone), jaw side, palate edge, palate
+    half = [(0, T), (.3 * W, T - .02 * h), (.7 * W, T - .2 * h), (.86 * W + .25 * D, T - .32 * h), (W - D, T - SOCKET_FRAC * h),
+            (.9 * W + .2 * D, T - .57 * h), (.88 * W, T - .72 * h), (.52 * W, B + .06 * h), (0, B)]
     pts = half + [(-x, z) for x, z in reversed(half[1:-1])]
     if y < -5.2:   # nose end: bottom pushed forward so the end face slopes (faces forward + up) and can carry the nostrils
-        pts = pts
         return [(x, y - .38 * (T - z) / (T - B), z) for x, z in pts]
     return [(x, y, z) for x, z in pts]
 
 
 def build_skull():
-    ids = [[BODY.add_v(pt, H) for pt in skull_ring(*r)] for r in zip(SK_Y, SK_T, SK_B, SK_W)]
-    s0 = len(BODY.f); n = 12
+    ids = [[BODY.add_v(pt, H) for pt in skull_ring(*r)] for r in zip(SK2_Y, SK2_T, SK2_B, SK2_W, SK2_D)]
+    s0 = len(BODY.f); n = 16
     for i in range(len(ids) - 1):
+        d = (SK2_D[i] + SK2_D[i + 1]) / 2
         for k in range(n):
-            slot = 'dark' if k in (5, 6) else ('boneD' if k in (4, 7) and i > 3 else 'bone')
+            if k in (7, 8): slot = 'dark'                           # palate
+            elif k in (6, 9) and i > 3: slot = 'boneD'
+            elif k in (3, 4, 11, 12) and d > .1: slot = 'socket'   # inside of the eye socket (warm dark brown)
+            else: slot = 'bone'
             BODY.face([ids[i][k], ids[i + 1][k], ids[i + 1][(k + 1) % n], ids[i][(k + 1) % n]], slot)
     row = ids[0]; ci = BODY.add_v(sum((BODY.v[j] for j in row), V()) / n, H)
     for k in range(n): BODY.face([row[k], row[(k + 1) % n], ci], 'bone')
@@ -261,7 +273,7 @@ def leaf_plate(acc, A, B, width, thick, wt, slot='bone', sink=.08):
 
 
 for sg in (1, -1):
-    leaf_plate(BODY, (sg * .3, -4.5, 6.2), (sg * 1.2, -3.3, 6.78), .62, .5, H, sink=.16)     # thick bevelled brow block right on the eye
+    leaf_plate(BODY, (sg * .4, -4.75, 6.4), (sg * 1.25, -3.5, 6.9), .55, .38, H, sink=.14)     # thick bevelled brow block right on the eye
     leaf_plate(BODY, (sg * .8, -4.45, 5.0), (sg * 1.25, -2.9, 5.3), .55, .36, H, sink=.14)   # cheek plate under the eye
     spike(BODY, (sg * 1.05, -2.95, 5.95), (sg * .75, .55, .35), .95, .8, H)                  # ear flare
     # low jagged crest along the cranium: small shards stepping back
@@ -292,9 +304,13 @@ for sg in (1, -1):
         rx_ = _tab([r[0] for r in JR], [r[2] for r in JR], y); cz_ = _tab([r[0] for r in JR], [r[1] for r in JR], y); rz_ = _tab([r[0] for r in JR], [r[3] for r in JR], y)
         fang(JBODY if False else BODY, (sg * .5 * rx_, y, cz_ + .92 * rz_ - .05), (sg * -.1, 0, 1), .3 if i == 0 else .22, .25, .13, JW)
 for sg in (1, -1):
-    _n = V((sg * .6, -.78, .15)).normalized(); _c = V((sg * .98, -4.05, 5.72))
-    prim(K.eye_lens, BODY, _c - _n * .1, _n, (0, 0, 1), (0, -1, 0), H, outline=EYE_OUT, scale=1.2, dome=.0, slot='dark')   # dark socket
-    prim(K.eye_lens, GLOW, _c - _n * .07, _n, (0, 0, 1), (0, -1, 0), H, outline=EYE_OUT, scale=1.0, dome=.12)
+    _y = -4.25
+    _fl = lambda yy: float(_np0.interp(yy, SK_Y[::-1], SK_W[::-1])) - float(_np0.interp(yy, SK2_Y[::-1], SK2_D[::-1]))   # socket floor half-width x(y)
+    _T = float(_np0.interp(_y, SK_Y[::-1], SK_T[::-1])); _B = float(_np0.interp(_y, SK_Y[::-1], SK_B[::-1]))
+    _dxdy = (_fl(_y + .12) - _fl(_y - .12)) / .24
+    _n = V((sg * 1.0, -_dxdy, .05)).normalized()                                  # outward normal of the sloped socket floor (faces forward-out)
+    _c = V((sg * _fl(_y), _y, _T - SOCKET_FRAC * (_T - _B))) + _n * .06       # seated flush on the floor
+    prim(K.eye_lens, GLOW, _c, _n, (0, 0, 1), (0, -1, 0), H, outline=EYE_OUT, scale=1.1, dome=.08)
 # horns: loft with explicit gradient UVs (brown-orange base -> charcoal tip)
 for sg in (1, -1):
     path = [(1.0, -2.4, 6.2), (1.3, -1.95, 7.4), (1.6, -1.4, 8.2), (1.75, -.8, 8.85), (1.7, -.3, 9.25)]

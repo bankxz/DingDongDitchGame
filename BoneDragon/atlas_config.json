@@ -139,6 +139,17 @@
    ],
    "kind": "flat",
    "color": "white"
+  },
+  "socket": {
+   "rect": [
+    640,
+    768,
+    128,
+    128
+   ],
+   "kind": "gradient",
+   "from": "#5a2f14",
+   "to": "#2c1509"
   }
  }
 }
