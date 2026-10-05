@@ -159,17 +159,6 @@
    "lite": "#a8ffc0",
    "mid": "#46f06f",
    "dark": "#14a83a"
-  },
-  "ref": {
-   "rect": [
-    0,
-    768,
-    320,
-    254
-   ],
-   "kind": "image",
-   "path": "ref/left_view.png",
-   "emit": 0.8
   }
  }
 }
