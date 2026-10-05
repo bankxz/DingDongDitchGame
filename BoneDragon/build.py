@@ -177,6 +177,7 @@ def stations(acc, stn, wt, slot_fn, cap0=None, cap1=None):
             ci = acc.add_v(sum((acc.v[j] for j in row), V()) / 8, wt)
             for k in range(8): acc.face([row[k], row[(k + 1) % 8], ci], slot)
     fix(acc, s0)
+    return ids
 
 
 STN = [  # y, top, upper(x,z), mid, lower, bottom
@@ -186,11 +187,37 @@ STN = [  # y, top, upper(x,z), mid, lower, bottom
     (-3.3, 6.65, (.95, 6.5), (1.45, 5.85), (1.2, 5.0), 4.5),
     (-4.0, 6.05, (.65, 5.9), (1.0, 5.35), (.85, 4.8), 4.45),
     (-4.6, 5.45, (.5, 5.4), (.8, 5.05), (.7, 4.7), 4.4),
-    (-5.3, 4.95, (.42, 4.9), (.58, 4.75), (.5, 4.5), 4.4)]
-stations(BODY, STN, H, lambda i, k: 'dark' if k in (3, 4) else ('boneD' if k in (2, 5) and i > 2 else 'bone'), cap0='bone', cap1='bone')
+    (-5.3, 5.05, (.45, 5.0), (.62, 4.82), (.54, 4.55), 4.35)]
+_ids = stations(BODY, STN, H, lambda i, k: 'dark' if k in (3, 4) else ('boneD' if k in (2, 5) and i > 2 else 'bone'), cap0='bone', cap1=None)
+
+
+def nose_with_nostrils(ring, depth=.34):
+    """Nose end cap with two real slanted slit holes cut through it, each leading into a dark pocket."""
+    from mathutils.geometry import tessellate_polygon
+    outer = [BODY.v[j] for j in ring]; holes = []; hole_ids = []; pockets = []
+    for sg in (1, -1):
+        c = V((sg * .25, -5.3, 4.78)); ax = V((sg * .35, 0, 1)).normalized(); wd = (V(X) - ax * V(X).dot(ax)).normalized()
+        q = [c + ax * .24, c + wd * .09, c - ax * .24, c - wd * .09]
+        holes.append(q); hole_ids.append([BODY.add_v(pt, H) for pt in q])
+        inner = [c + (pt - c) * .55 + V((0, depth, 0)) for pt in q]
+        pockets.append((hole_ids[-1], [BODY.add_v(pt, H) for pt in inner]))
+    allids = list(ring) + hole_ids[0] + hole_ids[1]
+    for a, b, c_ in tessellate_polygon([outer, holes[0], holes[1]]):
+        f = [allids[a], allids[b], allids[c_]]; vs = [BODY.v[i] for i in f]
+        if (vs[1] - vs[0]).cross(vs[2] - vs[0]).y > 0: f = f[::-1]
+        BODY.face(f, 'bone')
+    for outer_q, inner_q in pockets:
+        faces = [[outer_q[i], outer_q[(i + 1) % 4], inner_q[(i + 1) % 4], inner_q[i]] for i in range(4)] + [inner_q[::-1]]
+        cp = sum((BODY.v[i] for i in outer_q + inner_q), V()) / 8
+        for f in faces:
+            vs = [BODY.v[i] for i in f]; n = (vs[1] - vs[0]).cross(vs[2] - vs[0]); fc = sum(vs, V()) / len(vs)
+            BODY.face(f if n.dot(fc - cp) < 0 else f[::-1], 'dark')
+
+
+nose_with_nostrils(_ids[-1])
 for sg in (1, -1):
     # brow plate: slanted slab over the eye, pitched down toward the snout
-    plate(BODY, (sg * .98, -3.3, 6.45), (1.25, 1.5, .4), (-sg * .8, 0, -.6), (0, -1, -.35), 'bone', H)
+    plate(BODY, (sg * .98, -3.3, 6.42), (1.1, 1.3, .2), (-sg * .8, 0, -.6), (0, -1, -.35), 'bone', H)
     # cheek block + flare spikes
     plate(BODY, (sg * 1.25, -3.35, 5.15), (.45, 1.0, .5), (sg, 0, .15), (0, -1, -.1), 'bone', H)
     spike(BODY, (sg * 1.35, -2.95, 5.95), (sg * .55, .85, .25), .85, .65, H)
@@ -198,8 +225,6 @@ for sg in (1, -1):
     # crown spikes flanking the central one
     spike(BODY, (sg * .8, -2.6, 6.9), (sg * .3, .15, 1), .7, .65, H)
     spike(BODY, (sg * 1.4, -2.5, 6.6), (sg * .9, .1, .55), .75, .7, H)
-    # nostril slit: dark, slanted (top outward)
-    obox(BODY, (sg * .3, -5.31, 4.95), (.15, .25, .5), (0, -1, .08), 'dark', H, up=(sg * .5, 0, 1))
 spike(BODY, (0, -2.7, 6.95), (0, .12, 1), .8, .8, H)
 # teeth
 for sg in (1, -1):
@@ -311,7 +336,7 @@ def foot(sg, ank, parent, size=1.0):
     for dx, yaw in ((-.46, -.18), (0, 0), (.46, .18)):
         x = sg * (ax + dx * size)
         obox(BODY, (x, ay - 1.0 * size, .52), (.46 * size, .5, .44), (sg * yaw, -1, -.12), 'dark', w)
-        claw(BODY, (x, ay - 1.22 * size, .5), (sg * yaw * 1.4, -1, 0), 1.0 * size, .42, .48 * size, .5, w)
+        claw(BODY, (x, ay - 1.2 * size, .36), (sg * yaw * 1.4, -1, 0), .58 * size, .3, .42 * size, .4, w)
 
 
 for sg in (1, -1):
