@@ -1,0 +1,144 @@
+{
+ "size": 1024,
+ "px_per_stud": 32,
+ "stud_strength": 0.45,
+ "palette": {
+  "bone": "#f1e0b8",
+  "boneD": "#d3b988",
+  "dark": "#2f2724",
+  "white": "#ffffff"
+ },
+ "slots": {
+  "bone": {
+   "rect": [
+    0,
+    0,
+    640,
+    384
+   ],
+   "kind": "studs",
+   "color": "bone",
+   "top_tint": [
+    "#fbf0d2",
+    0.3
+   ]
+  },
+  "dark": {
+   "rect": [
+    640,
+    0,
+    384,
+    192
+   ],
+   "kind": "studs",
+   "color": "dark",
+   "top_tint": [
+    "#453832",
+    0.3
+   ]
+  },
+  "boneD": {
+   "rect": [
+    640,
+    192,
+    384,
+    192
+   ],
+   "kind": "studs",
+   "color": "boneD",
+   "top_tint": [
+    "#e2caa0",
+    0.3
+   ]
+  },
+  "wingS": {
+   "rect": [
+    0,
+    384,
+    640,
+    640
+   ],
+   "kind": "studs",
+   "color": "white"
+  },
+  "horn": {
+   "rect": [
+    640,
+    384,
+    128,
+    256
+   ],
+   "kind": "gradient",
+   "from": "#b8672a",
+   "to": "#2a2420"
+  },
+  "tooth": {
+   "rect": [
+    768,
+    384,
+    128,
+    128
+   ],
+   "kind": "gradient",
+   "from": "#fffaf0",
+   "to": "#e8dcc0"
+  },
+  "claw": {
+   "rect": [
+    896,
+    384,
+    128,
+    128
+   ],
+   "kind": "gradient",
+   "from": "#f6e8c6",
+   "to": "#d9c090"
+  },
+  "eye": {
+   "rect": [
+    768,
+    512,
+    128,
+    128
+   ],
+   "kind": "eye",
+   "glow": "#ff8a14",
+   "iris": [
+    "#ffb01c",
+    "#fff2a8"
+   ],
+   "pupil": "#8a2a00",
+   "aspect": 2.2
+  },
+  "gem": {
+   "rect": [
+    896,
+    512,
+    128,
+    128
+   ],
+   "kind": "flat",
+   "color": "white"
+  },
+  "ember": {
+   "rect": [
+    640,
+    640,
+    128,
+    128
+   ],
+   "kind": "flat",
+   "color": "white"
+  },
+  "flame": {
+   "rect": [
+    768,
+    640,
+    256,
+    256
+   ],
+   "kind": "flat",
+   "color": "white"
+  }
+ }
+}
