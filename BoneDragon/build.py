@@ -152,6 +152,7 @@ for sg, sx in ((1, 'L'), (-1, 'R')):
 
 # -------------------------------------------------------------- skull / head
 H, JW = {'Head': 1.0}, {'Jaw': 1.0}
+EYE_OUT = [(-.38, .12), (-.1, .27), (.2, .21), (.4, .0), (.3, -.21), (0, -.3), (-.28, -.2)]
 
 
 def omat(xdir, ydir):
@@ -180,15 +181,34 @@ def stations(acc, stn, wt, slot_fn, cap0=None, cap1=None):
     return ids
 
 
-STN = [  # y, top, upper(x,z), mid, lower, bottom
-    (-1.5, 6.3, (.5, 6.2), (.85, 5.7), (.7, 5.2), 4.95),
-    (-1.9, 6.55, (.85, 6.4), (1.2, 5.85), (1.0, 5.1), 4.8),
-    (-2.6, 6.95, (1.05, 6.75), (1.5, 6.0), (1.3, 5.1), 4.6),
-    (-3.3, 6.6, (1.1, 6.4), (1.45, 5.8), (1.2, 5.0), 4.5),
-    (-4.0, 6.0, (.8, 5.85), (1.05, 5.35), (.85, 4.8), 4.45),
-    (-4.6, 5.45, (.5, 5.4), (.8, 5.05), (.7, 4.7), 4.4),
-    (-5.3, 5.05, (.45, 5.0), (.62, 4.82), (.54, 4.55), 4.35)]
-_ids = stations(BODY, STN, H, lambda i, k: 'dark' if k in (3, 4) else ('boneD' if k in (2, 5) and i > 2 else 'bone'), cap0='bone', cap1=None)
+# ---- cranium rebuilt from measured landmarks (reference front/left grids): 12-point rings along 10 stations
+SK_Y = [-1.5, -1.9, -2.3, -2.8, -3.3, -3.8, -4.2, -4.6, -4.95, -5.3]
+SK_T = [6.0, 6.3, 6.75, 7.0, 7.0, 6.85, 6.5, 6.05, 5.6, 5.3]      # top (centre ridge) z
+SK_B = [5.0, 4.8, 4.7, 4.65, 4.55, 4.55, 4.55, 4.55, 4.65, 4.75]    # palate z
+SK_W = [.7, 1.0, 1.15, 1.25, 1.25, 1.1, .92, .72, .6, .5]          # half width at eye level
+
+
+def skull_ring(y, T, B, W):
+    h = T - B
+    half = [(0, T), (.3 * W, T - .02 * h), (.7 * W, T - .2 * h), (W, T - .45 * h), (.88 * W, T - .72 * h), (.52 * W, B + .06 * h), (0, B)]
+    pts = half + [(-x, z) for x, z in reversed(half[1:-1])]
+    return [(x, y, z) for x, z in pts]
+
+
+def build_skull():
+    ids = [[BODY.add_v(pt, H) for pt in skull_ring(*r)] for r in zip(SK_Y, SK_T, SK_B, SK_W)]
+    s0 = len(BODY.f); n = 12
+    for i in range(len(ids) - 1):
+        for k in range(n):
+            slot = 'dark' if k in (5, 6) else ('boneD' if k in (4, 7) and i > 3 else 'bone')
+            BODY.face([ids[i][k], ids[i + 1][k], ids[i + 1][(k + 1) % n], ids[i][(k + 1) % n]], slot)
+    row = ids[0]; ci = BODY.add_v(sum((BODY.v[j] for j in row), V()) / n, H)
+    for k in range(n): BODY.face([row[k], row[(k + 1) % n], ci], 'bone')
+    fix(BODY, s0)
+    return ids
+
+
+_ids = build_skull()
 
 
 def nose_with_nostrils(ring, depth=.34):
@@ -196,8 +216,8 @@ def nose_with_nostrils(ring, depth=.34):
     from mathutils.geometry import tessellate_polygon
     outer = [BODY.v[j] for j in ring]; holes = []; hole_ids = []; pockets = []
     for sg in (1, -1):
-        c = V((sg * .25, -5.3, 4.78)); ax = V((sg * .35, 0, 1)).normalized(); wd = (V(X) - ax * V(X).dot(ax)).normalized()
-        q = [c + ax * .24, c + wd * .09, c - ax * .24, c - wd * .09]
+        c = V((sg * .26, -5.3, 5.0)); ax = V((sg * .35, 0, 1)).normalized(); wd = (V(X) - ax * V(X).dot(ax)).normalized()
+        q = [c + ax * .17, c + wd * .07, c - ax * .17, c - wd * .07]
         holes.append(q); hole_ids.append([BODY.add_v(pt, H) for pt in q])
         inner = [c + (pt - c) * .55 + V((0, depth, 0)) for pt in q]
         pockets.append((hole_ids[-1], [BODY.add_v(pt, H) for pt in inner]))
@@ -215,8 +235,10 @@ def nose_with_nostrils(ring, depth=.34):
 
 
 nose_with_nostrils(_ids[-1])
+
+
 def leaf_plate(acc, A, B, width, thick, wt, slot='bone', sink=.08):
-    """Narrow tapered leaf-shaped plate from A to B (pointed ends, widest ~35% along), flat-ish, sunk slightly into the skull."""
+    """Tapered leaf-shaped plate from A to B (pointed ends, widest ~35% along), sunk into the skull."""
     A, B = V(A), V(B); d = B - A; L = d.length; d.normalize()
     w = d.cross(V(Z)).normalized(); n = w.cross(d).normalized()
     prof = [(0, 0), (.3, .5), (.68, .42), (1, 0), (.68, -.42), (.3, -.5)]
@@ -231,33 +253,34 @@ def leaf_plate(acc, A, B, width, thick, wt, slot='bone', sink=.08):
 
 
 for sg in (1, -1):
-    # eyebrow: narrow tapered ridge sloping down from the outer corner over the eye toward the snout
-    leaf_plate(BODY, (sg * 1.5, -2.8, 6.45), (sg * .5, -4.0, 5.98), .5, .24, H)
-    # cheek plate + spikes (all bases sunk into the skull surface)
-    plate(BODY, (sg * 1.2, -3.35, 5.15), (.45, 1.0, .5), (sg, 0, .15), (0, -1, -.1), 'bone', H)
-    spike(BODY, (sg * 1.2, -2.95, 5.9), (sg * .55, .85, .25), 1.0, .65, H)
-    spike(BODY, (sg * 1.0, -2.3, 5.2), (sg * .5, .9, -.1), .85, .55, H)
-    # crown spikes flanking the central one
-    spike(BODY, (sg * .8, -2.6, 6.6), (sg * .3, .15, 1), .95, .65, H)
-    spike(BODY, (sg * 1.0, -2.55, 6.4), (sg * .9, .1, .55), .95, .7, H)
-spike(BODY, (0, -2.7, 6.7), (0, .12, 1), 1.05, .8, H)
-# teeth
+    leaf_plate(BODY, (sg * .3, -4.5, 6.2), (sg * 1.2, -3.3, 6.78), .62, .5, H, sink=.16)     # thick bevelled brow block right on the eye
+    leaf_plate(BODY, (sg * .8, -4.45, 5.0), (sg * 1.25, -2.9, 5.3), .55, .36, H, sink=.14)   # cheek plate under the eye
+    spike(BODY, (sg * 1.05, -2.95, 5.95), (sg * .75, .55, .35), .95, .8, H)                  # ear flare
+    # low jagged crest along the cranium: small shards stepping back
+    for i, (cy, cz, ln) in enumerate(((-3.45, 6.75, .5), (-3.1, 6.9, .6), (-2.75, 6.85, .6), (-2.4, 6.6, .5))):
+        spike(BODY, (sg * (.42 + .08 * i), cy, cz - .2), (sg * .3, .3, 1), ln + .2, .5, H)
+    spike(BODY, (sg * 1.15, -2.7, 6.4), (sg * .8, .2, .55), .8, .6, H)                       # outer crown shard
+    spike(BODY, (sg * .9, -2.1, 5.95), (sg * .2, 1, .1), .6, .5, H)                          # rear skull spike
+spike(BODY, (0, -2.95, 6.75), (0, .25, 1), .8, .8, H)                                      # central crown spike
+# teeth: many small fangs
 for sg in (1, -1):
-    for i, y in enumerate((-5.05, -4.65, -4.25, -3.85, -3.45)):
-        L = .42 if i in (0, 1) else .28
-        spike(BODY, (sg * (.38 + .08 * i), y, 4.5), (0, 0, -1), L + .08, .22, H, 'tooth')
-    for i, y in enumerate((-4.7, -4.3, -3.9, -3.5)):
-        spike(BODY, (sg * (.34 + .09 * i), y, 3.88 + .12 * i), (0, 0, 1), .26 + (.1 if i == 0 else 0), .2, JW, 'tooth')
+    for i, y in enumerate((-5.05, -4.75, -4.45, -4.15, -3.85, -3.55, -3.25)):
+        L = .34 if i in (0, 1) else .24
+        spike(BODY, (sg * (.36 + .07 * i), y, 4.55), (0, 0, -1), L + .1, .19, H, 'tooth')
+    for i, y in enumerate((-4.75, -4.45, -4.15, -3.85, -3.55, -3.25)):
+        spike(BODY, (sg * (.34 + .08 * i), y, 4.02 + .1 * i), (0, 0, 1), .2 + (.08 if i == 0 else 0), .17, JW, 'tooth')
 # lower jaw
-JR = [(-4.8, 3.7, .42, .22), (-3.7, 4.0, .85, .30), (-2.7, 4.4, 1.2, .42)]
+JR = [(-4.8, 3.85, .42, .22), (-3.7, 4.12, .85, .30), (-2.7, 4.45, 1.2, .42)]
 rings = [{'c': (0, y, cz), 'rx': rx, 'ry': rz, 'w': JW, 'T': (0, -1, 0)} for y, cz, rx, rz in JR]
 prim(K.loft, BODY, rings, 8, lambda n, c, i: 'dark' if n.z > .5 else ('boneD' if n.z < -.4 else 'bone'), cap0='bone', cap1='bone')
 for sg in (1, -1):
     plate(BODY, (sg * .72, -4.0, 3.62), (.3, 1.8, .24), (sg, 0, 0), (0, -1, .1), 'bone', JW)
-    prim(K.eye_lens, GLOW, (sg * 1.2, -3.72, 5.7), V((sg * .55, -.83, .05)).normalized(), (0, 0, 1), (0, -1, 0), H, scale=1.3)
+    _n = V((sg * .6, -.78, .15)).normalized(); _c = V((sg * .98, -4.05, 5.72))
+    prim(K.eye_lens, BODY, _c - _n * .1, _n, (0, 0, 1), (0, -1, 0), H, outline=EYE_OUT, scale=1.2, dome=.0, slot='dark')   # dark socket
+    prim(K.eye_lens, GLOW, _c - _n * .07, _n, (0, 0, 1), (0, -1, 0), H, outline=EYE_OUT, scale=1.0, dome=.12)
 # horns: loft with explicit gradient UVs (brown-orange base -> charcoal tip)
 for sg in (1, -1):
-    path = [(1.0, -2.4, 6.55), (1.3, -1.95, 7.4), (1.6, -1.4, 8.2), (1.75, -.8, 8.85), (1.7, -.3, 9.25)]
+    path = [(1.0, -2.4, 6.2), (1.3, -1.95, 7.4), (1.6, -1.4, 8.2), (1.75, -.8, 8.85), (1.7, -.3, 9.25)]
     R = [.66, .56, .42, .26, .02]; HR = [{'c': mx(p, sg), 'rx': r, 'ry': r * .82, 'w': H} for p, r in zip(path, R)]
     cs = [V(r['c']) for r in HR]; ids = []
     for i, r in enumerate(HR):
@@ -432,7 +455,7 @@ for sg in (1, -1):
             if side > 0: BODY.face(ids, 'wingS', uv)
             else: BODY.face(ids[::-1], 'wingS', uv[::-1])
         # orient the pair: front face normal should point +Z-ish / consistent; two-sided so either way is visible
-PIVOT = V((0, -2.2, 5.2)); PITCH = math.radians(10)
+PIVOT = V((0, -2.2, 5.2)); PITCH = 0.0
 def pitch_pt(p):
     d = V(p) - PIVOT; c, sn = math.cos(PITCH), math.sin(PITCH)
     return PIVOT + V((d.x, d.y * c - d.z * sn, d.y * sn + d.z * c))
@@ -507,11 +530,11 @@ def paint_overlays():
         im.paste((0x2a, 0x10, 0x06), [0, 0, w_, h_])
         cx, cy = w_ * .5, h_ * .5
         for k in range(40, 0, -1):          # pre-squashed: the lens is ~2.3x wider than tall
-            t = k / 40; rx, ry = w_ * .17 * t, h_ * .43 * t
+            t = k / 40; rx, ry = w_ * .45 * t, h_ * .47 * t
             col = tuple(int(a + (b - a) * (1 - t)) for a, b in zip((0xe0, 0x58, 0x08), (0xff, 0xb0, 0x28)))
             d.ellipse([cx - rx, cy - ry, cx + rx, cy + ry], fill=col)
         for k in range(24, 0, -1):
-            t = k / 24; rx, ry = w_ * .075 * t, h_ * .3 * t
+            t = k / 24; rx, ry = w_ * .2 * t, h_ * .34 * t
             col = tuple(int(a + (b - a) * (1 - t)) for a, b in zip((0xff, 0xb4, 0x30), (0xff, 0xf2, 0xa0)))
             d.ellipse([cx - rx, cy - ry + h_ * .03, cx + rx, cy + ry + h_ * .03], fill=col)
     paint_rect('eye', eye_fn)
