@@ -71,11 +71,11 @@ LEAF_UV = {'b': (128, 252), 'R': (252, 143), 't': (128, 4), 'L': (4, 143), 'c': 
 LEAF_FLAT = (6, 6)                                                                             # plain colour outside the kite
 
 def leaf(acc, base, d, length, width, wt, slot, n=None, closed=True, ridge=0.28, widest=0.45,
-         droop=0.06, slot_b=None):
+         droop=0.06, slot_b=None, wmin=0.0):
     """Broad faceted kite leaf. Top = 4 ridge facets textured from the leaf swatch (studs + glowing rim,
     see Emissive.png); optional 2-tri back."""
     if slot == 'glowLeaf': slot = 'limeBright'
-    d = V(d).normalized(); base = V(base); width = max(width, length * 0.64)
+    d = V(d).normalized(); base = V(base); width = max(width, length * wmin)
     n = V(n) if n is not None else Z
     n = n - d * n.dot(d)
     if n.length < 1e-4: n = Z - d * Z.dot(d)
@@ -193,12 +193,6 @@ def head():
 def gem():
     c = V((0, -8.25, 3.95))
     K.gem_plate(GLOW, c, V((0, -1, 0.1)), Z, 0.7, 1.0, 0.35, W('Chest'))
-    for i in range(18):
-        a = i / 18 * math.tau
-        o = V(math.cos(a) * 0.9, 0, math.sin(a) * 1.25)
-        base = c + o * 0.5 + V(0, 0.2, 0)
-        d = V(math.cos(a) * .9, -0.25, math.sin(a) * 1.0).normalized()
-        leaf(BODY, base, d, 1.35, 0.75, W('Chest'), pick_slot(.65 + .35 * math.sin(a), .1), n=V(0, -1, 0))
     frustum(BODY, V(0, -7.6, 3.3), V(0, -8.0, 2.6), 1.6, 0.5, 'creamB', W('Chest'), h0=0.7, h1=0.6, up=Y)
 
 
@@ -221,7 +215,7 @@ def antler():
         chain([m(0.8, -7.9, 8.2), m(0.75, -8.5, 8.8), m(0.7, -8.95, 9.1)], [0.48, 0.34, 0.15])        # brow tine
         chain([m(0.5, -7.6, 8.1), m(0.4, -7.4, 9.0), m(0.35, -7.2, 9.7)], [0.48, 0.34, 0.13])         # inner crown tine
         frustum(BODY, m(2.5, -8.0, 9.3), m(3.2, -8.1, 9.45), 0.2, 0.16, 'brownD', WH, up=Y)
-        leaf(GLOW, m(3.1, -8.1, 9.45), V(s * 1.0, -0.1, .25), 1.0, 0.5, WH, 'glowLeaf', n=Z)
+        pass
 
 
 # ------------------------------------------------------------------ legs
@@ -239,83 +233,27 @@ def legs():
             solid(BODY, [base + V(-0.34, -0.9, 0), base + V(0.34, -0.9, 0), base + V(0.34, 0.6, 0), base + V(-0.34, 0.6, 0),
                          base + V(-0.26, -0.3, 1.0), base + V(0.26, -0.3, 1.0), base + V(0.26, 0.5, 1.0), base + V(-0.26, 0.5, 1.0)],
                   BOXF, 'cream', wF)
-        for i, (off, ln, wd, tilt) in enumerate([(0.0, 1.7, 0.95, 0.0), (0.35, 1.1, 0.6, 0.35), (-0.4, 1.0, 0.55, -0.3)]):
-            b = an + V(sx * (0.62 + 0.05 * i), -0.3 + off * 0.3, 0.3 + 0.1 * i)
-            d = V(sx * (0.22 + tilt * 0.3), -0.1 if front else 0.1, 1.0).normalized()
-            leaf(BODY, b, d, ln, wd, wL, pick_slot(.75 - .15 * i), n=V(sx, -0.4, 0.2))
         if front:
             frustum(BODY, V(sx * 1.85, -6.65, 4.0), V(sx * 1.85, -6.7, 2.8), 1.45, 1.3, 'brown', W('Chest'), h0=1.9, h1=1.7, up=Y)
 
 
 # ------------------------------------------------------------------ foliage
-def mane():
-    """Lion-style mane: neat shingle rows of leaves hanging down the neck, one leaf layer, tips sweeping back."""
-    P0, P1 = V(0, -5.4, 5.2), V(0, -7.1, 6.9)
-    T = (P1 - P0).normalized()
-    B = Y - T * Y.dot(T); B.normalize()
-    S = X
-    wtf = lambda z: interp_w([(4.9, 'Chest'), (5.8, 'Neck1'), (6.6, 'Neck2'), (7.4, 'Head')], z)
-    # two aligned shells of shingles: dark inner coat, lighter outer coat - every leaf points the same way
-    for shell, (rad, rows, nang, ln, pal) in enumerate([(1.1, 9, 11, 2.4, ['deep', 'dark', 'mid']),
-                                                        (1.65, 8, 10, 2.3, ['mid', 'lime', 'limeBright'])]):
-        for ri in range(rows):
-            t = (ri + 0.5 * shell) / (rows - 1 + 0.5)
-            odd = (ri + shell) % 2
-            for k in range(nang - odd):
-                ph = math.radians(-128 + 256 * (k + 0.5 * odd) / (nang - 1))
-                o = B * math.cos(ph) + S * math.sin(ph)
-                base = P0 + (P1 - P0) * t + o * (rad - 0.1 * t) + Z * 0.05
-                d = (Y * 0.85 - T * 0.4 + o * 0.35).normalized()
-                l = ln * (1.0 - 0.18 * t)
-                tone = (0.5 + 0.5 * o.z) + (0.15 if (ri + k) % 2 == 0 else -0.15)
-                slot = pal[0] if tone < 0.35 else (pal[1] if tone < 0.75 else pal[2])
-                leaf(BODY, base, d, l, l * 0.7, wtf(base.z), slot, n=o, closed=False, ridge=.3)
-    # head: one crest leaf, a flanking pair and one cheek leaf per side
-    H = WH
-    leaf(BODY, hp((0, -0.2, 0.75)), hn((0, -0.25, 1)), 2.1, 1.2, H, 'lime', n=hn((0, -1, 0.3)), ridge=.3)
-    for s in (1, -1):
-        leaf(BODY, hp((s * 0.45, 0.0, 0.8)), hn((s * 0.5, 0.0, 1)), 1.7, 1.0, H, 'limeBright', n=hn((s * 0.6, -0.5, 0.6)))
-        leaf(BODY, hp((s * 0.95, 0.35, -0.05)), hn((s * 0.9, 0.7, 0.0)), 1.8, 1.05, H, 'limeBright', n=hn((s, -.1, .5)))
-        leaf(BODY, hp((s * 0.95, 0.6, -0.5)), hn((s * 0.8, 0.8, -0.4)), 1.5, 0.9, H, 'mid', n=hn((s, 0, .3)))
+def mane(): pass
 
 
-def body_leaves():
-    for s in (1, -1):
-        # shoulder 'wing': two neat rows of broad leaves lying on the flank, tips back and down
-        for row, (z0, slots_) in enumerate([(4.8, ['dark', 'mid', 'dark']), (4.0, ['lime', 'limeBright', 'lime'])]):
-            for i, y in enumerate([-6.5, -5.3, -4.1]):
-                b = V(s * 1.55, y + 0.15 * (row % 2), z0)
-                d = V(s * 0.12, 0.9, -0.4).normalized()
-                leaf(BODY, b, d, 2.5, 1.6, wpos(b), slots_[i], n=V(s, 0, 0.55), closed=False)
-    # spine: one tidy row down the back
-    for i, y in enumerate([-5.8, -4.9, -4.0, -3.1, -2.3]):
-        for x in (-0.5, 0.5):
-            b = V(x, y + (0.25 if x > 0 else 0), 5.2)
-            leaf(BODY, b, V(x * 0.3, 0.9, 0.25), 1.8, 1.15, wpos(b), 'lime' if i % 2 == 0 else 'mid', n=Z, closed=False)
-    for s in (1, -1):
-        for i, (x, z, ln, sl) in enumerate([(1.9, 4.9, 2.4, 'lime'), (2.1, 4.2, 2.4, 'limeBright'), (2.1, 3.5, 2.1, 'lime')]):
-            leaf(BODY, V(s * x, -6.9 + 0.3 * i, z), V(s * 0.55, 0.3, -0.5).normalized(), ln, ln * .64, W('Chest'), sl, n=V(s, -0.3, 0.7), closed=False)
+def body_leaves(): pass
 
 
 def tail():
     wt = lambda p: W('Tail2') if p.y < 1.0 else interp_w([(1.0, 'Tail2'), (2.4, 'Tail3'), (3.4, 'Tail4')], p.y)
     frustum(BODY, V(0, -0.9, 4.7), V(0, 0.5, 5.1), 0.95, 0.75, 'olive', W('Tail1'), h0=0.95, h1=0.75, caps=(False, False))
     frustum(BODY, V(0, 0.5, 5.1), V(0, 1.4, 4.95), 0.75, 0.6, 'brown', W('Tail2'), caps=(False, True))
-    base = V(0, 1.2, 4.95)
-    # neat feather fan in the side plane: leaves radiate from the stem tip, alternating sides, one layer
-    angles = [75 - 150 * i / 10 for i in range(11)]                  # +up ... down (degrees above horizontal)
-    for col, sx in enumerate((1, -1)):
-        for i, ang in enumerate(angles):
-            a = math.radians(ang + (7 if col else 0))
-            d = V(sx * 0.18, math.cos(a), math.sin(a)).normalized()
-            ln = 2.6 + 0.9 * math.cos(a * 0.8) + (0.5 if ang < -20 else 0)
-            slot = ['limeBright', 'lime', 'mid', 'lime'][(i + col) % 4] if ang > -40 else ['lime', 'limeBright'][(i + col) % 2]
-            leaf(BODY, base + V(sx * 0.2, 0.05 * i, 0), d, ln, ln * 0.62, (lambda p: wt(p)), slot, n=V(sx, 0, 0.15), closed=True, ridge=.25)
 
 
 # ------------------------------------------------------------------ build all
 def build_geometry():
-    torso(); hips(); neck(); head(); gem(); antler(); legs(); mane(); body_leaves(); tail()
+    torso(); hips(); neck(); head(); gem(); antler(); legs(); tail()
+    import ref_leaves; ref_leaves.place(globals())
     print('tris total', BODY.tris())
 
 
