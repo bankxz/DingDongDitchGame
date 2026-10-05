@@ -72,12 +72,44 @@ FRONT = [
 ANTLER = [(120, 55, 137, 45, 8, 'L', 3.0, 3.2), (111, 52, 125, 47, 5, 'L', 2.6, 2.8)]
 
 
+def auto_rows(manual):
+    """Leaves auto-extracted from the left view (tools/extract_leaves.py), skipping ones that overlap a hand-placed leaf."""
+    import json, os
+    p = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'leaves_left.json')
+    if not os.path.exists(p): return []
+    def seg_dist(px, py, ax, ay, bx, by):
+        vx, vy = bx - ax, by - ay; t = max(0, min(1, ((px - ax) * vx + (py - ay) * vy) / max(vx * vx + vy * vy, 1e-6)))
+        return math.hypot(px - ax - t * vx, py - ay - t * vy)
+    rows = []
+    for a in json.load(open(p)):
+        mx, my = (a['bx'] + a['tx']) / 2, (a['by'] + a['ty']) / 2
+        if any(seg_dist(mx, my, m[0], m[1], m[2], m[3]) < 0.6 * max(a['w'], m[4] * 1.0) for m in manual): continue
+        L = math.hypot(a['tx'] - a['bx'], a['ty'] - a['by'])
+        if L < 5: continue
+        ux, uy = (a['tx'] - a['bx']) / L, (a['ty'] - a['by']) / L
+        bx, by = a['bx'] - ux * 0.12 * L, a['by'] - uy * 0.12 * L          # tuck the root under its neighbours
+        k = a['lum'] / 255.0
+        c = 'L' if a['lum'] > 190 else 'l' if a['lum'] > 150 else 'm' if a['lum'] > 105 else 'd' if a['lum'] > 70 else 'D'
+        if a['bx'] > 230: xb = 0.35 + 0.8 * k
+        elif a['by'] > 205: xb = 1.2 + 0.3 * k
+        elif a['bx'] < 150 and a['by'] < 150: xb = 0.9 + 1.0 * k
+        else: xb = 1.55 + 0.5 * k
+        rows.append((bx, by, a['tx'], a['ty'], a['w'], c, xb, xb + 0.12))
+    return rows
+
+
 def place(g):
     leaf, BODYACC, WH, wpos, interp_w, W, Z = g['leaf'], g['BODY'], g['WH'], g['wpos'], g['interp_w'], g['W'], g['Z']
     def weight(sec, p, sx, bx):
         if sec in ('HEAD',): return WH
         if sec == 'MANE': return interp_w([(4.9, 'Chest'), (5.8, 'Neck1'), (6.6, 'Neck2'), (7.4, 'Head')], p.z)
         if sec == 'ANTLER': return WH
+        if sec == 'AUTO':
+            if bx > 230: return interp_w([(0.4, 'Tail1'), (1.0, 'Tail2'), (2.4, 'Tail3'), (3.4, 'Tail4')], p.y)
+            if p.z < 2.4 and p.y < -5.5: return W(('FrontLower.' if bx < 125 else 'HindLower.') + ('L' if sx > 0 else 'R'))
+            if p.z < 2.4: return W('HindLower.' + ('L' if sx > 0 else 'R'))
+            if bx < 150 and p.z > 4.9 and p.y < -5.5: return interp_w([(4.9, 'Chest'), (5.8, 'Neck1'), (6.6, 'Neck2'), (7.4, 'Head')], p.z)
+            return wpos(p)
         if sec == 'TAIL': return interp_w([(0.4, 'Tail1'), (1.0, 'Tail2'), (2.4, 'Tail3'), (3.4, 'Tail4')], p.y)
         if sec == 'LEGS':
             sd = 'L' if sx > 0 else 'R'
@@ -91,12 +123,18 @@ def place(g):
             if d.length < 1e-3 or (abs(xb) < 0.02 and sx < 0): continue
             n = V((sx * (xb or 1), -1.2, 0.2)).normalized()
             leaf(BODYACC, b, d, d.length * 1.04, w * 1.85 / 39.4, interp_w([(4.9, 'Chest'), (5.8, 'Neck1'), (6.6, 'Neck2'), (7.4, 'Head')], b.z) if b.z > 4.6 else wpos(b),
-                 SLOT[c], n=n, closed=True, ridge=0.3, droop=0.0)
-    for sec, rows in (('HEAD', HEAD), ('MANE', MANE), ('BODY', BODY), ('LEGS', LEGS), ('TAIL', TAIL), ('ANTLER', ANTLER)):
+                 SLOT[c], n=n, closed=True, ridge=0.1, droop=0.0)
+    manual = HEAD + MANE + BODY + LEGS + TAIL
+    AUTO = auto_rows(manual)
+    for sec, rows in (('HEAD', HEAD), ('MANE', MANE), ('BODY', BODY), ('LEGS', LEGS), ('TAIL', TAIL), ('ANTLER', ANTLER), ('AUTO', AUTO)):
         for bx, by, tx, ty, w, c, xb, xt in rows:
-            for sx in ((1, -1) if (xb or xt) else (1,)):
+            if sec == 'LEGS' or (sec == 'AUTO' and by > 205):
+                sides = (-1,) if 125 < bx < 190 else ((1,) if bx >= 190 else (1, -1))      # far hind leg / near hind leg / front pair
+            else:
+                sides = (1, -1) if (xb or xt) else (1,)
+            for sx in sides:
                 b = V((sx * xb, to_y(bx), to_z(by))); t = V((sx * xt, to_y(tx), to_z(ty)))
                 d = t - b; L = d.length
                 if L < 1e-3: continue
                 n = V((sx, 0, 0)) if (xb or xt) else V((1, 0, 0))
-                leaf(BODYACC, b, d, L * 1.04, w * 1.85 / PXU, weight(sec, b, sx, bx), SLOT[c], n=n, closed=(sec != 'BODY'), ridge=0.3, droop=0.0)
+                leaf(BODYACC, b, d, L * 1.04, w * 2.3 / PXU, weight(sec, b, sx, bx), SLOT[c], n=n, closed=(sec not in ('BODY', 'AUTO')), ridge=0.1, droop=0.0)

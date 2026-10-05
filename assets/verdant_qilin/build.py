@@ -109,6 +109,7 @@ LEGS = {  # name: (hip, knee, ankle, hoof-tip) world points
 }
 for k, s in (('FR', 'FL'), ('BR', 'BL')):
     LEGS[k] = [V((-p.x, p.y, p.z)) for p in LEGS[s]]
+LEGS['BR'] = [V(p.x, p.y - 1.6, p.z) for p in LEGS['BR']]      # staggered walking stance like the reference
 LEGBONES = {'FL': ('FrontUpper.L', 'FrontLower.L', 'FrontFoot.L'), 'FR': ('FrontUpper.R', 'FrontLower.R', 'FrontFoot.R'),
             'BL': ('HindUpper.L', 'HindLower.L', 'HindFoot.L'), 'BR': ('HindUpper.R', 'HindLower.R', 'HindFoot.R')}
 
@@ -250,9 +251,22 @@ def tail():
     frustum(BODY, V(0, 0.5, 5.1), V(0, 1.4, 4.95), 0.75, 0.6, 'brown', W('Tail2'), caps=(False, True))
 
 
+def leaf_cores():
+    """Dark under-layers so gaps between leaves show dark leaf-green (as in the reference), not the neck/tail core."""
+    rings = [dict(c=(0, -6.2, 4.7), rx=1.7, ry=1.35, w=W('Chest', 'Neck1', .3), T=(0, -.5, 1)),
+             dict(c=(0, -6.9, 5.6), rx=1.55, ry=1.25, w=W('Neck1'), T=(0, -.5, 1)),
+             dict(c=(0, -7.3, 6.5), rx=1.4, ry=1.1, w=W('Neck2'), T=(0, -.3, 1)),
+             dict(c=(0, -7.5, 7.0), rx=1.0, ry=0.8, w=W('Head'), T=(0, -.3, 1))]
+    K.loft(BODY, rings, 8, lambda n, c, i: 'deep', cap0=None, cap1=None)
+    t = lambda y: interp_w([(0.4, 'Tail1'), (1.0, 'Tail2'), (2.4, 'Tail3'), (3.4, 'Tail4')], y)
+    tr = [dict(c=(0, 1.6, 4.9), rx=0.7, ry=0.6, w=t(1.6), T=(0, 1, -.1)), dict(c=(0, 2.4, 4.4), rx=1.1, ry=1.0, w=t(2.4), T=(0, 1, -.5)),
+          dict(c=(0, 3.1, 3.4), rx=0.9, ry=1.0, w=t(3.1), T=(0, 1, -.9)), dict(c=(0, 3.4, 2.7), rx=0.3, ry=0.3, w=t(3.4), T=(0, 1, -1))]
+    K.loft(BODY, tr, 8, lambda n, c, i: 'dark', cap0=None, cap1='dark')
+
+
 # ------------------------------------------------------------------ build all
 def build_geometry():
-    torso(); hips(); neck(); head(); gem(); antler(); legs(); tail()
+    torso(); hips(); neck(); head(); gem(); antler(); legs(); tail(); leaf_cores()
     import ref_leaves; ref_leaves.place(globals())
     print('tris total', BODY.tris())
 
