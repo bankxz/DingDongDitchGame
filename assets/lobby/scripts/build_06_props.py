@@ -19,6 +19,7 @@ import lobbylib as L
 
 random.seed(6)
 P = None
+SKIP_EXISTING = "--skip-existing" in sys.argv
 
 
 def lathe(name, prof, segs, mat, c, loc, rot=(0, 0, 0)):
@@ -501,11 +502,17 @@ def main(do_render=True, only=None):
         ctr = (mn + mx) / 2
         size = max(mx - mn) * 1.15
         gnd.location.z = mn.z + 1.36 - 0.01
-        cf = L.camera(f"CAM_{name}_front", ctr + Vector((0, -1, 0)) * size * 4, ctr, ortho=size)
-        items.append((f"{name} front", L.render(cf, os.path.join(L.RENDERS, f"props_{name}_front.png"))))
-        d = Vector((-0.8, -1.25, 0.75)).normalized()
-        c3 = L.camera(f"CAM_{name}_3q", ctr + d * size * 1.5, ctr, lens=45)
-        items.append((f"{name} 3/4", L.render(c3, os.path.join(L.RENDERS, f"props_{name}_3q.png"))))
+        pf = os.path.join(L.RENDERS, f"props_{name}_front.png")
+        p3 = os.path.join(L.RENDERS, f"props_{name}_3q.png")
+        if not (SKIP_EXISTING and os.path.exists(pf)):
+            cf = L.camera(f"CAM_{name}_front", ctr + Vector((0, -1, 0)) * size * 4, ctr, ortho=size)
+            L.render(cf, pf)
+        items.append((f"{name} front", pf))
+        if not (SKIP_EXISTING and os.path.exists(p3)):
+            d = Vector((-0.8, -1.25, 0.75)).normalized()
+            c3 = L.camera(f"CAM_{name}_3q", ctr + d * size * 1.5, ctr, lens=45)
+            L.render(c3, p3)
+        items.append((f"{name} 3/4", p3))
     half = len(items) // 2 + (len(items) // 2) % 2
     L.contact_sheet(items[:half], os.path.join(L.RENDERS, "props_inspection_sheet_A.png"), cols=4, tile=440,
                     title="ASSET 06 - SECONDARY PROPS (A)  Blender Cycles inspection renders")
