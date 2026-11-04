@@ -6,3 +6,7 @@
 /*.rbxl.lock
 
 sourcemap.json
+
+# Python bytecode from asset build scripts
+__pycache__/
+*.blend1
