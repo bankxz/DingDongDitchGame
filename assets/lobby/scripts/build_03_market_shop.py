@@ -25,16 +25,21 @@ FRONT_POST_TOP = 9.6
 RIDGE_Z = 13.5          # underside of ridge beam
 RIDGE_Y = 2.3
 RIDGE_HALF = 5.3        # canopy top edge half-width
-EAVE_Y, EAVE_Z = -3.25, 9.85
+EAVE_Y, EAVE_Z = -2.2, 10.75     # UPPER tier front edge (rolled), just above the sign
 EAVE_HALF = 7.0
 STRIPE = 1.4            # 10 stripes across the eave
-VAL_BOTTOM = 8.25
+# LOWER tier (sheet: a second, flatter striped awning projecting from under the upper one;
+# every stripe curls over a rounded fold and hangs as a U-shaped tab)
+LOW_Y0, LOW_Z0 = -1.9, 10.15
+LOW_Y1, LOW_Z1 = -4.7, 9.0
+FOLD_R = 0.34
+TAB_H = 1.3
 COUNTER_TOP = 3.7
 SHELF_Z = 5.75
 SHELF2_Z = 4.55
 WALL_Y = 1.75
-SIGN_Y = -3.95
-SIGN_Z = 10.35
+SIGN_Y = -4.1
+SIGN_Z = 10.75
 SIGN_W, SIGN_H = 8.0, 3.2
 
 
@@ -229,7 +234,7 @@ def build(M, root):
         objs.append(L.box(f"MKT_RidgeCap_{sx}", (0.9, 1.3, 1.0), (sx * (POST_X + 0.85), RIDGE_Y - 0.1, RIDGE_Z + 0.42),
                           M["woodV"], 0.1, c=C["Structure"]))
     # front header beam under eave, back top beam, side beams + braces
-    objs.append(L.box("MKT_FrontHeader", (2 * POST_X + 1.2, 0.95, 0.75), (0, FRONT_Y, FRONT_POST_TOP - 0.55),
+    objs.append(L.box("MKT_FrontHeader", (2 * POST_X + 1.0, 0.95, 0.75), (0, FRONT_Y, FRONT_POST_TOP - 0.55),
                       M["woodH"], 0.08, c=C["Structure"]))
     objs.append(L.box("MKT_BackHeader", (2 * POST_X, 0.9, 0.7), (0, BACK_Y, FRONT_POST_TOP - 0.55),
                       M["woodH"], 0.08, c=C["Structure"]))
@@ -306,25 +311,38 @@ def build(M, root):
                      C["Canopy"], segs=16, rings=8)
         roll.append(cap)
     objs += roll
-    # scalloped valance tabs
-    vpieces = []
-    vt = EAVE_Z - 0.3
-    rad = STRIPE / 2
-    for i in range(n):
-        x0 = -EAVE_HALF + STRIPE * i
+    # ---- LOWER tier: striped slope, rounded fold at the front, U-shaped hanging tab per stripe
+    low = []
+    for k in range(n):
+        x0 = -EAVE_HALF + STRIPE * k
         x1 = x0 + STRIPE
-        xm = (x0 + x1) / 2
-        outline = [(x0, vt), (x1, vt), (x1, VAL_BOTTOM + rad * 0.75)]
-        for k in range(1, 8):
-            a = -k * math.pi / 8
-            outline.append((xm + rad * math.cos(a), VAL_BOTTOM + rad * 0.75 + rad * 0.75 * math.sin(a)))
-        outline.append((x0, VAL_BOTTOM + rad * 0.75))
-        tab = L.extrude_polygon(f"MKT_ValanceTab_{i}", outline, 0.22, M["red"] if i % 2 == 0 else M["cream"],
-                                C["Canopy"], bevel=0.05)
-        tab.location = (0, EAVE_Y - 0.18, 0)
-        tab.rotation_euler = (math.radians(-8), 0, 0)
-        vpieces.append(tab)
-    objs += vpieces
+        low.append(([(x0, LOW_Y1, LOW_Z1), (x1, LOW_Y1, LOW_Z1), (x1, LOW_Y0, LOW_Z0), (x0, LOW_Y0, LOW_Z0)],
+                     th, k % 2, (0, -0.3, 1)))
+    objs.append(striped_obj("MKT_CanopyLower", low, M, C["Canopy"]))
+    fold_c = (LOW_Y1 - 0.02, LOW_Z1 - FOLD_R + 0.02)          # fold axis just under the slope's front edge
+    tab_y = fold_c[0] - FOLD_R + 0.15                          # tab front face flush with the fold front
+    gap = 0.07
+    for k in range(n):
+        x0 = -EAVE_HALF + STRIPE * k
+        x1 = x0 + STRIPE
+        col = M["red"] if k % 2 == 0 else M["cream"]
+        objs.append(L.cyl(f"MKT_LowerFold_{k}", FOLD_R, STRIPE - 0.002, ((x0 + x1) / 2, fold_c[0], fold_c[1]), col,
+                          16, 0.0, c=C["Canopy"], rot=(0, math.pi / 2, 0)))
+        # U tab: straight sides, semicircular bottom
+        xa, xb = x0 + gap, x1 - gap
+        r = (xb - xa) / 2
+        xm = (xa + xb) / 2
+        top = fold_c[1]
+        zr = top - TAB_H + r
+        outline = [(xa, top), (xb, top), (xb, zr)]
+        for q in range(1, 10):
+            a = -q * math.pi / 10
+            outline.append((xm + r * math.cos(a), zr + r * math.sin(a)))
+        outline.append((xa, zr))
+        tab = L.extrude_polygon(f"MKT_LowerTab_{k}", outline[::-1], 0.3, col, C["Canopy"], bevel=0.04)
+        tab.location = (0, tab_y, 0)
+        objs.append(tab)
+
     # (no side valance: the market sheet's side view and awning close-up show scallops on the FRONT
     #  edge only; the earlier side tabs were an invented detail that looked like loose discs at the corner)
 
