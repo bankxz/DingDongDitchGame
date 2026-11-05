@@ -46,6 +46,12 @@ TERRACE_OUT = 43.0
 TERRACE_Y0, TERRACE_Y1 = 42.0, 84.0
 NORTH_Y = 116.0             # (31,84)->(31,116) = 32 = 12 + 2*10
 EDGE_OVERHANG = 1.2             # deck extends past the balustrade line
+MODE_PORTAL_Y = (53.0, 73.0)    # DUELS / PRACTICE portal centres on the west terrace
+PORTAL_BACK_TO_PLANE = 3.5      # mode portal: bbox back (plinth back) -> portal plane (asset 07 local y=0)
+PORTAL_TRIGGER_CZ = 6.0
+# background castle islands: (x, y, z bottom, yaw, scale) - far enough to read as sky dressing
+CASTLES = [(-115.0, 35.0, -22.0, 25.0, 1.0), (125.0, 95.0, -6.0, -35.0, 0.8), (-95.0, 175.0, 12.0, 60.0, 0.65),
+           (105.0, -45.0, -30.0, -120.0, 0.7), (25.0, 240.0, 4.0, 180.0, 0.9), (-60.0, -95.0, -40.0, 150.0, 0.55)]
 
 ROOT_BLEND = L.BLEND
 UNIT_SOURCES = {
@@ -56,11 +62,16 @@ UNIT_SOURCES = {
 }
 for g in ("Crystal", "Lightning", "Shield", "Flame", "Wind", "Emerald", "Sun", "Orb", "Wings"):
     UNIT_SOURCES[f"Lobby_PED_{g}"] = ("02_ability_pedestals.blend", [f"PED_{g}"])
+UNIT_SOURCES["Lobby_PORTAL_Duels"] = ("07_mode_portals.blend", ["MP_Duels"])
+UNIT_SOURCES["Lobby_PORTAL_Practice"] = ("07_mode_portals.blend", ["MP_Practice"])
+if os.path.exists(os.path.join(L.BLEND, "08_floating_castle.blend")):
+    UNIT_SOURCES["Lobby_FloatingCastle"] = ("08_floating_castle.blend", ["ASSET_08_FloatingCastle"])
 for p in ("BalustradeStraight", "BalustradeCorner", "BalustradeCurved", "LanternPost", "PlanterLong",
           "PlanterSquare", "EventsBanner", "StarBanner", "RoadCobble", "SpawnPlaza", "StonePost"):
     UNIT_SOURCES[f"Lobby_PROP_{p}"] = ("06_props.blend", [f"PROP_{p}"])
 
 PLACEMENTS = []      # dicts for the Luau layout
+TRIGGERS = []        # invisible teleport zones (Studio Parts; gameplay scripts hook these)
 PARTS = []           # island deck / underside primitives
 _SRC = {}            # unit -> (collection, B0 local bottom-centre)
 
@@ -269,14 +280,24 @@ def build_layout():
     place_B("Lobby_CraftShop", "Shops", (back - cr.y / 2, TERRACE_Y1 - 2.4 - cr.x / 2, DECK_TOP), -90)
     place_B("Lobby_PROP_LanternPost", "Shops", (ISLAND_HALF + 2.5, (TERRACE_Y0 + TERRACE_Y1) / 2 - 0.5, DECK_TOP))
 
-    # ---------------- west terrace: overlook with planters and lanterns
-    wx = -(TERRACE_OUT - 2.6)
-    for y in (55.0, 63.0, 71.0):
-        place_B("Lobby_PROP_PlanterLong", "Overlook", (wx, y, DECK_TOP), 90)
-    place_B("Lobby_PROP_LanternPost", "Overlook", (wx, TERRACE_Y0 + 4.5, DECK_TOP))
-    place_B("Lobby_PROP_LanternPost", "Overlook", (wx, TERRACE_Y1 - 4.5, DECK_TOP))
-    place_B("Lobby_PROP_PlanterSquare", "Overlook", (-(ISLAND_HALF + 4.5), TERRACE_Y0 + 4.5, DECK_TOP))
-    place_B("Lobby_PROP_PlanterSquare", "Overlook", (-(ISLAND_HALF + 4.5), TERRACE_Y1 - 4.5, DECK_TOP))
+    # ---------------- west terrace: game-mode portals (DUELS, PRACTICE) facing the road, opposite the shops
+    back = -(TERRACE_OUT - 1.4)
+    for mode, yc in (("Duels", MODE_PORTAL_Y[0]), ("Practice", MODE_PORTAL_Y[1])):
+        unit = f"Lobby_PORTAL_{mode}"
+        size = _SRC[unit][2]
+        cx = back + size.y / 2                       # rotated 90 deg: local depth runs along world X
+        place_B(unit, "ModePortals", (cx, yc, DECK_TOP), 90)
+        # portal plane sits PORTAL_PLANE_OFFSET behind the bbox centre (local +Y -> world -X)
+        px = cx - (size.y / 2 - PORTAL_BACK_TO_PLANE)
+        TRIGGERS.append({"name": f"{mode}TeleportZone", "mode": mode,
+                         "center": [round(px + 0.4, 3), yc, round(PORTAL_TRIGGER_CZ, 3)],
+                         "size": [2.4, 7.0, 5.6]})
+    place_B("Lobby_PROP_LanternPost", "ModePortals", (back + 3.5, sum(MODE_PORTAL_Y) / 2, DECK_TOP))
+
+    # ---------------- background floating castle islands (asset 08), if built
+    if "Lobby_FloatingCastle" in _SRC:
+        for x, y, z, yaw, sc in CASTLES:
+            place_B("Lobby_FloatingCastle", "Sky", (x, y, z), yaw, sc)
 
     # ---------------- lantern posts flanking the road ends, planters on the plaza shoulders
     for sx in (-1, 1):
@@ -307,6 +328,15 @@ def build_parts_preview():
             L.cyl(p["name"], sx / 2, sz, (cx, cy, cz), m, 72, 0.0, c=c)
         else:
             L.box(p["name"], (sx, sy, sz), (cx, cy, cz), m, 0.0, c=c)
+
+
+def build_triggers_preview():
+    """Teleport zones as wireframe boxes (visible in the .blend viewport, not rendered)."""
+    c = L.coll("LOBBY_TeleportZones", LOBBY)
+    for t in TRIGGERS:
+        ob = L.box(t["name"], tuple(t["size"]), tuple(t["center"]), None, 0.0, c=c)
+        ob.display_type = "WIRE"
+        ob.hide_render = True
 
 
 def build_rigs_preview():
@@ -359,13 +389,18 @@ def write_luau():
               "\tparts = parts,",
               f"\tspawn = {{ {sp[0]}, {sp[1]}, {sp[2]} }},",
               f"\tscaleRigs = {{ {rigs} }},",
+              "\t-- invisible, non-colliding teleport zones in front of each mode portal (hook TeleportService here)",
+              "\ttriggers = {",
+              *[f'\t\t{{ name = "{t["name"]}", mode = "{t["mode"]}", center = {{ {", ".join(str(v) for v in rbx(t["center"]))} }}, '
+                f'size = {{ {t["size"][0]}, {t["size"][2]}, {t["size"][1]} }} }},' for t in TRIGGERS],
+              "\t},",
               f"\tunitCount = {len(PLACEMENTS)},",
               "}", ""]
     with open(out, "w") as fh:
         fh.write("\n".join(lines))
     print("LUAU", out, len(PLACEMENTS), "placements", len(PARTS), "parts")
     with open(os.path.join(L.ROOT, "fbx", "lobby_layout.json"), "w") as fh:
-        json.dump({"placements": PLACEMENTS, "parts": PARTS, "spawn": SPAWN, "rigs": RIGS}, fh, indent=1)
+        json.dump({"placements": PLACEMENTS, "parts": PARTS, "spawn": SPAWN, "rigs": RIGS, "triggers": TRIGGERS}, fh, indent=1)
 
 
 # ------------------------------------------------------------------ preview renders
@@ -402,6 +437,7 @@ def main(do_render=True):
     build_layout()
     build_parts_preview()
     build_rigs_preview()
+    build_triggers_preview()
     write_luau()
     L.save_blend("lobby_assembled.blend")
     if do_render:

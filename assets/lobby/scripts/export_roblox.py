@@ -196,6 +196,8 @@ def main():
         ("04_craft_shop.blend", asset_units, "ASSET_04_CraftShop", "Lobby_CraftShop"),
         ("05_arena_gate.blend", asset_units, "ASSET_05_ArenaGate", "Lobby_ArenaGate"),
         ("06_props.blend", None, "ASSET_06_Props", None),
+        ("07_mode_portals.blend", None, "ASSET_07_ModePortals", None),
+        ("08_floating_castle.blend", asset_units, "ASSET_08_FloatingCastle", "Lobby_FloatingCastle"),
     ]
     for blend, fn, coll, unit in plan:
         path = os.path.join(L.BLEND, blend)
@@ -204,6 +206,8 @@ def main():
             continue
         if coll == "ARCH_SPAN":
             manifest.update(export_units(path, arch_span_units))
+        elif blend.startswith("07"):
+            manifest.update(export_units(path, mode_portal_units))
         elif blend.startswith("06"):
             manifest.update(export_units(path, props_units))
         elif blend.startswith("02"):
@@ -223,6 +227,11 @@ def arch_span_units():
     for the opposite side of the road."""
     objs = [o for n in ARCH_SPAN_COLLS for o in bpy.data.collections[n].all_objects]
     return [("Lobby_ArchSpan", objs), ("Lobby_ArchSpanMirrored", objs, True)]
+
+
+def mode_portal_units():
+    root = bpy.data.collections["ASSET_07_ModePortals"]
+    return [(f"Lobby_PORTAL_{c.name.replace('MP_', '')}", list(c.all_objects)) for c in root.children]
 
 
 def pedestal_units():
