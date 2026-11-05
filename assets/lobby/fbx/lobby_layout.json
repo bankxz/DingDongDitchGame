@@ -948,8 +948,8 @@
    "unit": "Lobby_PED_Wind",
    "zone": "Abilities",
    "target": [
-    -10.5,
-    28.4,
+    -10.0,
+    17.5,
     0.0
    ],
    "yaw": 45,
@@ -964,8 +964,8 @@
    "unit": "Lobby_PED_Crystal",
    "zone": "Abilities",
    "target": [
-    -10.5,
-    33.4,
+    -10.0,
+    22.7,
     0.0
    ],
    "yaw": 45,
@@ -980,8 +980,8 @@
    "unit": "Lobby_PED_Lightning",
    "zone": "Abilities",
    "target": [
-    -10.5,
-    76.4,
+    -10.0,
+    27.9,
     0.0
    ],
    "yaw": 45,
@@ -996,8 +996,24 @@
    "unit": "Lobby_PED_Shield",
    "zone": "Abilities",
    "target": [
-    -10.5,
-    81.4,
+    -10.0,
+    33.1,
+    0.0
+   ],
+   "yaw": 45,
+   "scale": 1.0,
+   "stretch": [
+    1,
+    1,
+    1
+   ]
+  },
+  {
+   "unit": "Lobby_PED_Flame",
+   "zone": "Abilities",
+   "target": [
+    -10.0,
+    38.3,
     0.0
    ],
    "yaw": 45,
@@ -1012,8 +1028,8 @@
    "unit": "Lobby_PED_Emerald",
    "zone": "Abilities",
    "target": [
-    10.5,
-    28.4,
+    10.0,
+    17.5,
     0.0
    ],
    "yaw": -45,
@@ -1028,8 +1044,8 @@
    "unit": "Lobby_PED_Sun",
    "zone": "Abilities",
    "target": [
-    10.5,
-    33.4,
+    10.0,
+    22.7,
     0.0
    ],
    "yaw": -45,
@@ -1044,8 +1060,8 @@
    "unit": "Lobby_PED_Orb",
    "zone": "Abilities",
    "target": [
-    10.5,
-    44.4,
+    10.0,
+    27.9,
     0.0
    ],
    "yaw": -45,
@@ -1060,24 +1076,8 @@
    "unit": "Lobby_PED_Wings",
    "zone": "Abilities",
    "target": [
-    10.5,
-    49.4,
-    0.0
-   ],
-   "yaw": -45,
-   "scale": 1.0,
-   "stretch": [
-    1,
-    1,
-    1
-   ]
-  },
-  {
-   "unit": "Lobby_PED_Flame",
-   "zone": "Abilities",
-   "target": [
-    10.5,
-    60.4,
+    10.0,
+    33.1,
     0.0
    ],
    "yaw": -45,
@@ -1284,7 +1284,7 @@
    "unit": "Lobby_PROP_LanternPost",
    "zone": "Road",
    "target": [
-    -10.5,
+    -10.0,
     14.0,
     0.0
    ],
@@ -1300,7 +1300,7 @@
    "unit": "Lobby_PROP_LanternPost",
    "zone": "Road",
    "target": [
-    -10.5,
+    -10.0,
     91.0,
     0.0
    ],
@@ -1332,7 +1332,7 @@
    "unit": "Lobby_PROP_LanternPost",
    "zone": "Road",
    "target": [
-    10.5,
+    10.0,
     14.0,
     0.0
    ],
@@ -1348,7 +1348,7 @@
    "unit": "Lobby_PROP_LanternPost",
    "zone": "Road",
    "target": [
-    10.5,
+    10.0,
     91.0,
     0.0
    ],
@@ -1957,8 +1957,8 @@
    3.0
   ],
   [
-   -13.5,
-   26.0
+   -21.0,
+   28.0
   ],
   [
    -22.0,
