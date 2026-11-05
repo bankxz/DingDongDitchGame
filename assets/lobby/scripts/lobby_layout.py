@@ -40,7 +40,8 @@ ROAD_LIFT = 0.06                # cobble surface 0.06 above deck (no coplanar fa
 ARCH_HALF_SPAN = 15.0           # column centre -> crown (arch module CROWN.x - COL_X)
 ARCH_LOCAL_Y = 0.9              # arch plane offset inside the arch module (COL_Y)
 ARCH_Y = [22.0 + 16.0 * k for k in range(5)]
-PED_X = 10.5
+PED_X = 10.0                    # pedestal edge 12.13 < arch column base 12.2: rows run past the columns
+PED_Y0, PED_Y1, PED_STEP = 17.5, 87.5, 5.2
 ISLAND_HALF = 31.0              # balustrade line of the main deck
 TERRACE_OUT = 43.0
 TERRACE_Y0, TERRACE_Y1 = 32.0, 74.0   # (31,0)->(31,32)=12+20, terrace 42=12+30, (31,74)->(31,116)=12+30
@@ -65,7 +66,11 @@ UNIT_SOURCES = {
     "Lobby_CraftShop": ("04_craft_shop.blend", ["ASSET_04_CraftShop"]),
     "Lobby_ArenaGate": ("05_arena_gate.blend", ["ASSET_05_ArenaGate"]),
 }
-for g in ("Crystal", "Lightning", "Shield", "Flame", "Wind", "Emerald", "Sun", "Orb", "Wings"):
+# ability pedestal rows (west keeps the spawn-view reference order near -> far)
+WEST_ABILITIES = ["Wind", "Crystal", "Lightning", "Shield", "Flame", "Ice", "Water", "Earth", "Moon", "Shadow"]
+EAST_ABILITIES = ["Emerald", "Sun", "Orb", "Wings", "Heart", "Star", "Poison", "Speed", "Sword", "Gravity", "Arrow",
+                  "Vine", "Sound", "Time"]
+for g in WEST_ABILITIES + EAST_ABILITIES:
     UNIT_SOURCES[f"Lobby_PED_{g}"] = ("02_ability_pedestals.blend", [f"PED_{g}"])
 UNIT_SOURCES["Lobby_PORTAL_Duels"] = ("07_mode_portals.blend", ["MP_Duels"])
 UNIT_SOURCES["Lobby_PORTAL_Practice"] = ("07_mode_portals.blend", ["MP_Practice"])
@@ -94,6 +99,9 @@ def load_units():
             loaded[(f, c.name.split(".")[0])] = c
     kit = L.coll("KIT_Sources")
     for unit, (f, colls) in UNIT_SOURCES.items():
+        if any((f, n) not in loaded for n in colls):
+            print("UNIT MISSING (skipped)", unit)
+            continue
         u = bpy.data.collections.new(f"UNIT_{unit}")
         kit.children.link(u)
         for n in colls:
@@ -269,15 +277,16 @@ def build_layout():
     place_T("Lobby_PROP_EventsBanner", "Arches", (0, arch0, 14.1))
 
     # ---------------- ability pedestals between the arch columns, glyphs angled toward the spawn
-    # west bays 1-2 stay clear: they are the openings to the DUELS / PRACTICE portals
-    def bay_slots(k):
-        return [ARCH_Y[k] + ARCH_LOCAL_Y + off for off in (5.5, 10.5)]
-    west = list(zip(["Wind", "Crystal", "Lightning", "Shield"], bay_slots(0) + bay_slots(3)))
-    east = list(zip(["Emerald", "Sun", "Orb", "Wings", "Flame"], bay_slots(0) + bay_slots(1) + bay_slots(2)[:1]))
-    for name, y in west:
+    # continuous rows along both road edges (reference: pedestals line the whole road).
+    # West slots inside the DUELS / PRACTICE openings (paths +-3.55 + pedestal radius) stay empty.
+    slots = [PED_Y0 + PED_STEP * k for k in range(int((PED_Y1 - PED_Y0) / PED_STEP) + 1)]
+    clear = [(yc - PATH_W / 2 - 0.55 - 2.2, yc + PATH_W / 2 + 0.55 + 2.2) for yc in MODE_PORTAL_Y]
+    west_slots = [y for y in slots if not any(a < y < b for a, b in clear)]
+    for name, y in zip([n for n in WEST_ABILITIES if f"Lobby_PED_{n}" in _SRC], west_slots):
         place_B(f"Lobby_PED_{name}", "Abilities", (-PED_X, y, DECK_TOP), 45)
-    for name, y in east:
+    for name, y in zip([n for n in EAST_ABILITIES if f"Lobby_PED_{n}" in _SRC], slots):
         place_B(f"Lobby_PED_{name}", "Abilities", (PED_X, y, DECK_TOP), -45)
+    print("PEDESTAL SLOTS west", len(west_slots), "east", len(slots))
 
     # ---------------- east terrace: shops facing the road
     mk = _SRC["Lobby_MarketShop"][2]
@@ -325,7 +334,7 @@ def build_layout():
 
 
 SPAWN = (0.0, 0.0, PLAZA_LIFT + 0.25)
-RIGS = [(0.0, 3.0), (-PED_X - 3.0, 26.0), (-22.0, 52.5), (ISLAND_HALF + 1.5, 46.0), (0.0, ROAD_Y1 - 2.0)]
+RIGS = [(0.0, 3.0), (-21.0, 28.0), (-22.0, 52.5), (ISLAND_HALF + 1.5, 46.0), (0.0, ROAD_Y1 - 2.0)]
 
 
 # ------------------------------------------------------------------ preview geometry for Parts
