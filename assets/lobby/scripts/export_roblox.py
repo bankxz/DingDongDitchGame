@@ -82,61 +82,166 @@ def box_uv(bm):
 MIRROR_X = __import__("mathutils").Matrix.Scale(-1.0, 4, (1.0, 0.0, 0.0))
 
 
+def _is_neon(ob):
+    return any(m and m.get("roblox_neon") for m in ob.data.materials)
+
+
+def _short(name):
+    """Object name without its asset prefix (MKT_, GATE_, MP_DUELS_ ...)."""
+    t = name.split("_")
+    if t[0] == "MP" and len(t) > 2:
+        t = t[2:]
+    elif len(t) > 1:
+        t = t[1:]
+    return "_".join(t)
+
+
+def _group_name(ob):
+    c = ob.users_collection[0].name if ob.users_collection else "Misc"
+    return c.split("_")[-1] if "_" in c else c
+
+
+def _item_name(objs, group):
+    shorts = sorted(_short(o.name) for o in objs)
+    pre = os.path.commonprefix(shorts).rstrip("_-.0123456789") if len(shorts) > 1 else shorts[0]
+    if len(pre) < 3:
+        toks = {s_.split("_")[0].rstrip("0123456789") for s_ in shorts}
+        # a cluster of many different part kinds is the group's main body (Canopy, Counter, Structure...)
+        pre = group if len(toks) > 2 else sorted(toks)[0]
+    return pre.replace(".", "")
+
+
+def _clusters(objs, gap=0.05):
+    """Connected components of objects whose world bounding boxes touch -> one physical item each."""
+    boxes = []
+    for o in objs:
+        cs = [o.matrix_world @ Vector(c) for c in o.bound_box]
+        boxes.append((Vector([min(c[i] for c in cs) for i in range(3)]) - Vector((gap,) * 3),
+                      Vector([max(c[i] for c in cs) for i in range(3)]) + Vector((gap,) * 3)))
+    parent = list(range(len(objs)))
+
+    def find(a):
+        while parent[a] != a:
+            parent[a] = parent[parent[a]]
+            a = parent[a]
+        return a
+    for i in range(len(objs)):
+        for j in range(i + 1, len(objs)):
+            (a0, a1), (b0, b1) = boxes[i], boxes[j]
+            if all(a0[k] <= b1[k] and b0[k] <= a1[k] for k in range(3)):
+                parent[find(i)] = find(j)
+    out = {}
+    for i, o in enumerate(objs):
+        out.setdefault(find(i), []).append(o)
+    return sorted(out.values(), key=lambda cl: _short(cl[0].name))
+
+
+def _mesh_bms(ob, dg, mirror):
+    """Evaluated, world-space bmesh per material slot: [(matkey, bm, tris)]."""
+    me = bpy.data.meshes.new_from_object(ob.evaluated_get(dg))
+    me.transform(ob.matrix_world)
+    if mirror:                      # mirrored variant (Roblox cannot use negative scale)
+        me.transform(MIRROR_X)
+        me.flip_normals()
+    mats = list(me.materials) or [None]
+    res = []
+    for mi, m in enumerate(mats):
+        bm = bmesh.new()
+        bm.from_mesh(me)
+        if len(mats) > 1:
+            bmesh.ops.delete(bm, geom=[f for f in bm.faces if f.material_index != mi], context="FACES")
+        if bm.faces:
+            res.append((m.name if m else "MAT_Default", bm, sum(len(f.verts) - 2 for f in bm.faces)))
+        else:
+            bm.free()
+    bpy.data.meshes.remove(me)
+    return res
+
+
+def _emit(name, key, bms, parent):
+    me = bpy.data.meshes.new(name)
+    acc = bmesh.new()
+    for bm in bms:
+        tmp = bpy.data.meshes.new("tmp"); bm.to_mesh(tmp); bm.free()
+        acc.from_mesh(tmp); bpy.data.meshes.remove(tmp)
+    bmesh.ops.remove_doubles(acc, verts=acc.verts, dist=1e-5)
+    if not mat_has_texture(key):
+        box_uv(acc)              # textured materials keep their authored world-aligned UVs
+    tris = sum(len(f.verts) - 2 for f in acc.faces)
+    acc.to_mesh(me); acc.free()
+    mat = bpy.data.materials.get(key)
+    if mat:
+        me.materials.append(mat)
+    ob = bpy.data.objects.new(name, me)
+    bpy.context.scene.collection.objects.link(ob)
+    ob.parent = parent
+    return ob, tris
+
+
 def merge_by_material(unit, objs, mirror=False):
-    """Return list of new export objects for this unit."""
+    """Editable Roblox hierarchy for one unit:
+         <Group>  (empty -> Model; from the Blender sub-collection: Structure, Canopy, Crates ...)
+           <Group>_<Item>  (empty -> Model; one physical thing = objects whose boxes touch)
+             <Material>__<Item>      merged MeshPart per material
+             <Material>__<Piece>     every NEON / glowing piece as its OWN MeshPart
+       Part names start with the material key so LobbyAssetStyler can style any part by name."""
     dg = bpy.context.evaluated_depsgraph_get()
-    groups = {}   # matname -> list[(mesh, tris)]
-    for ob in objs:
-        if ob.type not in ("MESH", "CURVE", "FONT") or ob.hide_render:
-            continue
-        me = bpy.data.meshes.new_from_object(ob.evaluated_get(dg))
-        me.transform(ob.matrix_world)
-        if mirror:                      # mirrored variant (Roblox cannot use negative scale)
-            me.transform(MIRROR_X)
-            me.flip_normals()
-        mats = list(me.materials) or [None]
-        # split multi-material meshes per material index
-        for mi, m in enumerate(mats):
-            key = m.name if m else "MAT_Default"
-            bm = bmesh.new()
-            bm.from_mesh(me)
-            if len(mats) > 1:
-                bmesh.ops.delete(bm, geom=[f for f in bm.faces if f.material_index != mi], context="FACES")
-            if not bm.faces:
-                bm.free(); continue
-            tris = sum(len(f.verts) - 2 for f in bm.faces)
-            groups.setdefault(key, []).append((bm, tris))
-        bpy.data.meshes.remove(me)
+    meshes = [o for o in objs if o.type in ("MESH", "CURVE", "FONT") and not o.hide_render]
+    by_group = {}
+    for o in meshes:
+        by_group.setdefault(_group_name(o), []).append(o)
     out, info = [], []
-    for key, parts in sorted(groups.items()):
-        chunks, cur, cur_t = [], [], 0
-        for bm, t in parts:
-            if cur and cur_t + t > TRI_LIMIT:
-                chunks.append(cur); cur, cur_t = [], 0
-            cur.append(bm); cur_t += t
-        if cur:
-            chunks.append(cur)
-        short = key.replace("MAT_", "")
-        for ci, ch in enumerate(chunks):
-            name = f"{unit}__{short}" + (f"_p{ci + 1}" if len(chunks) > 1 else "")
-            me = bpy.data.meshes.new(name)
-            acc = bmesh.new()
-            for bm in ch:
-                tmp = bpy.data.meshes.new("tmp"); bm.to_mesh(tmp); bm.free()
-                acc.from_mesh(tmp); bpy.data.meshes.remove(tmp)
-            bmesh.ops.remove_doubles(acc, verts=acc.verts, dist=1e-5)
-            if not (mat_has_texture(key)):
-                box_uv(acc)          # textured materials keep their authored world-aligned UVs
-            tris = sum(len(f.verts) - 2 for f in acc.faces)
-            acc.to_mesh(me); acc.free()
-            mat = bpy.data.materials.get(key)
-            if mat:
-                me.materials.append(mat)
-            ob = bpy.data.objects.new(name, me)
-            bpy.context.scene.collection.objects.link(ob)
-            out.append(ob)
-            info.append({"part": name, "material": key, "tris": tris,
-                         "roblox": roblox_props(mat) if mat else {"Material": "SmoothPlastic"}})
+    used = set()
+
+    def uniq(n):
+        base, k = n, 2
+        while n in used:
+            n = f"{base}{k}"; k += 1
+        used.add(n)
+        return n
+    for group, gobs in sorted(by_group.items()):
+        gname = uniq(group)
+        g_empty = bpy.data.objects.new(gname, None)
+        bpy.context.scene.collection.objects.link(g_empty)
+        out.append(g_empty)
+        clusters = _clusters(gobs)
+        for cl in clusters:
+            if len(clusters) == 1:              # one item: parts sit directly in the group model
+                item, iname, i_empty = group, gname, g_empty
+            else:
+                item = _item_name(cl, group)
+                iname = uniq(f"{group}_Main" if item == group else f"{group}_{item}")
+                i_empty = bpy.data.objects.new(iname, None)
+                bpy.context.scene.collection.objects.link(i_empty)
+                i_empty.parent = g_empty
+                out.append(i_empty)
+            buckets = {}
+            for o in cl:
+                for key, bm, t in _mesh_bms(o, dg, mirror):
+                    if _is_neon(o):           # neon pieces stay individual
+                        pn = uniq(f"{key.replace('MAT_', '')}__{_short(o.name)}")
+                        ob, tris = _emit(pn, key, [bm], i_empty)
+                        out.append(ob)
+                        info.append({"part": pn, "material": key, "tris": tris, "group": gname, "item": iname,
+                                     "neon": True})
+                    else:
+                        buckets.setdefault(key, []).append((bm, t))
+            for key, parts in sorted(buckets.items()):
+                chunks, cur, cur_t = [], [], 0
+                for bm, t in parts:
+                    if cur and cur_t + t > TRI_LIMIT:
+                        chunks.append(cur); cur, cur_t = [], 0
+                    cur.append(bm); cur_t += t
+                if cur:
+                    chunks.append(cur)
+                for ci, ch in enumerate(chunks):
+                    pn = uniq(f"{key.replace('MAT_', '')}__{item}" + (f"_p{ci + 1}" if len(chunks) > 1 else ""))
+                    ob, tris = _emit(pn, key, ch, i_empty)
+                    out.append(ob)
+                    info.append({"part": pn, "material": key, "tris": tris, "group": gname, "item": iname})
+    for d in info:
+        m = bpy.data.materials.get(d["material"])
+        d["roblox"] = roblox_props(m) if m else {"Material": "SmoothPlastic"}
     return out, info
 
 
@@ -153,13 +258,14 @@ def export_units(blend, units_fn):
         origin = Vector(((mn.x + mx.x) / 2, (mn.y + mx.y) / 2, mn.z))
         new, info = merge_by_material(unit, objs, mirror)
         for ob in new:
-            ob.data.transform(__import__("mathutils").Matrix.Translation(-origin))
+            if ob.type == "MESH":
+                ob.data.transform(__import__("mathutils").Matrix.Translation(-origin))
         bpy.ops.object.select_all(action="DESELECT")
         for ob in new:
             ob.select_set(True)
         path = os.path.join(L.FBX, f"{unit}.fbx")
         os.makedirs(L.FBX, exist_ok=True)
-        bpy.ops.export_scene.fbx(filepath=path, use_selection=True, object_types={"MESH"},
+        bpy.ops.export_scene.fbx(filepath=path, use_selection=True, object_types={"MESH", "EMPTY"},
                                  apply_unit_scale=True, apply_scale_options="FBX_SCALE_ALL",
                                  axis_forward="-Z", axis_up="Y", use_mesh_modifiers=False,
                                  mesh_smooth_type="FACE", add_leaf_bones=False, bake_anim=False,
@@ -167,7 +273,9 @@ def export_units(blend, units_fn):
         size = mx - mn
         results[unit] = {"fbx": os.path.relpath(path, L.ROOT), "size_studs": [round(v, 3) for v in size],
                          "parts": info, "tris_total": sum(i["tris"] for i in info)}
-        print(f"EXPORT {unit}: {len(new)} parts, {results[unit]['tris_total']} tris, size {tuple(round(v, 2) for v in size)}")
+        nparts = sum(1 for o in new if o.type == "MESH")
+        nitems = sum(1 for o in new if o.type == "EMPTY" and o.parent)
+        print(f"EXPORT {unit}: {nparts} parts in {nitems} items, {results[unit]['tris_total']} tris, size {tuple(round(v, 2) for v in size)}")
         for ob in new:
             bpy.data.objects.remove(ob)
     return results
@@ -245,94 +353,106 @@ def pedestal_units():
 
 
 def write_luau(manifest):
-    lines = ["--!strict", "-- GENERATED by assets/lobby/scripts/export_roblox.py - do not edit by hand.",
-             "-- Usage (Studio command bar, after importing an FBX with the 3D Importer):",
-             "--   require(game.ReplicatedStorage.Shared.LobbyAssetStyler).style(workspace.Lobby_MarbleArch)",
-             "-- or style every imported lobby model:  ...LobbyAssetStyler.styleAll(workspace)", "",
-             "type PartSpec = { Material: string, Color: { number }, Reflectance: number?, Transparency: number?, Texture: string? }",
-             "",
-             "-- Upload textures/<name>_albedo.png and _normal.png (one pair per entry below) (Asset Manager / Creator Hub) and paste the",
-             "-- rbxassetid:// ids here. While empty, textured parts fall back to a plain Slate material.",
-             "local TEXTURES: { [string]: { ColorMap: string, NormalMap: string } } = {",
-             *[f'\t{k} = {{ ColorMap = "", NormalMap = "" }},' for k in sorted({p["roblox"]["Texture"] for u in manifest.values() for p in u["parts"] if "Texture" in p["roblox"]})],
-             "}",
-             "local TEXTURE_FALLBACK_COLOR = Color3.fromRGB(110, 112, 140)",
-             "type UnitSpec = { size: { number }, parts: { [string]: PartSpec } }", "",
-             "local UNITS: { [string]: UnitSpec } = {"]
-    for unit, u in sorted(manifest.items()):
-        lines.append(f'\t["{unit}"] = {{')
-        lines.append(f"\t\tsize = {{ {', '.join(str(v) for v in u['size_studs'])} }},")
-        lines.append("\t\tparts = {")
+    mats = {}
+    for u in manifest.values():
         for p in u["parts"]:
-            r = p["roblox"]
-            extra = ""
-            if "Texture" in r:
-                extra += f', Texture = "{r["Texture"]}"'
-            if "Reflectance" in r:
-                extra += f", Reflectance = {r['Reflectance']}"
-            if "Transparency" in r:
-                extra += f", Transparency = {r['Transparency']}"
-            col = ", ".join(str(v) for v in r["Color"])
-            lines.append(f'\t\t\t["{p["part"]}"] = {{ Material = "{r["Material"]}", Color = {{ {col} }}{extra} }},')
-        lines.append("\t\t},")
-        lines.append("\t},")
-    lines += ["}", "",
-              "local LobbyAssetStyler = {}", "",
-              "local function applyPart(part: BasePart, spec: PartSpec)",
-              "\tpart.Material = (Enum.Material :: any)[spec.Material]",
-              "\tpart.Color = Color3.new(spec.Color[1], spec.Color[2], spec.Color[3])",
-              "\tpart.Reflectance = spec.Reflectance or 0",
-              "\tpart.Transparency = spec.Transparency or 0",
-              "\tpart.Anchored = true",
-              "\tif spec.Texture then",
-              "\t\tlocal tex = TEXTURES[spec.Texture]",
-              "\t\tif tex and tex.ColorMap ~= \"\" then",
-              "\t\t\tlocal sa = part:FindFirstChildOfClass(\"SurfaceAppearance\") or Instance.new(\"SurfaceAppearance\")",
-              "\t\t\tsa.ColorMap = tex.ColorMap",
-              "\t\t\tsa.NormalMap = tex.NormalMap",
-              "\t\t\tsa.Parent = part",
-              "\t\telse",
-              "\t\t\tpart.Material = Enum.Material.Slate",
-              "\t\t\tpart.Color = TEXTURE_FALLBACK_COLOR",
-              "\t\tend",
-              "\tend",
-              "\tif spec.Material == \"Neon\" then",
-              "\t\tpart.CastShadow = false",
-              "\tend",
-              "end", "",
-              "function LobbyAssetStyler.style(model: Model, unitName: string?)",
-              "\tlocal name = unitName or model.Name",
-              "\tlocal unit = UNITS[name]",
-              "\tassert(unit, \"LobbyAssetStyler: unknown unit \" .. name)",
-              "\tfor _, d in model:GetDescendants() do",
-              "\t\tif d:IsA(\"BasePart\") then",
-              "\t\t\tlocal key = d.Name:gsub(\"%.%d+$\", \"\")",
-              "\t\t\tlocal spec = unit.parts[key]",
-              "\t\t\tif spec then",
-              "\t\t\t\tapplyPart(d, spec)",
-              "\t\t\tend",
-              "\t\tend",
-              "\tend",
-              "\t-- Rescale so the model matches its Blender size (1 Blender unit = 1 stud).",
-              "\tlocal _, extents = model:GetBoundingBox()",
-              "\tlocal want = math.max(unit.size[1], unit.size[2], unit.size[3])",
-              "\tlocal have = math.max(extents.X, extents.Y, extents.Z)",
-              "\tif have > 0 and math.abs(have - want) / want > 0.02 then",
-              "\t\tmodel:ScaleTo(model:GetScale() * want / have)",
-              "\tend",
-              "end", "",
-              "function LobbyAssetStyler.styleAll(container: Instance)",
-              "\tfor _, m in container:GetDescendants() do",
-              "\t\tif m:IsA(\"Model\") and UNITS[m.Name] then",
-              "\t\t\tLobbyAssetStyler.style(m)",
-              "\t\tend",
-              "\tend",
-              "end", "",
-              "LobbyAssetStyler.UNITS = UNITS",
-              "return LobbyAssetStyler", ""]
+            mats[p["material"].replace("MAT_", "")] = p["roblox"]
+    tex_keys = sorted({r["Texture"] for r in mats.values() if "Texture" in r})
+    L_ = ["--!strict", "-- GENERATED by assets/lobby/scripts/export_roblox.py - do not edit by hand.",
+          "-- Imported model layout (3D Importer keeps the FBX hierarchy):",
+          "--   <Model>  >  <Group> (Structure, Canopy, Crates ...)  >  <Group>_<Item> (one crate, one lantern ...)",
+          "--     >  MeshParts named  <Material>__<Item>  or, for every glowing piece,  <Material>__<Piece>",
+          "-- Usage (Studio command bar, after importing):",
+          "--   require(game.ReplicatedStorage.Shared.LobbyAssetStyler).styleAll(workspace)",
+          "-- Every neon part gets the CollectionService tag \"LobbyNeon\" and attribute Neon = true.", "",
+          "type PartSpec = { Material: string, Color: { number }, Reflectance: number?, Transparency: number?, Texture: string? }",
+          "",
+          "-- Upload textures/<name>_albedo.png and _normal.png and paste the rbxassetid:// ids here.",
+          "-- While empty, textured parts fall back to a plain Slate material.",
+          "local TEXTURES: { [string]: { ColorMap: string, NormalMap: string } } = {",
+          *[f'\t{k} = {{ ColorMap = "", NormalMap = "" }},' for k in tex_keys],
+          "}",
+          "local TEXTURE_FALLBACK_COLOR = Color3.fromRGB(110, 112, 140)", "",
+          "-- material key (prefix of every part name) -> Roblox appearance",
+          "local MATERIALS: { [string]: PartSpec } = {"]
+    for key, r in sorted(mats.items()):
+        extra = ""
+        if "Texture" in r:
+            extra += f', Texture = "{r["Texture"]}"'
+        if "Reflectance" in r:
+            extra += f", Reflectance = {r['Reflectance']}"
+        if "Transparency" in r:
+            extra += f", Transparency = {r['Transparency']}"
+        col = ", ".join(str(v) for v in r["Color"])
+        L_.append(f'\t["{key}"] = {{ Material = "{r["Material"]}", Color = {{ {col} }}{extra} }},')
+    L_ += ["}", "", "-- model name -> size in studs (used to undo any importer unit conversion)",
+           "local UNITS: { [string]: { size: { number } } } = {"]
+    for unit, u in sorted(manifest.items()):
+        L_.append(f'\t["{unit}"] = {{ size = {{ {", ".join(str(v) for v in u["size_studs"])} }} }},')
+    L_ += ["}", "",
+           "local CollectionService = game:GetService(\"CollectionService\")",
+           "local LobbyAssetStyler = {}", "",
+           "local function materialKey(name: string): string",
+           "\tlocal base = name:gsub(\"%.%d+$\", \"\")",
+           "\treturn base:match(\"^(.-)__\") or base",
+           "end", "",
+           "local function applyPart(part: BasePart, spec: PartSpec)",
+           "\tpart.Material = (Enum.Material :: any)[spec.Material]",
+           "\tpart.Color = Color3.new(spec.Color[1], spec.Color[2], spec.Color[3])",
+           "\tpart.Reflectance = spec.Reflectance or 0",
+           "\tpart.Transparency = spec.Transparency or 0",
+           "\tpart.Anchored = true",
+           "\tif spec.Texture then",
+           "\t\tlocal tex = TEXTURES[spec.Texture]",
+           "\t\tif tex and tex.ColorMap ~= \"\" then",
+           "\t\t\tlocal sa = part:FindFirstChildOfClass(\"SurfaceAppearance\") or Instance.new(\"SurfaceAppearance\")",
+           "\t\t\tsa.ColorMap = tex.ColorMap",
+           "\t\t\tsa.NormalMap = tex.NormalMap",
+           "\t\t\tsa.Parent = part",
+           "\t\telse",
+           "\t\t\tpart.Material = Enum.Material.Slate",
+           "\t\t\tpart.Color = TEXTURE_FALLBACK_COLOR",
+           "\t\tend",
+           "\tend",
+           "\tif spec.Material == \"Neon\" or spec.Material == \"Glass\" then",
+           "\t\tpart.CastShadow = false",
+           "\t\tpart.CanCollide = false",
+           "\t\tpart:SetAttribute(\"Neon\", true)",
+           "\t\tCollectionService:AddTag(part, \"LobbyNeon\")",
+           "\tend",
+           "end", "",
+           "function LobbyAssetStyler.style(model: Model)",
+           "\tfor _, d in model:GetDescendants() do",
+           "\t\tif d:IsA(\"BasePart\") then",
+           "\t\t\tlocal spec = MATERIALS[materialKey(d.Name)]",
+           "\t\t\tif spec then",
+           "\t\t\t\tapplyPart(d, spec)",
+           "\t\t\tend",
+           "\t\tend",
+           "\tend",
+           "\tlocal unit = UNITS[model.Name]",
+           "\tif unit then  -- rescale to the Blender size (1 Blender unit = 1 stud)",
+           "\t\tlocal _, extents = model:GetBoundingBox()",
+           "\t\tlocal want = math.max(unit.size[1], unit.size[2], unit.size[3])",
+           "\t\tlocal have = math.max(extents.X, extents.Y, extents.Z)",
+           "\t\tif have > 0 and math.abs(have - want) / want > 0.02 then",
+           "\t\t\tmodel:ScaleTo(model:GetScale() * want / have)",
+           "\t\tend",
+           "\tend",
+           "end", "",
+           "function LobbyAssetStyler.styleAll(container: Instance)",
+           "\tfor _, m in container:GetDescendants() do",
+           "\t\tif m:IsA(\"Model\") and UNITS[m.Name] then",
+           "\t\t\tLobbyAssetStyler.style(m)",
+           "\t\tend",
+           "\tend",
+           "end", "",
+           "LobbyAssetStyler.MATERIALS = MATERIALS",
+           "LobbyAssetStyler.UNITS = UNITS",
+           "return LobbyAssetStyler", ""]
     os.makedirs(os.path.dirname(LUAU_OUT), exist_ok=True)
     with open(LUAU_OUT, "w") as fh:
-        fh.write("\n".join(lines))
+        fh.write("\n".join(L_))
     print("LUAU", LUAU_OUT)
 
 
