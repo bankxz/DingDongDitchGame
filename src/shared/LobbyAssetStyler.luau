@@ -119,7 +119,7 @@ local UNITS: { [string]: UnitSpec } = {
 		},
 	},
 	["Lobby_MarketShop"] = {
-		size = { 16.44, 7.541, 14.43 },
+		size = { 16.44, 8.235, 14.43 },
 		parts = {
 			["Lobby_MarketShop__AwningRed"] = { Material = "Fabric", Color = { 0.865, 0.2209, 0.4492 } },
 			["Lobby_MarketShop__AwningWhite"] = { Material = "Fabric", Color = { 0.9777, 0.964, 0.9686 } },

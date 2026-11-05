@@ -2317,14 +2317,14 @@
   "fbx": "fbx/Lobby_MarketShop.fbx",
   "size_studs": [
    16.44,
-   7.541,
+   8.235,
    14.43
   ],
   "parts": [
    {
     "part": "Lobby_MarketShop__AwningRed",
     "material": "MAT_AwningRed",
-    "tris": 1268,
+    "tris": 1868,
     "roblox": {
      "Material": "Fabric",
      "Color": [
@@ -2337,7 +2337,7 @@
    {
     "part": "Lobby_MarketShop__AwningWhite",
     "material": "MAT_AwningWhite",
-    "tris": 1324,
+    "tris": 1924,
     "roblox": {
      "Material": "Fabric",
      "Color": [
@@ -2667,7 +2667,7 @@
     }
    }
   ],
-  "tris_total": 22522
+  "tris_total": 23722
  },
  "Lobby_CraftShop": {
   "fbx": "fbx/Lobby_CraftShop.fbx",

@@ -91,7 +91,7 @@ local placements: { Placement } = {
 	{ unit = "Lobby_PED_Gravity", zone = "Abilities", target = { 10.0, 0.0, -78.6 }, yaw = -45, scale = 1.0, stretch = { 1, 1, 1 } },
 	{ unit = "Lobby_PED_Arrow", zone = "Abilities", target = { 10.0, 0.0, -83.3 }, yaw = -45, scale = 1.0, stretch = { 1, 1, 1 } },
 	{ unit = "Lobby_PED_Time", zone = "Abilities", target = { 10.0, 0.0, -88.0 }, yaw = -45, scale = 1.0, stretch = { 1, 1, 1 } },
-	{ unit = "Lobby_MarketShop", zone = "Shops", target = { 37.83, 0.0, -46.9 }, yaw = -90, scale = 1.0, stretch = { 1, 1, 1 } },
+	{ unit = "Lobby_MarketShop", zone = "Shops", target = { 37.483, 0.0, -46.9 }, yaw = -90, scale = 1.0, stretch = { 1, 1, 1 } },
 	{ unit = "Lobby_CraftShop", zone = "Shops", target = { 36.585, 0.0, -62.9 }, yaw = -90, scale = 1.0, stretch = { 1, 1, 1 } },
 	{ unit = "Lobby_PORTAL_Duels", zone = "ModePortals", target = { -36.265, 0.0, -46.9 }, yaw = 90, scale = 1.0, stretch = { 1, 1, 1 } },
 	{ unit = "Lobby_PORTAL_Practice", zone = "ModePortals", target = { -36.265, 0.0, -62.9 }, yaw = 90, scale = 1.0, stretch = { 1, 1, 1 } },
