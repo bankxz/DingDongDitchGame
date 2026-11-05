@@ -371,15 +371,18 @@ def build(P, root):
     ang = math.atan2(ih, iw)
     for s in (-1, 1):
         objs.append(L.box(f"CRF_CrateXFront_{s}", (math.hypot(iw, ih) - 0.55, 0.2, 0.3),
-                          (ccx, ccy - cd / 2 + 0.02, ccz), wood_frame, 0.04, c=C["Props"], rot=(0, s * ang, 0)))
+                          (ccx, ccy - cd / 2 + 0.02 - (0.12 if s > 0 else 0.0), ccz), wood_frame, 0.04, c=C["Props"],
+                          rot=(0, s * ang, 0)))        # second plank over the first (no z-fight at the cross)
         objs.append(L.box(f"CRF_CrateXBack_{s}", (math.hypot(iw, ih) - 0.55, 0.2, 0.3),
-                          (ccx, ccy + cd / 2 - 0.02, ccz), wood_frame, 0.04, c=C["Props"], rot=(0, s * ang, 0)))
+                          (ccx, ccy + cd / 2 - 0.02 + (0.12 if s > 0 else 0.0), ccz), wood_frame, 0.04, c=C["Props"],
+                          rot=(0, s * ang, 0)))
     iwd = cd - 2 * t
     angd = math.atan2(ih, iwd)
     for sx in (-1, 1):
         for s in (-1, 1):
             objs.append(L.box(f"CRF_CrateXSide_{sx}{s}", (0.2, math.hypot(iwd, ih) - 0.55, 0.3),
-                              (ccx + sx * (cw / 2 - 0.02), ccy, ccz), wood_frame, 0.04, c=C["Props"],
+                              (ccx + sx * (cw / 2 - 0.02) + (sx * 0.12 if s > 0 else 0.0), ccy, ccz), wood_frame, 0.04,
+                              c=C["Props"],
                               rot=(s * angd, 0, 0)))
 
     # ------------------------------------------------ lanterns on bracket arms

@@ -392,7 +392,9 @@ def build(M, root):
         ang = math.atan2(h, w)
         diag = math.hypot(w, h) - 0.2
         for s in (-1, 1):
-            objs.append(L.box(f"MKT_PanelBrace_{px0:.1f}_{s}", (diag, 0.22, 0.34), ((px0 + px1) / 2, fy - 0.1, (pz0 + pz1) / 2),
+            # the second plank lies OVER the first (offset outward): equal depths z-fought -> black centres
+            objs.append(L.box(f"MKT_PanelBrace_{px0:.1f}_{s}", (diag, 0.22, 0.34),
+                              ((px0 + px1) / 2, fy - 0.1 - (0.12 if s > 0 else 0.0), (pz0 + pz1) / 2),
                               M["woodH"], 0.05, c=C["Counter"], rot=(0, s * ang, 0)))
 
     # ---- shelves (upper merchandise shelf + lower side shelf)
@@ -516,11 +518,13 @@ def build(M, root):
             dl = math.hypot(w, h)
             for s in (-1, 1):
                 if "y" in face:
-                    yy = y + (sy_ / 2 + 0.02) * (1 if face[0] == "+" else -1)
+                    out = 1 if face[0] == "+" else -1          # second plank lies over the first
+                    yy = y + (sy_ / 2 + 0.02) * out + (0.07 * out if s > 0 else 0.0)
                     o.append(L.box(name + f"_Brace{face}{s}", (dl, 0.1, 0.22), (x, yy, sz_ / 2), M["crate"], 0.03, c=C["Crates"],
                                    rot=(0, s * ang, 0)))
                 else:
-                    xx = x + (sx_ / 2 + 0.02) * (1 if face[0] == "+" else -1)
+                    out = 1 if face[0] == "+" else -1
+                    xx = x + (sx_ / 2 + 0.02) * out + (0.07 * out if s > 0 else 0.0)
                     o.append(L.box(name + f"_Brace{face}{s}", (0.1, dl, 0.22), (xx, y, sz_ / 2), M["crate"], 0.03, c=C["Crates"],
                                    rot=(s * ang, 0, 0)))
         return o
