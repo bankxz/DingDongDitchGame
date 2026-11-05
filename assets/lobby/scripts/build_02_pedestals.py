@@ -18,6 +18,7 @@ import lobbylib as L
 SPACING = 6.0
 TOP_Z = 2.2          # top face of the pedestal
 GLYPH_BASE = TOP_Z + 0.32
+GLYPH_SCALE = 1.2
 
 # (name, neon colour)
 ABILITIES = [
@@ -36,8 +37,8 @@ ABILITIES = [
 # inset neon groove in the top face.
 PED_PROFILE = [
     (2.10, 0.00), (2.10, 0.32), (2.00, 0.32), (2.00, 0.24), (1.84, 0.24), (1.84, 0.32),
-    (1.75, 0.32), (1.75, 1.90), (1.90, 1.93), (1.90, TOP_Z), (1.50, TOP_Z), (1.50, TOP_Z - 0.08),
-    (1.28, TOP_Z - 0.08), (1.28, TOP_Z),
+    (1.75, 0.32), (1.75, 1.90), (1.90, 1.93), (1.90, TOP_Z), (1.66, TOP_Z), (1.66, TOP_Z - 0.08),
+    (1.44, TOP_Z - 0.08), (1.44, TOP_Z),
 ]
 
 
@@ -153,13 +154,13 @@ def place(objs, x, z, rot_y=0.0):
 # Each returns a list of objects positioned with their bottom at z=0, centred on x=0.
 
 def g_crystal(c, col):
-    m = L.emissive("MAT_Glyph_Crystal", col, 1.8, base=(0.45, 0.88, 1.0))
+    m = L.emissive("MAT_Glyph_Crystal", (0.1, 0.65, 1.0), 1.1, base=(0.25, 0.78, 1.0))
     o = []
-    spec = [(0.0, 0.0, 0.44, 2.3), (-0.42, 0.42, 0.30, 1.55), (0.42, -0.42, 0.30, 1.55),
-            (-0.78, 0.9, 0.22, 1.05), (0.78, -0.9, 0.22, 1.05)]
+    spec = [(0.0, 0.0, 0.46, 2.4), (-0.42, -0.42, 0.30, 1.6), (0.42, 0.42, 0.30, 1.6),
+            (-0.78, -0.9, 0.22, 1.1), (0.78, 0.9, 0.22, 1.1)]
     for i, (dx, tilt, r, h) in enumerate(spec):
         cr = crystal(f"PED_CrystalShard_{i}", r, h, m, c)
-        cr.location = (dx * 0.55, 0.0, 0.05 if i else 0.0)
+        cr.location = (dx * 0.75, 0.0, 0.12 if i else 0.0)
         cr.rotation_euler = (0, tilt, 0)
         o.append(cr)
     return o
@@ -169,8 +170,8 @@ BOLT = [(-0.18, 1.25), (0.78, 1.25), (0.22, 0.32), (0.72, 0.32), (-0.48, -1.25),
 
 
 def g_lightning(c, col):
-    body = L.emissive("MAT_Glyph_LightningBody", (0.55, 0.15, 1.0), 1.6, base=(0.62, 0.35, 0.95))
-    rim = L.emissive("MAT_Glyph_LightningRim", (0.85, 0.6, 1.0), 4.0)
+    body = L.emissive("MAT_Glyph_LightningBody", (0.45, 0.08, 1.0), 0.9, base=(0.5, 0.18, 0.95))
+    rim = L.emissive("MAT_Glyph_LightningRim", (0.72, 0.42, 1.0), 2.2, base=(0.78, 0.55, 1.0))
     inner = poly("PED_BoltBody", BOLT, 0.42, body, c, 0.07)
     outer = poly("PED_BoltNeonRim", offset_poly(BOLT, 0.09), 0.26, rim, c, 0.03)
     for ob in (inner, outer):
@@ -190,8 +191,8 @@ def _shield_pts():
 
 def g_shield(c, col):
     gold = L.flat("MAT_Glyph_ShieldGold", (1.0, 0.6, 0.1), rough=0.3, metal=0.7)
-    face = L.emissive("MAT_Glyph_ShieldFace", (1.0, 0.7, 0.15), 0.7, base=(1.0, 0.8, 0.28))
-    starm = L.emissive("MAT_Glyph_ShieldStar", (1.0, 0.95, 0.7), 3.5)
+    face = L.emissive("MAT_Glyph_ShieldFace", (1.0, 0.62, 0.08), 0.5, base=(1.0, 0.72, 0.15))
+    starm = L.emissive("MAT_Glyph_ShieldStar", (1.0, 0.92, 0.6), 2.2)
     s = _shield_pts()
     rim = poly("PED_ShieldRim", s, 0.42, gold, c, 0.08)
     inner = poly("PED_ShieldFace", offset_poly(s, -0.2), 0.56, face, c, 0.06)
@@ -209,9 +210,9 @@ FLAME = [(0, 0), (0.45, 0.08), (0.75, 0.35), (0.86, 0.75), (0.8, 1.2), (0.68, 1.
 
 
 def g_flame(c, col):
-    red = L.emissive("MAT_Glyph_FlameRed", (1.0, 0.16, 0.05), 2.0, base=(0.95, 0.22, 0.08))
-    org = L.emissive("MAT_Glyph_FlameOrange", (1.0, 0.48, 0.05), 2.6, base=(1.0, 0.55, 0.12))
-    yel = L.emissive("MAT_Glyph_FlameYellow", (1.0, 0.88, 0.3), 3.2, base=(1.0, 0.92, 0.45))
+    red = L.emissive("MAT_Glyph_FlameRed", (1.0, 0.08, 0.02), 1.0, base=(0.9, 0.1, 0.03))
+    org = L.emissive("MAT_Glyph_FlameOrange", (1.0, 0.38, 0.02), 1.4, base=(1.0, 0.42, 0.05))
+    yel = L.emissive("MAT_Glyph_FlameYellow", (1.0, 0.8, 0.2), 1.8, base=(1.0, 0.85, 0.3))
     a = poly("PED_FlameOuter", FLAME, 0.5, red, c, 0.08)
     b = poly("PED_FlameMid", scale_pts(FLAME, 0.7, 0.02, 0.06), 0.66, org, c, 0.07)
     d = poly("PED_FlameCore", scale_pts(FLAME, 0.42, 0.02, 0.08), 0.8, yel, c, 0.06)
@@ -231,7 +232,7 @@ def _blade(phase, n=22):
 
 
 def g_wind(c, col):
-    m = L.emissive("MAT_Glyph_Wind", (0.5, 0.82, 1.0), 1.3, base=(0.86, 0.95, 1.0))
+    m = L.emissive("MAT_Glyph_Wind", (0.35, 0.7, 1.0), 0.7, base=(0.62, 0.84, 1.0))
     objs = []
     for k in range(4):
         b = poly(f"PED_WindBlade_{k}", _blade(k * math.pi / 2), 0.32, m, c, 0.05)
@@ -255,8 +256,8 @@ def _leaf(h, w, n=14):
 
 
 def g_emerald(c, col):
-    m = L.emissive("MAT_Glyph_Emerald", (0.15, 0.95, 0.35), 1.6, base=(0.35, 0.95, 0.5))
-    vein = L.emissive("MAT_Glyph_EmeraldVein", (0.7, 1.0, 0.6), 3.5)
+    m = L.emissive("MAT_Glyph_Emerald", (0.05, 0.85, 0.25), 1.0, base=(0.15, 0.85, 0.3))
+    vein = L.emissive("MAT_Glyph_EmeraldVein", (0.6, 1.0, 0.5), 2.2)
     objs = []
     for i, (dx, tilt, h, w) in enumerate([(0, 0, 2.3, 0.62), (-0.25, -0.62, 1.5, 0.42), (0.25, 0.62, 1.5, 0.42)]):
         lf = poly(f"PED_EmeraldLeaf_{i}", _leaf(h, w), 0.34, m, c, 0.06)
@@ -270,7 +271,7 @@ def g_emerald(c, col):
 
 def g_sun(c, col):
     gold = L.flat("MAT_Glyph_SunGold", (1.0, 0.62, 0.12), rough=0.3, metal=0.7)
-    glow = L.emissive("MAT_Glyph_SunCore", (1.0, 0.85, 0.35), 3.0)
+    glow = L.emissive("MAT_Glyph_SunCore", (1.0, 0.8, 0.3), 2.0)
     st = poly("PED_SunStar", star_pts(1.2, 1.2, 0.85, 0.36), 0.36, gold, c, 0.05)
     rg = vring("PED_SunRing", 0.82, 0.66, 0.28, gold, c)
     core = sphere("PED_SunCore", 0.3, glow, c)
@@ -282,8 +283,8 @@ def g_sun(c, col):
 
 
 def g_orb(c, col):
-    ringm = L.emissive("MAT_Glyph_OrbRing", (0.8, 0.25, 1.0), 2.0, base=(0.75, 0.4, 0.95))
-    eye = L.emissive("MAT_Glyph_OrbEye", (1.0, 0.55, 0.95), 2.8)
+    ringm = L.emissive("MAT_Glyph_OrbRing", (0.7, 0.12, 1.0), 1.2, base=(0.65, 0.22, 0.95))
+    eye = L.emissive("MAT_Glyph_OrbEye", (1.0, 0.4, 0.9), 1.6, base=(1.0, 0.5, 0.92))
     rg = vring("PED_OrbRing", 1.0, 0.72, 0.34, ringm, c)
     ball = sphere("PED_OrbEye", 0.4, eye, c)
     pupil = sphere("PED_OrbPupil", 0.16, L.flat("MAT_Glyph_OrbPupil", (0.25, 0.05, 0.4), 0.3), c)
@@ -300,8 +301,8 @@ WING = [(0.12, 0.35), (0.5, 0.78), (1.0, 1.08), (1.48, 1.2), (1.28, 0.78), (1.12
 
 
 def g_wings(c, col):
-    m = L.emissive("MAT_Glyph_Wings", (0.75, 0.85, 1.0), 0.9, base=(0.95, 0.97, 1.0))
-    gem = L.emissive("MAT_Glyph_WingsGem", (0.3, 0.8, 1.0), 3.0)
+    m = L.emissive("MAT_Glyph_Wings", (0.7, 0.82, 1.0), 0.45, base=(0.9, 0.93, 1.0))
+    gem = L.emissive("MAT_Glyph_WingsGem", (0.1, 0.7, 1.0), 2.0)
     r = poly("PED_WingR", WING, 0.3, m, c, 0.05)
     lpts = [(-x, z) for x, z in WING][::-1]
     lw = poly("PED_WingL", lpts, 0.3, m, c, 0.05)
@@ -319,26 +320,29 @@ GLYPHS = dict(Crystal=g_crystal, Lightning=g_lightning, Shield=g_shield, Flame=g
 
 # ----------------------------------------------------------------------------- build
 def build(root):
-    marble = L.marble("MAT_PedestalMarble", base=(0.74, 0.70, 0.76), tint=(0.62, 0.58, 0.67),
-                      vein=(0.42, 0.38, 0.47), scale=0.45, vein_width=0.02)
+    marble = L.marble("MAT_PedestalMarble", base=(0.62, 0.58, 0.64), tint=(0.52, 0.48, 0.57),
+                      vein=(0.36, 0.32, 0.40), scale=0.7, vein_width=0.012)
     ped_mesh = lathe_mesh("PED_PedestalMesh", PED_PROFILE)
     ped_mesh.materials.append(marble)
     groups = {}
     for i, (name, col) in enumerate(ABILITIES):
         x = i * SPACING
         c = L.coll(f"PED_{name}", root)
-        neon = L.emissive(f"MAT_PedNeon_{name}", col, 5.0)
-        stemm = L.emissive(f"MAT_PedStem_{name}", col, 2.0)
+        neon = L.emissive(f"MAT_PedNeon_{name}", col, 2.6, base=col)
+        stemm = L.emissive(f"MAT_PedStem_{name}", col, 1.5, base=col)
         body = bpy.data.objects.new(f"PED_{name}_Pedestal", ped_mesh)
         c.objects.link(body)
         body.location = (x, 0, 0)
         L.add_bevel(body, 0.05, 2, angle=40)
-        top = L.ring(f"PED_{name}_TopNeon", 1.49, 1.29, 0.1, (x, 0, TOP_Z - 0.04), neon, 64, c)
+        top = L.ring(f"PED_{name}_TopNeon", 1.65, 1.45, 0.1, (x, 0, TOP_Z - 0.04), neon, 64, c)
         bot = L.ring(f"PED_{name}_BaseNeon", 1.99, 1.85, 0.1, (x, 0, 0.29), neon, 64, c)
         lip = L.ring(f"PED_{name}_BaseNeonEdge", 2.13, 2.09, 0.07, (x, 0, 0.05), neon, 64, c)
         stem = L.cyl(f"PED_{name}_Stem", 0.05, GLYPH_BASE - TOP_Z + 0.2, (x, 0, (TOP_Z + GLYPH_BASE) / 2), stemm,
                      8, 0.0, c=c)
         g = GLYPHS[name](c, col)
+        for ob in g:
+            ob.location *= GLYPH_SCALE
+            ob.scale = ob.scale * GLYPH_SCALE
         place(g, x, GLYPH_BASE)
         groups[name] = (c, [body, top, bot, lip, stem] + g)
     return groups
@@ -362,14 +366,14 @@ def main(do_render=True):
     L.ground(z=0.0)
     # 1) single-pedestal turnaround (Crystal) with others hidden
     set_visible(groups, ["Crystal"])
-    items = L.inspection_set("pedestals_single", groups["Crystal"][1], res=700, samples=24,
+    items = L.inspection_set("pedestals_single", groups["Crystal"][1], res=600, samples=20,
                              three_q=(-0.55, -1.3, 0.55), detail=[
                                  ("detail_top_ring", (-2.4, -4.6, 4.2), (0, 0, 2.0), 50),
                                  ("detail_base_ring", (-3.2, -5.8, 1.2), (0, 0, 0.6), 50)])
     L.contact_sheet(items, os.path.join(R, "pedestals_single_sheet.png"), cols=4, tile=480,
                     title="ASSET 02 - ABILITY PEDESTAL (shared mesh) - Blender Cycles inspection")
     # 2) per-glyph 3/4 + edge-on side view (matches sheet rows 1 and 2)
-    L.setup_render((560, 560), 24)
+    L.setup_render((480, 480), 20)
     items = []
     for i, (name, _) in enumerate(ABILITIES):
         x = i * SPACING
@@ -388,7 +392,7 @@ def main(do_render=True):
         if ob.type == "LIGHT":
             bpy.data.objects.remove(ob)
     L.beauty_lights()
-    L.setup_render((1400, 700), 32)
+    L.setup_render((1400, 700), 28)
     mid = (len(ABILITIES) - 1) * SPACING / 2
     cam = L.camera("CAM_beauty", (-8.0, -26.0, 9.0), (mid * 0.75, 0, 2.2), lens=32)
     L.render(cam, os.path.join(R, "pedestals_beauty_row.png"))
