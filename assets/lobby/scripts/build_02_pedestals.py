@@ -23,7 +23,7 @@ GLYPH_SCALE = 1.2
 # (name, neon colour)
 ABILITIES = [
     ("Crystal", (0.10, 0.72, 1.00)),
-    ("Lightning", (0.50, 0.12, 1.00)),
+    ("Lightning", (0.33, 0.10, 1.00)),
     ("Shield", (1.00, 0.62, 0.10)),
     ("Flame", (1.00, 0.20, 0.30)),
     ("Wind", (0.25, 0.65, 1.00)),
@@ -170,8 +170,8 @@ BOLT = [(-0.18, 1.25), (0.78, 1.25), (0.22, 0.32), (0.72, 0.32), (-0.48, -1.25),
 
 
 def g_lightning(c, col):
-    body = L.emissive("MAT_Glyph_LightningBody", (0.32, 0.04, 1.0), 0.8, base=(0.38, 0.1, 0.92))
-    rim = L.emissive("MAT_Glyph_LightningRim", (0.6, 0.32, 1.0), 1.8, base=(0.66, 0.45, 1.0))
+    body = L.emissive("MAT_Glyph_LightningBody", (0.22, 0.05, 1.0), 0.55, base=(0.30, 0.10, 0.86))
+    rim = L.emissive("MAT_Glyph_LightningRim", (0.55, 0.38, 1.0), 1.6, base=(0.70, 0.58, 1.0))
     inner = poly("PED_BoltBody", BOLT, 0.42, body, c, 0.07)
     outer = poly("PED_BoltNeonRim", offset_poly(BOLT, 0.09), 0.26, rim, c, 0.03)
     for ob in (inner, outer):
@@ -232,7 +232,7 @@ def _blade(phase, n=22):
 
 
 def g_wind(c, col):
-    m = L.emissive("MAT_Glyph_Wind", (0.35, 0.7, 1.0), 0.7, base=(0.62, 0.84, 1.0))
+    m = L.emissive("MAT_Glyph_Wind", (0.25, 0.6, 1.0), 0.5, base=(0.42, 0.70, 1.0))
     objs = []
     for k in range(4):
         b = poly(f"PED_WindBlade_{k}", _blade(k * math.pi / 2), 0.32, m, c, 0.05)
@@ -396,7 +396,7 @@ def main(do_render=True):
     mid = (len(ABILITIES) - 1) * SPACING / 2
     cam = L.camera("CAM_beauty", (-8.0, -26.0, 9.0), (mid * 0.75, 0, 2.2), lens=32)
     L.render(cam, os.path.join(R, "pedestals_beauty_row.png"))
-    cam = L.camera("CAM_beauty_front", (2 * SPACING, -24.0, 6.5), (2 * SPACING, 0, 2.4), lens=40)
+    cam = L.camera("CAM_beauty_front", (2 * SPACING, -34.0, 8.0), (2 * SPACING, 0, 2.4), lens=30)
     L.render(cam, os.path.join(R, "pedestals_beauty_five.png"))
 
 
