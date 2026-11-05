@@ -54,8 +54,9 @@ PATH_W = 6.0                    # marble path from the road edge to each portal
 PORTAL_BACK_TO_PLANE = 3.5      # mode portal: bbox back (plinth back) -> portal plane (asset 07 local y=0)
 PORTAL_TRIGGER_CZ = 6.0
 # background castle islands: (x, y, z bottom, yaw, scale) - far enough to read as sky dressing
-CASTLES = [(-115.0, 35.0, -22.0, 25.0, 1.0), (125.0, 95.0, -6.0, -35.0, 0.8), (-92.0, 107.0, 24.0, 35.0, 0.6),
-           (105.0, -45.0, -30.0, -120.0, 0.7), (92.0, 107.0, 33.0, -35.0, 0.6), (-60.0, -95.0, -40.0, 150.0, 0.55)]
+# castle remake is ~167 studs wide (old ~64): scales x0.38 keep the same sky composition
+CASTLES = [(-115.0, 35.0, -22.0, 25.0, 0.380), (125.0, 95.0, -6.0, -35.0, 0.304), (-92.0, 107.0, 24.0, 35.0, 0.228),
+           (105.0, -45.0, -30.0, -120.0, 0.266), (92.0, 107.0, 33.0, -35.0, 0.228), (-60.0, -95.0, -40.0, 150.0, 0.209)]
 
 ROOT_BLEND = L.BLEND
 UNIT_SOURCES = {
