@@ -111,8 +111,8 @@ def build(P, root):
     books = L.varied("MAT_Books", [(0.08, 0.16, 0.55), (0.30, 0.12, 0.55), (0.12, 0.22, 0.70), (0.45, 0.20, 0.65)],
                      rough=0.6)
     lamp = L.emissive("MAT_LanternGlow", (1.0, 0.55, 0.12), 1.6, base=(1.0, 0.72, 0.30))
-    purple = L.emissive("MAT_CrystalPurple", (0.38, 0.12, 1.0), 1.6, base=(0.42, 0.2, 0.95))
-    purple_glow = L.emissive("MAT_PurpleGlow", (0.62, 0.28, 1.0), 2.0, base=(0.7, 0.45, 1.0))
+    purple = L.emissive("MAT_CrystalPurple", (0.30, 0.06, 1.0), 0.7, base=(0.30, 0.10, 0.80))
+    purple_glow = L.emissive("MAT_PurpleGlow", (0.45, 0.15, 1.0), 1.4, base=(0.5, 0.3, 1.0))
     pot_blue = L.emissive("MAT_PotionBlue", (0.05, 0.55, 1.0), 0.8, base=(0.15, 0.62, 1.0))
     pot_pink = L.emissive("MAT_PotionPink", (1.0, 0.18, 0.65), 0.8, base=(1.0, 0.35, 0.75))
     cork = L.flat("MAT_Cork", (0.62, 0.42, 0.24), rough=0.8)
