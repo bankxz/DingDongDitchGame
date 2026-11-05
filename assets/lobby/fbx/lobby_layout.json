@@ -20,8 +20,8 @@
    "unit": "Lobby_PROP_BalustradeCurved",
    "zone": "Balustrade",
    "target": [
-    -14.336,
-    -2.8514,
+    -14.3357,
+    -2.8526,
     0.355
    ],
    "yaw": 105.0,
@@ -36,8 +36,8 @@
    "unit": "Lobby_PROP_BalustradeCurved",
    "zone": "Balustrade",
    "target": [
-    -10.9896,
-    -9.6374,
+    -10.9888,
+    -9.6382,
     0.355
    ],
    "yaw": 135.0,
@@ -52,8 +52,8 @@
    "unit": "Lobby_PROP_BalustradeCurved",
    "zone": "Balustrade",
    "target": [
-    -4.6986,
-    -13.841,
+    -4.6974,
+    -13.8413,
     0.355
    ],
    "yaw": 165.0,
@@ -68,8 +68,8 @@
    "unit": "Lobby_PROP_BalustradeCurved",
    "zone": "Balustrade",
    "target": [
-    2.8514,
-    -14.336,
+    2.8526,
+    -14.3357,
     0.355
    ],
    "yaw": 195.0,
@@ -84,8 +84,8 @@
    "unit": "Lobby_PROP_BalustradeCurved",
    "zone": "Balustrade",
    "target": [
-    9.6374,
-    -10.9896,
+    9.6382,
+    -10.9888,
     0.355
    ],
    "yaw": 225.0,
@@ -100,8 +100,8 @@
    "unit": "Lobby_PROP_BalustradeCurved",
    "zone": "Balustrade",
    "target": [
-    13.841,
-    -4.6986,
+    13.8413,
+    -4.6974,
     0.355
    ],
    "yaw": 255.0,
@@ -934,7 +934,7 @@
    "target": [
     0.0,
     22.9,
-    12.2985
+    12.3
    ],
    "yaw": 0.0,
    "scale": 1.0,
@@ -1092,7 +1092,7 @@
    "unit": "Lobby_MarketShop",
    "zone": "Shops",
    "target": [
-    37.849,
+    37.8298,
     52.22,
     0.0
    ],
@@ -1140,7 +1140,7 @@
    "unit": "Lobby_PORTAL_Duels",
    "zone": "ModePortals",
    "target": [
-    -36.2481,
+    -36.265,
     53.0,
     0.0
    ],
@@ -1156,7 +1156,7 @@
    "unit": "Lobby_PORTAL_Practice",
    "zone": "ModePortals",
    "target": [
-    -36.2481,
+    -36.265,
     73.0,
     0.0
    ],
