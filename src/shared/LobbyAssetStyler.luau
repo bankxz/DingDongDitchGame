@@ -149,6 +149,19 @@ local UNITS: { [string]: UnitSpec } = {
 			["Lobby_MarketShop__bookTeal"] = { Material = "SmoothPlastic", Color = { 0.3133, 0.5469, 0.618 } },
 		},
 	},
+	["Lobby_PED_Arrow"] = {
+		size = { 4.26, 4.26, 5.595 },
+		parts = {
+			["Lobby_PED_Arrow__Glyph_ArrowFletch"] = { Material = "Neon", Color = { 0.9777, 0.8543, 0.5838 } },
+			["Lobby_PED_Arrow__Glyph_ArrowHead"] = { Material = "SmoothPlastic", Color = { 0.8962, 0.9163, 0.964 } },
+			["Lobby_PED_Arrow__Glyph_BowGold"] = { Material = "SmoothPlastic", Color = { 1.0, 0.8095, 0.3811 }, Reflectance = 0.2 },
+			["Lobby_PED_Arrow__Glyph_BowString"] = { Material = "Neon", Color = { 1.0, 0.9547, 0.8543 } },
+			["Lobby_PED_Arrow__Glyph_BowWood"] = { Material = "Wood", Color = { 0.9309, 0.7354, 0.4614 } },
+			["Lobby_PED_Arrow__PedNeon_Arrow"] = { Material = "Neon", Color = { 0.9777, 0.8808, 0.6262 } },
+			["Lobby_PED_Arrow__PedStem_Arrow"] = { Material = "Neon", Color = { 0.9777, 0.8808, 0.6262 } },
+			["Lobby_PED_Arrow__PedestalMarble"] = { Material = "Marble", Color = { 0.8095, 0.7858, 0.821 } },
+		},
+	},
 	["Lobby_PED_Crystal"] = {
 		size = { 4.26, 4.26, 5.4 },
 		parts = {
@@ -156,6 +169,17 @@ local UNITS: { [string]: UnitSpec } = {
 			["Lobby_PED_Crystal__PedNeon_Crystal"] = { Material = "Glass", Color = { 0.3492, 0.865, 1.0 }, Transparency = 0.15 },
 			["Lobby_PED_Crystal__PedStem_Crystal"] = { Material = "Glass", Color = { 0.3492, 0.865, 1.0 }, Transparency = 0.15 },
 			["Lobby_PED_Crystal__PedestalMarble"] = { Material = "Marble", Color = { 0.8095, 0.7858, 0.821 } },
+		},
+	},
+	["Lobby_PED_Earth"] = {
+		size = { 4.26, 4.26, 5.368 },
+		parts = {
+			["Lobby_PED_Earth__Glyph_EarthRock"] = { Material = "SmoothPlastic", Color = { 0.68, 0.5271, 0.3492 } },
+			["Lobby_PED_Earth__Glyph_EarthRockLight"] = { Material = "SmoothPlastic", Color = { 0.7858, 0.6343, 0.4366 } },
+			["Lobby_PED_Earth__Glyph_EarthSeam"] = { Material = "Neon", Color = { 1.0, 0.7014, 0.2478 } },
+			["Lobby_PED_Earth__PedNeon_Earth"] = { Material = "Neon", Color = { 0.9309, 0.7014, 0.3811 } },
+			["Lobby_PED_Earth__PedStem_Earth"] = { Material = "Neon", Color = { 0.9309, 0.7014, 0.3811 } },
+			["Lobby_PED_Earth__PedestalMarble"] = { Material = "Marble", Color = { 0.8095, 0.7858, 0.821 } },
 		},
 	},
 	["Lobby_PED_Emerald"] = {
@@ -179,6 +203,38 @@ local UNITS: { [string]: UnitSpec } = {
 			["Lobby_PED_Flame__PedestalMarble"] = { Material = "Marble", Color = { 0.8095, 0.7858, 0.821 } },
 		},
 	},
+	["Lobby_PED_Gravity"] = {
+		size = { 4.26, 4.26, 5.855 },
+		parts = {
+			["Lobby_PED_Gravity__Glyph_GravityCore"] = { Material = "SmoothPlastic", Color = { 0.3811, 0.2478, 0.5371 } },
+			["Lobby_PED_Gravity__Glyph_GravityHalo"] = { Material = "Neon", Color = { 0.8543, 0.7014, 1.0 } },
+			["Lobby_PED_Gravity__Glyph_GravityRing"] = { Material = "Neon", Color = { 0.7354, 0.4845, 0.9777 } },
+			["Lobby_PED_Gravity__PedNeon_Gravity"] = { Material = "Neon", Color = { 0.7354, 0.4845, 0.9777 } },
+			["Lobby_PED_Gravity__PedStem_Gravity"] = { Material = "Neon", Color = { 0.7354, 0.4845, 0.9777 } },
+			["Lobby_PED_Gravity__PedestalMarble"] = { Material = "Marble", Color = { 0.8095, 0.7858, 0.821 } },
+		},
+	},
+	["Lobby_PED_Heart"] = {
+		size = { 4.26, 4.26, 5.014 },
+		parts = {
+			["Lobby_PED_Heart__Glyph_HeartBody"] = { Material = "Neon", Color = { 1.0, 0.4614, 0.6652 } },
+			["Lobby_PED_Heart__Glyph_HeartCross"] = { Material = "Neon", Color = { 1.0, 1.0, 1.0 } },
+			["Lobby_PED_Heart__Glyph_HeartHi"] = { Material = "Neon", Color = { 1.0, 0.65, 0.7977 } },
+			["Lobby_PED_Heart__PedNeon_Heart"] = { Material = "Neon", Color = { 1.0, 0.5838, 0.7674 } },
+			["Lobby_PED_Heart__PedStem_Heart"] = { Material = "Neon", Color = { 1.0, 0.5838, 0.7674 } },
+			["Lobby_PED_Heart__PedestalMarble"] = { Material = "Marble", Color = { 0.8095, 0.7858, 0.821 } },
+		},
+	},
+	["Lobby_PED_Ice"] = {
+		size = { 4.26, 4.26, 5.558 },
+		parts = {
+			["Lobby_PED_Ice__Glyph_IceBody"] = { Material = "Neon", Color = { 0.5371, 0.865, 1.0 } },
+			["Lobby_PED_Ice__Glyph_IceCore"] = { Material = "Neon", Color = { 0.8543, 0.9777, 1.0 } },
+			["Lobby_PED_Ice__PedNeon_Ice"] = { Material = "Neon", Color = { 0.7674, 0.9547, 1.0 } },
+			["Lobby_PED_Ice__PedStem_Ice"] = { Material = "Neon", Color = { 0.7674, 0.9547, 1.0 } },
+			["Lobby_PED_Ice__PedestalMarble"] = { Material = "Marble", Color = { 0.8095, 0.7858, 0.821 } },
+		},
+	},
 	["Lobby_PED_Lightning"] = {
 		size = { 4.26, 4.26, 5.628 },
 		parts = {
@@ -187,6 +243,16 @@ local UNITS: { [string]: UnitSpec } = {
 			["Lobby_PED_Lightning__PedNeon_Lightning"] = { Material = "Neon", Color = { 0.6097, 0.3492, 1.0 } },
 			["Lobby_PED_Lightning__PedStem_Lightning"] = { Material = "Neon", Color = { 0.6097, 0.3492, 1.0 } },
 			["Lobby_PED_Lightning__PedestalMarble"] = { Material = "Marble", Color = { 0.8095, 0.7858, 0.821 } },
+		},
+	},
+	["Lobby_PED_Moon"] = {
+		size = { 4.26, 4.26, 5.376 },
+		parts = {
+			["Lobby_PED_Moon__Glyph_MoonBody"] = { Material = "Neon", Color = { 0.7014, 0.6262, 1.0 } },
+			["Lobby_PED_Moon__Glyph_MoonHi"] = { Material = "Neon", Color = { 0.8808, 0.8434, 1.0 } },
+			["Lobby_PED_Moon__PedNeon_Moon"] = { Material = "Neon", Color = { 0.8543, 0.7977, 1.0 } },
+			["Lobby_PED_Moon__PedStem_Moon"] = { Material = "Neon", Color = { 0.8543, 0.7977, 1.0 } },
+			["Lobby_PED_Moon__PedestalMarble"] = { Material = "Marble", Color = { 0.8095, 0.7858, 0.821 } },
 		},
 	},
 	["Lobby_PED_Orb"] = {
@@ -200,6 +266,28 @@ local UNITS: { [string]: UnitSpec } = {
 			["Lobby_PED_Orb__PedestalMarble"] = { Material = "Marble", Color = { 0.8095, 0.7858, 0.821 } },
 		},
 	},
+	["Lobby_PED_Poison"] = {
+		size = { 4.26, 4.26, 6.21 },
+		parts = {
+			["Lobby_PED_Poison__Glyph_PoisonCork"] = { Material = "SmoothPlastic", Color = { 0.7674, 0.6343, 0.4614 } },
+			["Lobby_PED_Poison__Glyph_PoisonGlass"] = { Material = "Glass", Color = { 0.6652, 0.9547, 0.3492 }, Transparency = 0.15 },
+			["Lobby_PED_Poison__Glyph_PoisonLiquid"] = { Material = "Neon", Color = { 0.7014, 1.0, 0.2478 } },
+			["Lobby_PED_Poison__PedNeon_Poison"] = { Material = "Neon", Color = { 0.7674, 1.0, 0.3492 } },
+			["Lobby_PED_Poison__PedStem_Poison"] = { Material = "Neon", Color = { 0.7674, 1.0, 0.3492 } },
+			["Lobby_PED_Poison__PedestalMarble"] = { Material = "Marble", Color = { 0.8095, 0.7858, 0.821 } },
+		},
+	},
+	["Lobby_PED_Shadow"] = {
+		size = { 4.26, 4.26, 5.641 },
+		parts = {
+			["Lobby_PED_Shadow__Glyph_ShadowBody"] = { Material = "SmoothPlastic", Color = { 0.3492, 0.1897, 0.4845 } },
+			["Lobby_PED_Shadow__Glyph_ShadowCore"] = { Material = "Neon", Color = { 0.8095, 0.5371, 1.0 } },
+			["Lobby_PED_Shadow__Glyph_ShadowRim"] = { Material = "Neon", Color = { 0.7674, 0.4236, 1.0 } },
+			["Lobby_PED_Shadow__PedNeon_Shadow"] = { Material = "Neon", Color = { 0.7014, 0.3492, 0.8808 } },
+			["Lobby_PED_Shadow__PedStem_Shadow"] = { Material = "Neon", Color = { 0.7014, 0.3492, 0.8808 } },
+			["Lobby_PED_Shadow__PedestalMarble"] = { Material = "Marble", Color = { 0.8095, 0.7858, 0.821 } },
+		},
+	},
 	["Lobby_PED_Shield"] = {
 		size = { 4.26, 4.26, 5.28 },
 		parts = {
@@ -211,6 +299,36 @@ local UNITS: { [string]: UnitSpec } = {
 			["Lobby_PED_Shield__PedestalMarble"] = { Material = "Marble", Color = { 0.8095, 0.7858, 0.821 } },
 		},
 	},
+	["Lobby_PED_Sound"] = {
+		size = { 4.26, 4.26, 5.101 },
+		parts = {
+			["Lobby_PED_Sound__Glyph_SoundBody"] = { Material = "SmoothPlastic", Color = { 0.7674, 0.3811, 0.7014 } },
+			["Lobby_PED_Sound__Glyph_SoundWave"] = { Material = "Neon", Color = { 0.9777, 0.6262, 0.9163 } },
+			["Lobby_PED_Sound__PedNeon_Sound"] = { Material = "Neon", Color = { 0.9777, 0.6652, 0.9309 } },
+			["Lobby_PED_Sound__PedStem_Sound"] = { Material = "Neon", Color = { 0.9777, 0.6652, 0.9309 } },
+			["Lobby_PED_Sound__PedestalMarble"] = { Material = "Marble", Color = { 0.8095, 0.7858, 0.821 } },
+		},
+	},
+	["Lobby_PED_Speed"] = {
+		size = { 4.26, 4.26, 5.777 },
+		parts = {
+			["Lobby_PED_Speed__Glyph_SpeedBody"] = { Material = "Neon", Color = { 0.3492, 0.9547, 0.8808 } },
+			["Lobby_PED_Speed__Glyph_SpeedRim"] = { Material = "Neon", Color = { 0.7674, 1.0, 0.964 } },
+			["Lobby_PED_Speed__PedNeon_Speed"] = { Material = "Neon", Color = { 0.4845, 1.0, 0.9309 } },
+			["Lobby_PED_Speed__PedStem_Speed"] = { Material = "Neon", Color = { 0.4845, 1.0, 0.9309 } },
+			["Lobby_PED_Speed__PedestalMarble"] = { Material = "Marble", Color = { 0.8095, 0.7858, 0.821 } },
+		},
+	},
+	["Lobby_PED_Star"] = {
+		size = { 4.26, 4.26, 5.321 },
+		parts = {
+			["Lobby_PED_Star__Glyph_StarFace"] = { Material = "Neon", Color = { 1.0, 0.9163, 0.4236 } },
+			["Lobby_PED_Star__Glyph_StarGold"] = { Material = "SmoothPlastic", Color = { 1.0, 0.8095, 0.3492 }, Reflectance = 0.2 },
+			["Lobby_PED_Star__PedNeon_Star"] = { Material = "Neon", Color = { 1.0, 0.9309, 0.4845 } },
+			["Lobby_PED_Star__PedStem_Star"] = { Material = "Neon", Color = { 1.0, 0.9309, 0.4845 } },
+			["Lobby_PED_Star__PedestalMarble"] = { Material = "Marble", Color = { 0.8095, 0.7858, 0.821 } },
+		},
+	},
 	["Lobby_PED_Sun"] = {
 		size = { 4.26, 4.26, 5.403 },
 		parts = {
@@ -219,6 +337,51 @@ local UNITS: { [string]: UnitSpec } = {
 			["Lobby_PED_Sun__PedNeon_Sun"] = { Material = "Neon", Color = { 1.0, 0.865, 0.4614 } },
 			["Lobby_PED_Sun__PedStem_Sun"] = { Material = "Neon", Color = { 1.0, 0.865, 0.4614 } },
 			["Lobby_PED_Sun__PedestalMarble"] = { Material = "Marble", Color = { 0.8095, 0.7858, 0.821 } },
+		},
+	},
+	["Lobby_PED_Sword"] = {
+		size = { 4.26, 4.26, 5.569 },
+		parts = {
+			["Lobby_PED_Sword__Glyph_SwordFuller"] = { Material = "Neon", Color = { 0.7977, 0.9063, 1.0 } },
+			["Lobby_PED_Sword__Glyph_SwordGem"] = { Material = "Neon", Color = { 0.4236, 0.8808, 1.0 } },
+			["Lobby_PED_Sword__Glyph_SwordGold"] = { Material = "SmoothPlastic", Color = { 1.0, 0.8095, 0.3811 }, Reflectance = 0.2 },
+			["Lobby_PED_Sword__Glyph_SwordGrip"] = { Material = "SmoothPlastic", Color = { 0.3133, 0.3811, 0.65 } },
+			["Lobby_PED_Sword__Glyph_SwordSteel"] = { Material = "SmoothPlastic", Color = { 0.8962, 0.9163, 0.964 } },
+			["Lobby_PED_Sword__PedNeon_Sword"] = { Material = "Neon", Color = { 0.9063, 0.9309, 1.0 } },
+			["Lobby_PED_Sword__PedStem_Sword"] = { Material = "Neon", Color = { 0.9063, 0.9309, 1.0 } },
+			["Lobby_PED_Sword__PedestalMarble"] = { Material = "Marble", Color = { 0.8095, 0.7858, 0.821 } },
+		},
+	},
+	["Lobby_PED_Time"] = {
+		size = { 4.26, 4.26, 5.496 },
+		parts = {
+			["Lobby_PED_Time__Glyph_TimeGlass"] = { Material = "Glass", Color = { 0.9777, 0.9309, 0.7674 }, Transparency = 0.15 },
+			["Lobby_PED_Time__Glyph_TimeGold"] = { Material = "SmoothPlastic", Color = { 1.0, 0.8095, 0.3811 }, Reflectance = 0.2 },
+			["Lobby_PED_Time__Glyph_TimeSand"] = { Material = "Neon", Color = { 1.0, 0.865, 0.5371 } },
+			["Lobby_PED_Time__PedNeon_Time"] = { Material = "Neon", Color = { 0.9777, 0.9063, 0.7014 } },
+			["Lobby_PED_Time__PedStem_Time"] = { Material = "Neon", Color = { 0.9777, 0.9063, 0.7014 } },
+			["Lobby_PED_Time__PedestalMarble"] = { Material = "Marble", Color = { 0.8095, 0.7858, 0.821 } },
+		},
+	},
+	["Lobby_PED_Vine"] = {
+		size = { 4.26, 4.26, 5.762 },
+		parts = {
+			["Lobby_PED_Vine__Glyph_Vine"] = { Material = "Neon", Color = { 0.4845, 0.8543, 0.3811 } },
+			["Lobby_PED_Vine__Glyph_VineLeaf"] = { Material = "Neon", Color = { 0.6262, 0.9777, 0.4845 } },
+			["Lobby_PED_Vine__Glyph_VineThorn"] = { Material = "SmoothPlastic", Color = { 0.3811, 0.6262, 0.3133 } },
+			["Lobby_PED_Vine__PedNeon_Vine"] = { Material = "Neon", Color = { 0.5838, 0.9309, 0.4845 } },
+			["Lobby_PED_Vine__PedStem_Vine"] = { Material = "Neon", Color = { 0.5838, 0.9309, 0.4845 } },
+			["Lobby_PED_Vine__PedestalMarble"] = { Material = "Marble", Color = { 0.8095, 0.7858, 0.821 } },
+		},
+	},
+	["Lobby_PED_Water"] = {
+		size = { 4.26, 4.26, 5.593 },
+		parts = {
+			["Lobby_PED_Water__Glyph_WaterBody"] = { Material = "Neon", Color = { 0.2478, 0.6262, 1.0 } },
+			["Lobby_PED_Water__Glyph_WaterHi"] = { Material = "Neon", Color = { 0.6652, 0.8808, 1.0 } },
+			["Lobby_PED_Water__PedNeon_Water"] = { Material = "Neon", Color = { 0.2478, 0.6652, 1.0 } },
+			["Lobby_PED_Water__PedStem_Water"] = { Material = "Neon", Color = { 0.2478, 0.6652, 1.0 } },
+			["Lobby_PED_Water__PedestalMarble"] = { Material = "Marble", Color = { 0.8095, 0.7858, 0.821 } },
 		},
 	},
 	["Lobby_PED_Wind"] = {

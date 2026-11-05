@@ -998,6 +998,1321 @@
   ],
   "tris_total": 4636
  },
+ "Lobby_PED_Ice": {
+  "fbx": "fbx/Lobby_PED_Ice.fbx",
+  "size_studs": [
+   4.26,
+   4.26,
+   5.558
+  ],
+  "parts": [
+   {
+    "part": "Lobby_PED_Ice__Glyph_IceBody",
+    "material": "MAT_Glyph_IceBody",
+    "tris": 1002,
+    "roblox": {
+     "Material": "Neon",
+     "Color": [
+      0.5371,
+      0.865,
+      1.0
+     ]
+    }
+   },
+   {
+    "part": "Lobby_PED_Ice__Glyph_IceCore",
+    "material": "MAT_Glyph_IceCore",
+    "tris": 136,
+    "roblox": {
+     "Material": "Neon",
+     "Color": [
+      0.8543,
+      0.9777,
+      1.0
+     ]
+    }
+   },
+   {
+    "part": "Lobby_PED_Ice__PedNeon_Ice",
+    "material": "MAT_PedNeon_Ice",
+    "tris": 1536,
+    "roblox": {
+     "Material": "Neon",
+     "Color": [
+      0.7674,
+      0.9547,
+      1.0
+     ]
+    }
+   },
+   {
+    "part": "Lobby_PED_Ice__PedStem_Ice",
+    "material": "MAT_PedStem_Ice",
+    "tris": 28,
+    "roblox": {
+     "Material": "Neon",
+     "Color": [
+      0.7674,
+      0.9547,
+      1.0
+     ]
+    }
+   },
+   {
+    "part": "Lobby_PED_Ice__PedestalMarble",
+    "material": "MAT_PedestalMarble",
+    "tris": 2684,
+    "roblox": {
+     "Material": "Marble",
+     "Color": [
+      0.8095,
+      0.7858,
+      0.821
+     ]
+    }
+   }
+  ],
+  "tris_total": 5386
+ },
+ "Lobby_PED_Water": {
+  "fbx": "fbx/Lobby_PED_Water.fbx",
+  "size_studs": [
+   4.26,
+   4.26,
+   5.593
+  ],
+  "parts": [
+   {
+    "part": "Lobby_PED_Water__Glyph_WaterBody",
+    "material": "MAT_Glyph_WaterBody",
+    "tris": 224,
+    "roblox": {
+     "Material": "Neon",
+     "Color": [
+      0.2478,
+      0.6262,
+      1.0
+     ]
+    }
+   },
+   {
+    "part": "Lobby_PED_Water__Glyph_WaterHi",
+    "material": "MAT_Glyph_WaterHi",
+    "tris": 908,
+    "roblox": {
+     "Material": "Neon",
+     "Color": [
+      0.6652,
+      0.8808,
+      1.0
+     ]
+    }
+   },
+   {
+    "part": "Lobby_PED_Water__PedNeon_Water",
+    "material": "MAT_PedNeon_Water",
+    "tris": 1536,
+    "roblox": {
+     "Material": "Neon",
+     "Color": [
+      0.2478,
+      0.6652,
+      1.0
+     ]
+    }
+   },
+   {
+    "part": "Lobby_PED_Water__PedStem_Water",
+    "material": "MAT_PedStem_Water",
+    "tris": 28,
+    "roblox": {
+     "Material": "Neon",
+     "Color": [
+      0.2478,
+      0.6652,
+      1.0
+     ]
+    }
+   },
+   {
+    "part": "Lobby_PED_Water__PedestalMarble",
+    "material": "MAT_PedestalMarble",
+    "tris": 2684,
+    "roblox": {
+     "Material": "Marble",
+     "Color": [
+      0.8095,
+      0.7858,
+      0.821
+     ]
+    }
+   }
+  ],
+  "tris_total": 5380
+ },
+ "Lobby_PED_Earth": {
+  "fbx": "fbx/Lobby_PED_Earth.fbx",
+  "size_studs": [
+   4.26,
+   4.26,
+   5.368
+  ],
+  "parts": [
+   {
+    "part": "Lobby_PED_Earth__Glyph_EarthRock",
+    "material": "MAT_Glyph_EarthRock",
+    "tris": 40,
+    "roblox": {
+     "Material": "SmoothPlastic",
+     "Color": [
+      0.68,
+      0.5271,
+      0.3492
+     ]
+    }
+   },
+   {
+    "part": "Lobby_PED_Earth__Glyph_EarthRockLight",
+    "material": "MAT_Glyph_EarthRockLight",
+    "tris": 40,
+    "roblox": {
+     "Material": "SmoothPlastic",
+     "Color": [
+      0.7858,
+      0.6343,
+      0.4366
+     ]
+    }
+   },
+   {
+    "part": "Lobby_PED_Earth__Glyph_EarthSeam",
+    "material": "MAT_Glyph_EarthSeam",
+    "tris": 36,
+    "roblox": {
+     "Material": "Neon",
+     "Color": [
+      1.0,
+      0.7014,
+      0.2478
+     ]
+    }
+   },
+   {
+    "part": "Lobby_PED_Earth__PedNeon_Earth",
+    "material": "MAT_PedNeon_Earth",
+    "tris": 1536,
+    "roblox": {
+     "Material": "Neon",
+     "Color": [
+      0.9309,
+      0.7014,
+      0.3811
+     ]
+    }
+   },
+   {
+    "part": "Lobby_PED_Earth__PedStem_Earth",
+    "material": "MAT_PedStem_Earth",
+    "tris": 28,
+    "roblox": {
+     "Material": "Neon",
+     "Color": [
+      0.9309,
+      0.7014,
+      0.3811
+     ]
+    }
+   },
+   {
+    "part": "Lobby_PED_Earth__PedestalMarble",
+    "material": "MAT_PedestalMarble",
+    "tris": 2684,
+    "roblox": {
+     "Material": "Marble",
+     "Color": [
+      0.8095,
+      0.7858,
+      0.821
+     ]
+    }
+   }
+  ],
+  "tris_total": 4364
+ },
+ "Lobby_PED_Poison": {
+  "fbx": "fbx/Lobby_PED_Poison.fbx",
+  "size_studs": [
+   4.26,
+   4.26,
+   6.21
+  ],
+  "parts": [
+   {
+    "part": "Lobby_PED_Poison__Glyph_PoisonCork",
+    "material": "MAT_Glyph_PoisonCork",
+    "tris": 44,
+    "roblox": {
+     "Material": "SmoothPlastic",
+     "Color": [
+      0.7674,
+      0.6343,
+      0.4614
+     ]
+    }
+   },
+   {
+    "part": "Lobby_PED_Poison__Glyph_PoisonGlass",
+    "material": "MAT_Glyph_PoisonGlass",
+    "tris": 308,
+    "roblox": {
+     "Material": "Glass",
+     "Transparency": 0.15,
+     "Color": [
+      0.6652,
+      0.9547,
+      0.3492
+     ]
+    }
+   },
+   {
+    "part": "Lobby_PED_Poison__Glyph_PoisonLiquid",
+    "material": "MAT_Glyph_PoisonLiquid",
+    "tris": 3392,
+    "roblox": {
+     "Material": "Neon",
+     "Color": [
+      0.7014,
+      1.0,
+      0.2478
+     ]
+    }
+   },
+   {
+    "part": "Lobby_PED_Poison__PedNeon_Poison",
+    "material": "MAT_PedNeon_Poison",
+    "tris": 1536,
+    "roblox": {
+     "Material": "Neon",
+     "Color": [
+      0.7674,
+      1.0,
+      0.3492
+     ]
+    }
+   },
+   {
+    "part": "Lobby_PED_Poison__PedStem_Poison",
+    "material": "MAT_PedStem_Poison",
+    "tris": 28,
+    "roblox": {
+     "Material": "Neon",
+     "Color": [
+      0.7674,
+      1.0,
+      0.3492
+     ]
+    }
+   },
+   {
+    "part": "Lobby_PED_Poison__PedestalMarble",
+    "material": "MAT_PedestalMarble",
+    "tris": 2684,
+    "roblox": {
+     "Material": "Marble",
+     "Color": [
+      0.8095,
+      0.7858,
+      0.821
+     ]
+    }
+   }
+  ],
+  "tris_total": 7992
+ },
+ "Lobby_PED_Moon": {
+  "fbx": "fbx/Lobby_PED_Moon.fbx",
+  "size_studs": [
+   4.26,
+   4.26,
+   5.376
+  ],
+  "parts": [
+   {
+    "part": "Lobby_PED_Moon__Glyph_MoonBody",
+    "material": "MAT_Glyph_MoonBody",
+    "tris": 636,
+    "roblox": {
+     "Material": "Neon",
+     "Color": [
+      0.7014,
+      0.6262,
+      1.0
+     ]
+    }
+   },
+   {
+    "part": "Lobby_PED_Moon__Glyph_MoonHi",
+    "material": "MAT_Glyph_MoonHi",
+    "tris": 772,
+    "roblox": {
+     "Material": "Neon",
+     "Color": [
+      0.8808,
+      0.8434,
+      1.0
+     ]
+    }
+   },
+   {
+    "part": "Lobby_PED_Moon__PedNeon_Moon",
+    "material": "MAT_PedNeon_Moon",
+    "tris": 1536,
+    "roblox": {
+     "Material": "Neon",
+     "Color": [
+      0.8543,
+      0.7977,
+      1.0
+     ]
+    }
+   },
+   {
+    "part": "Lobby_PED_Moon__PedStem_Moon",
+    "material": "MAT_PedStem_Moon",
+    "tris": 28,
+    "roblox": {
+     "Material": "Neon",
+     "Color": [
+      0.8543,
+      0.7977,
+      1.0
+     ]
+    }
+   },
+   {
+    "part": "Lobby_PED_Moon__PedestalMarble",
+    "material": "MAT_PedestalMarble",
+    "tris": 2684,
+    "roblox": {
+     "Material": "Marble",
+     "Color": [
+      0.8095,
+      0.7858,
+      0.821
+     ]
+    }
+   }
+  ],
+  "tris_total": 5656
+ },
+ "Lobby_PED_Star": {
+  "fbx": "fbx/Lobby_PED_Star.fbx",
+  "size_studs": [
+   4.26,
+   4.26,
+   5.321
+  ],
+  "parts": [
+   {
+    "part": "Lobby_PED_Star__Glyph_StarFace",
+    "material": "MAT_Glyph_StarFace",
+    "tris": 136,
+    "roblox": {
+     "Material": "Neon",
+     "Color": [
+      1.0,
+      0.9163,
+      0.4236
+     ]
+    }
+   },
+   {
+    "part": "Lobby_PED_Star__Glyph_StarGold",
+    "material": "MAT_Glyph_StarGold",
+    "tris": 136,
+    "roblox": {
+     "Material": "SmoothPlastic",
+     "Reflectance": 0.2,
+     "Color": [
+      1.0,
+      0.8095,
+      0.3492
+     ]
+    }
+   },
+   {
+    "part": "Lobby_PED_Star__PedNeon_Star",
+    "material": "MAT_PedNeon_Star",
+    "tris": 1536,
+    "roblox": {
+     "Material": "Neon",
+     "Color": [
+      1.0,
+      0.9309,
+      0.4845
+     ]
+    }
+   },
+   {
+    "part": "Lobby_PED_Star__PedStem_Star",
+    "material": "MAT_PedStem_Star",
+    "tris": 28,
+    "roblox": {
+     "Material": "Neon",
+     "Color": [
+      1.0,
+      0.9309,
+      0.4845
+     ]
+    }
+   },
+   {
+    "part": "Lobby_PED_Star__PedestalMarble",
+    "material": "MAT_PedestalMarble",
+    "tris": 2684,
+    "roblox": {
+     "Material": "Marble",
+     "Color": [
+      0.8095,
+      0.7858,
+      0.821
+     ]
+    }
+   }
+  ],
+  "tris_total": 4520
+ },
+ "Lobby_PED_Heart": {
+  "fbx": "fbx/Lobby_PED_Heart.fbx",
+  "size_studs": [
+   4.26,
+   4.26,
+   5.014
+  ],
+  "parts": [
+   {
+    "part": "Lobby_PED_Heart__Glyph_HeartBody",
+    "material": "MAT_Glyph_HeartBody",
+    "tris": 392,
+    "roblox": {
+     "Material": "Neon",
+     "Color": [
+      1.0,
+      0.4614,
+      0.6652
+     ]
+    }
+   },
+   {
+    "part": "Lobby_PED_Heart__Glyph_HeartCross",
+    "material": "MAT_Glyph_HeartCross",
+    "tris": 156,
+    "roblox": {
+     "Material": "Neon",
+     "Color": [
+      1.0,
+      1.0,
+      1.0
+     ]
+    }
+   },
+   {
+    "part": "Lobby_PED_Heart__Glyph_HeartHi",
+    "material": "MAT_Glyph_HeartHi",
+    "tris": 392,
+    "roblox": {
+     "Material": "Neon",
+     "Color": [
+      1.0,
+      0.65,
+      0.7977
+     ]
+    }
+   },
+   {
+    "part": "Lobby_PED_Heart__PedNeon_Heart",
+    "material": "MAT_PedNeon_Heart",
+    "tris": 1536,
+    "roblox": {
+     "Material": "Neon",
+     "Color": [
+      1.0,
+      0.5838,
+      0.7674
+     ]
+    }
+   },
+   {
+    "part": "Lobby_PED_Heart__PedStem_Heart",
+    "material": "MAT_PedStem_Heart",
+    "tris": 28,
+    "roblox": {
+     "Material": "Neon",
+     "Color": [
+      1.0,
+      0.5838,
+      0.7674
+     ]
+    }
+   },
+   {
+    "part": "Lobby_PED_Heart__PedestalMarble",
+    "material": "MAT_PedestalMarble",
+    "tris": 2684,
+    "roblox": {
+     "Material": "Marble",
+     "Color": [
+      0.8095,
+      0.7858,
+      0.821
+     ]
+    }
+   }
+  ],
+  "tris_total": 5188
+ },
+ "Lobby_PED_Shadow": {
+  "fbx": "fbx/Lobby_PED_Shadow.fbx",
+  "size_studs": [
+   4.26,
+   4.26,
+   5.641
+  ],
+  "parts": [
+   {
+    "part": "Lobby_PED_Shadow__Glyph_ShadowBody",
+    "material": "MAT_Glyph_ShadowBody",
+    "tris": 200,
+    "roblox": {
+     "Material": "SmoothPlastic",
+     "Color": [
+      0.3492,
+      0.1897,
+      0.4845
+     ]
+    }
+   },
+   {
+    "part": "Lobby_PED_Shadow__Glyph_ShadowCore",
+    "material": "MAT_Glyph_ShadowCore",
+    "tris": 200,
+    "roblox": {
+     "Material": "Neon",
+     "Color": [
+      0.8095,
+      0.5371,
+      1.0
+     ]
+    }
+   },
+   {
+    "part": "Lobby_PED_Shadow__Glyph_ShadowRim",
+    "material": "MAT_Glyph_ShadowRim",
+    "tris": 200,
+    "roblox": {
+     "Material": "Neon",
+     "Color": [
+      0.7674,
+      0.4236,
+      1.0
+     ]
+    }
+   },
+   {
+    "part": "Lobby_PED_Shadow__PedNeon_Shadow",
+    "material": "MAT_PedNeon_Shadow",
+    "tris": 1536,
+    "roblox": {
+     "Material": "Neon",
+     "Color": [
+      0.7014,
+      0.3492,
+      0.8808
+     ]
+    }
+   },
+   {
+    "part": "Lobby_PED_Shadow__PedStem_Shadow",
+    "material": "MAT_PedStem_Shadow",
+    "tris": 28,
+    "roblox": {
+     "Material": "Neon",
+     "Color": [
+      0.7014,
+      0.3492,
+      0.8808
+     ]
+    }
+   },
+   {
+    "part": "Lobby_PED_Shadow__PedestalMarble",
+    "material": "MAT_PedestalMarble",
+    "tris": 2684,
+    "roblox": {
+     "Material": "Marble",
+     "Color": [
+      0.8095,
+      0.7858,
+      0.821
+     ]
+    }
+   }
+  ],
+  "tris_total": 4848
+ },
+ "Lobby_PED_Speed": {
+  "fbx": "fbx/Lobby_PED_Speed.fbx",
+  "size_studs": [
+   4.26,
+   4.26,
+   5.777
+  ],
+  "parts": [
+   {
+    "part": "Lobby_PED_Speed__Glyph_SpeedBody",
+    "material": "MAT_Glyph_SpeedBody",
+    "tris": 216,
+    "roblox": {
+     "Material": "Neon",
+     "Color": [
+      0.3492,
+      0.9547,
+      0.8808
+     ]
+    }
+   },
+   {
+    "part": "Lobby_PED_Speed__Glyph_SpeedRim",
+    "material": "MAT_Glyph_SpeedRim",
+    "tris": 216,
+    "roblox": {
+     "Material": "Neon",
+     "Color": [
+      0.7674,
+      1.0,
+      0.964
+     ]
+    }
+   },
+   {
+    "part": "Lobby_PED_Speed__PedNeon_Speed",
+    "material": "MAT_PedNeon_Speed",
+    "tris": 1536,
+    "roblox": {
+     "Material": "Neon",
+     "Color": [
+      0.4845,
+      1.0,
+      0.9309
+     ]
+    }
+   },
+   {
+    "part": "Lobby_PED_Speed__PedStem_Speed",
+    "material": "MAT_PedStem_Speed",
+    "tris": 28,
+    "roblox": {
+     "Material": "Neon",
+     "Color": [
+      0.4845,
+      1.0,
+      0.9309
+     ]
+    }
+   },
+   {
+    "part": "Lobby_PED_Speed__PedestalMarble",
+    "material": "MAT_PedestalMarble",
+    "tris": 2684,
+    "roblox": {
+     "Material": "Marble",
+     "Color": [
+      0.8095,
+      0.7858,
+      0.821
+     ]
+    }
+   }
+  ],
+  "tris_total": 4680
+ },
+ "Lobby_PED_Sword": {
+  "fbx": "fbx/Lobby_PED_Sword.fbx",
+  "size_studs": [
+   4.26,
+   4.26,
+   5.569
+  ],
+  "parts": [
+   {
+    "part": "Lobby_PED_Sword__Glyph_SwordFuller",
+    "material": "MAT_Glyph_SwordFuller",
+    "tris": 12,
+    "roblox": {
+     "Material": "Neon",
+     "Color": [
+      0.7977,
+      0.9063,
+      1.0
+     ]
+    }
+   },
+   {
+    "part": "Lobby_PED_Sword__Glyph_SwordGem",
+    "material": "MAT_Glyph_SwordGem",
+    "tris": 44,
+    "roblox": {
+     "Material": "Neon",
+     "Color": [
+      0.4236,
+      0.8808,
+      1.0
+     ]
+    }
+   },
+   {
+    "part": "Lobby_PED_Sword__Glyph_SwordGold",
+    "material": "MAT_Glyph_SwordGold",
+    "tris": 668,
+    "roblox": {
+     "Material": "SmoothPlastic",
+     "Reflectance": 0.2,
+     "Color": [
+      1.0,
+      0.8095,
+      0.3811
+     ]
+    }
+   },
+   {
+    "part": "Lobby_PED_Sword__Glyph_SwordGrip",
+    "material": "MAT_Glyph_SwordGrip",
+    "tris": 44,
+    "roblox": {
+     "Material": "SmoothPlastic",
+     "Color": [
+      0.3133,
+      0.3811,
+      0.65
+     ]
+    }
+   },
+   {
+    "part": "Lobby_PED_Sword__Glyph_SwordSteel",
+    "material": "MAT_Glyph_SwordSteel",
+    "tris": 48,
+    "roblox": {
+     "Material": "SmoothPlastic",
+     "Color": [
+      0.8962,
+      0.9163,
+      0.964
+     ]
+    }
+   },
+   {
+    "part": "Lobby_PED_Sword__PedNeon_Sword",
+    "material": "MAT_PedNeon_Sword",
+    "tris": 1536,
+    "roblox": {
+     "Material": "Neon",
+     "Color": [
+      0.9063,
+      0.9309,
+      1.0
+     ]
+    }
+   },
+   {
+    "part": "Lobby_PED_Sword__PedStem_Sword",
+    "material": "MAT_PedStem_Sword",
+    "tris": 28,
+    "roblox": {
+     "Material": "Neon",
+     "Color": [
+      0.9063,
+      0.9309,
+      1.0
+     ]
+    }
+   },
+   {
+    "part": "Lobby_PED_Sword__PedestalMarble",
+    "material": "MAT_PedestalMarble",
+    "tris": 2684,
+    "roblox": {
+     "Material": "Marble",
+     "Color": [
+      0.8095,
+      0.7858,
+      0.821
+     ]
+    }
+   }
+  ],
+  "tris_total": 5064
+ },
+ "Lobby_PED_Gravity": {
+  "fbx": "fbx/Lobby_PED_Gravity.fbx",
+  "size_studs": [
+   4.26,
+   4.26,
+   5.855
+  ],
+  "parts": [
+   {
+    "part": "Lobby_PED_Gravity__Glyph_GravityCore",
+    "material": "MAT_Glyph_GravityCore",
+    "tris": 624,
+    "roblox": {
+     "Material": "SmoothPlastic",
+     "Color": [
+      0.3811,
+      0.2478,
+      0.5371
+     ]
+    }
+   },
+   {
+    "part": "Lobby_PED_Gravity__Glyph_GravityHalo",
+    "material": "MAT_Glyph_GravityHalo",
+    "tris": 640,
+    "roblox": {
+     "Material": "Neon",
+     "Color": [
+      0.8543,
+      0.7014,
+      1.0
+     ]
+    }
+   },
+   {
+    "part": "Lobby_PED_Gravity__Glyph_GravityRing",
+    "material": "MAT_Glyph_GravityRing",
+    "tris": 896,
+    "roblox": {
+     "Material": "Neon",
+     "Color": [
+      0.7354,
+      0.4845,
+      0.9777
+     ]
+    }
+   },
+   {
+    "part": "Lobby_PED_Gravity__PedNeon_Gravity",
+    "material": "MAT_PedNeon_Gravity",
+    "tris": 1536,
+    "roblox": {
+     "Material": "Neon",
+     "Color": [
+      0.7354,
+      0.4845,
+      0.9777
+     ]
+    }
+   },
+   {
+    "part": "Lobby_PED_Gravity__PedStem_Gravity",
+    "material": "MAT_PedStem_Gravity",
+    "tris": 28,
+    "roblox": {
+     "Material": "Neon",
+     "Color": [
+      0.7354,
+      0.4845,
+      0.9777
+     ]
+    }
+   },
+   {
+    "part": "Lobby_PED_Gravity__PedestalMarble",
+    "material": "MAT_PedestalMarble",
+    "tris": 2684,
+    "roblox": {
+     "Material": "Marble",
+     "Color": [
+      0.8095,
+      0.7858,
+      0.821
+     ]
+    }
+   }
+  ],
+  "tris_total": 6408
+ },
+ "Lobby_PED_Arrow": {
+  "fbx": "fbx/Lobby_PED_Arrow.fbx",
+  "size_studs": [
+   4.26,
+   4.26,
+   5.595
+  ],
+  "parts": [
+   {
+    "part": "Lobby_PED_Arrow__Glyph_ArrowFletch",
+    "material": "MAT_Glyph_ArrowFletch",
+    "tris": 22,
+    "roblox": {
+     "Material": "Neon",
+     "Color": [
+      0.9777,
+      0.8543,
+      0.5838
+     ]
+    }
+   },
+   {
+    "part": "Lobby_PED_Arrow__Glyph_ArrowHead",
+    "material": "MAT_Glyph_ArrowHead",
+    "tris": 32,
+    "roblox": {
+     "Material": "SmoothPlastic",
+     "Color": [
+      0.8962,
+      0.9163,
+      0.964
+     ]
+    }
+   },
+   {
+    "part": "Lobby_PED_Arrow__Glyph_BowGold",
+    "material": "MAT_Glyph_BowGold",
+    "tris": 44,
+    "roblox": {
+     "Material": "SmoothPlastic",
+     "Reflectance": 0.2,
+     "Color": [
+      1.0,
+      0.8095,
+      0.3811
+     ]
+    }
+   },
+   {
+    "part": "Lobby_PED_Arrow__Glyph_BowString",
+    "material": "MAT_Glyph_BowString",
+    "tris": 12,
+    "roblox": {
+     "Material": "Neon",
+     "Color": [
+      1.0,
+      0.9547,
+      0.8543
+     ]
+    }
+   },
+   {
+    "part": "Lobby_PED_Arrow__Glyph_BowWood",
+    "material": "MAT_Glyph_BowWood",
+    "tris": 424,
+    "roblox": {
+     "Material": "Wood",
+     "Color": [
+      0.9309,
+      0.7354,
+      0.4614
+     ]
+    }
+   },
+   {
+    "part": "Lobby_PED_Arrow__PedNeon_Arrow",
+    "material": "MAT_PedNeon_Arrow",
+    "tris": 1536,
+    "roblox": {
+     "Material": "Neon",
+     "Color": [
+      0.9777,
+      0.8808,
+      0.6262
+     ]
+    }
+   },
+   {
+    "part": "Lobby_PED_Arrow__PedStem_Arrow",
+    "material": "MAT_PedStem_Arrow",
+    "tris": 28,
+    "roblox": {
+     "Material": "Neon",
+     "Color": [
+      0.9777,
+      0.8808,
+      0.6262
+     ]
+    }
+   },
+   {
+    "part": "Lobby_PED_Arrow__PedestalMarble",
+    "material": "MAT_PedestalMarble",
+    "tris": 2684,
+    "roblox": {
+     "Material": "Marble",
+     "Color": [
+      0.8095,
+      0.7858,
+      0.821
+     ]
+    }
+   }
+  ],
+  "tris_total": 4782
+ },
+ "Lobby_PED_Vine": {
+  "fbx": "fbx/Lobby_PED_Vine.fbx",
+  "size_studs": [
+   4.26,
+   4.26,
+   5.762
+  ],
+  "parts": [
+   {
+    "part": "Lobby_PED_Vine__Glyph_Vine",
+    "material": "MAT_Glyph_Vine",
+    "tris": 988,
+    "roblox": {
+     "Material": "Neon",
+     "Color": [
+      0.4845,
+      0.8543,
+      0.3811
+     ]
+    }
+   },
+   {
+    "part": "Lobby_PED_Vine__Glyph_VineLeaf",
+    "material": "MAT_Glyph_VineLeaf",
+    "tris": 456,
+    "roblox": {
+     "Material": "Neon",
+     "Color": [
+      0.6262,
+      0.9777,
+      0.4845
+     ]
+    }
+   },
+   {
+    "part": "Lobby_PED_Vine__Glyph_VineThorn",
+    "material": "MAT_Glyph_VineThorn",
+    "tris": 56,
+    "roblox": {
+     "Material": "SmoothPlastic",
+     "Color": [
+      0.3811,
+      0.6262,
+      0.3133
+     ]
+    }
+   },
+   {
+    "part": "Lobby_PED_Vine__PedNeon_Vine",
+    "material": "MAT_PedNeon_Vine",
+    "tris": 1536,
+    "roblox": {
+     "Material": "Neon",
+     "Color": [
+      0.5838,
+      0.9309,
+      0.4845
+     ]
+    }
+   },
+   {
+    "part": "Lobby_PED_Vine__PedStem_Vine",
+    "material": "MAT_PedStem_Vine",
+    "tris": 28,
+    "roblox": {
+     "Material": "Neon",
+     "Color": [
+      0.5838,
+      0.9309,
+      0.4845
+     ]
+    }
+   },
+   {
+    "part": "Lobby_PED_Vine__PedestalMarble",
+    "material": "MAT_PedestalMarble",
+    "tris": 2684,
+    "roblox": {
+     "Material": "Marble",
+     "Color": [
+      0.8095,
+      0.7858,
+      0.821
+     ]
+    }
+   }
+  ],
+  "tris_total": 5748
+ },
+ "Lobby_PED_Sound": {
+  "fbx": "fbx/Lobby_PED_Sound.fbx",
+  "size_studs": [
+   4.26,
+   4.26,
+   5.101
+  ],
+  "parts": [
+   {
+    "part": "Lobby_PED_Sound__Glyph_SoundBody",
+    "material": "MAT_Glyph_SoundBody",
+    "tris": 76,
+    "roblox": {
+     "Material": "SmoothPlastic",
+     "Color": [
+      0.7674,
+      0.3811,
+      0.7014
+     ]
+    }
+   },
+   {
+    "part": "Lobby_PED_Sound__Glyph_SoundWave",
+    "material": "MAT_Glyph_SoundWave",
+    "tris": 1312,
+    "roblox": {
+     "Material": "Neon",
+     "Color": [
+      0.9777,
+      0.6262,
+      0.9163
+     ]
+    }
+   },
+   {
+    "part": "Lobby_PED_Sound__PedNeon_Sound",
+    "material": "MAT_PedNeon_Sound",
+    "tris": 1536,
+    "roblox": {
+     "Material": "Neon",
+     "Color": [
+      0.9777,
+      0.6652,
+      0.9309
+     ]
+    }
+   },
+   {
+    "part": "Lobby_PED_Sound__PedStem_Sound",
+    "material": "MAT_PedStem_Sound",
+    "tris": 28,
+    "roblox": {
+     "Material": "Neon",
+     "Color": [
+      0.9777,
+      0.6652,
+      0.9309
+     ]
+    }
+   },
+   {
+    "part": "Lobby_PED_Sound__PedestalMarble",
+    "material": "MAT_PedestalMarble",
+    "tris": 2684,
+    "roblox": {
+     "Material": "Marble",
+     "Color": [
+      0.8095,
+      0.7858,
+      0.821
+     ]
+    }
+   }
+  ],
+  "tris_total": 5636
+ },
+ "Lobby_PED_Time": {
+  "fbx": "fbx/Lobby_PED_Time.fbx",
+  "size_studs": [
+   4.26,
+   4.26,
+   5.496
+  ],
+  "parts": [
+   {
+    "part": "Lobby_PED_Time__Glyph_TimeGlass",
+    "material": "MAT_Glyph_TimeGlass",
+    "tris": 572,
+    "roblox": {
+     "Material": "Glass",
+     "Transparency": 0.15,
+     "Color": [
+      0.9777,
+      0.9309,
+      0.7674
+     ]
+    }
+   },
+   {
+    "part": "Lobby_PED_Time__Glyph_TimeGold",
+    "material": "MAT_Glyph_TimeGold",
+    "tris": 176,
+    "roblox": {
+     "Material": "SmoothPlastic",
+     "Reflectance": 0.2,
+     "Color": [
+      1.0,
+      0.8095,
+      0.3811
+     ]
+    }
+   },
+   {
+    "part": "Lobby_PED_Time__Glyph_TimeSand",
+    "material": "MAT_Glyph_TimeSand",
+    "tris": 596,
+    "roblox": {
+     "Material": "Neon",
+     "Color": [
+      1.0,
+      0.865,
+      0.5371
+     ]
+    }
+   },
+   {
+    "part": "Lobby_PED_Time__PedNeon_Time",
+    "material": "MAT_PedNeon_Time",
+    "tris": 1536,
+    "roblox": {
+     "Material": "Neon",
+     "Color": [
+      0.9777,
+      0.9063,
+      0.7014
+     ]
+    }
+   },
+   {
+    "part": "Lobby_PED_Time__PedStem_Time",
+    "material": "MAT_PedStem_Time",
+    "tris": 28,
+    "roblox": {
+     "Material": "Neon",
+     "Color": [
+      0.9777,
+      0.9063,
+      0.7014
+     ]
+    }
+   },
+   {
+    "part": "Lobby_PED_Time__PedestalMarble",
+    "material": "MAT_PedestalMarble",
+    "tris": 2684,
+    "roblox": {
+     "Material": "Marble",
+     "Color": [
+      0.8095,
+      0.7858,
+      0.821
+     ]
+    }
+   }
+  ],
+  "tris_total": 5592
+ },
  "Lobby_MarketShop": {
   "fbx": "fbx/Lobby_MarketShop.fbx",
   "size_studs": [
