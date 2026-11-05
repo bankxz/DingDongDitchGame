@@ -252,3 +252,12 @@ About 64 × 44 × 61 studs and 24.4k triangles.
 **Simplified:** walls are plain marble without individual block seams, to stay within the triangle budget.
 
 **In the lobby:** six copies float in the sky at different scales and rotations. Two are positioned to show in the spawn view, as in the main reference.
+
+## Correction: crisp edges, flat masonry (after your feedback)
+
+You pointed out that everything looked like rounded, bevelled squares, which the references don't show. Two root causes, both fixed at the source:
+
+1. **`lobbylib.add_bevel` rounded every edge** with a wide two-segment bevel, giving pillowy blocks. Every bevel request is now scaled to 35% (`BEVEL_SCALE`), and small ones become single-segment chamfers. Forms stay crisp and planar with only the thin highlight edge visible on the sheets.
+2. **The arena gate's stonework (`blocks()`) was built from loose rounded cubes**, each pushed in or out at random, with open gaps. It is now flush, crisp blocks over a darker mortar core in the same mesh, so walls read as flat surfaces with thin joint seams, as on the facade sheet.
+
+The mode portals' pillars and lintel were also block stacks; they are now smooth marble shafts and a smooth beam, matching the gate's inner pillars on the sheet. All assets, the lobby renders and the FBX exports were regenerated.

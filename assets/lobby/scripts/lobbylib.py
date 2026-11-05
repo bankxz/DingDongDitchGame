@@ -62,9 +62,18 @@ def from_bmesh(name, bm, mat=None, c=None):
     return ob
 
 
+# Global edge treatment.  The references show crisp, planar forms with only a thin
+# highlight edge - NOT pillowy rounded blocks.  Every bevel request is scaled down
+# here, and small ones become single-segment chamfers.
+BEVEL_SCALE = 0.35
+
+
 def add_bevel(ob, width=0.08, segs=2, angle=35, harden=True):
     if width <= 0:
         return ob
+    width *= BEVEL_SCALE
+    if width < 0.04:
+        segs = 1
     m = ob.modifiers.new("Bevel", "BEVEL")
     m.width = width
     m.segments = segs

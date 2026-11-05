@@ -40,9 +40,11 @@ BOARD_X, BOARD_CZ, BOARD_W, BOARD_H = 19.2, 8.7, 10.4, 9.6
 
 
 # ---------------------------------------------------------------- helpers
-def blocks(name, x0, x1, z0, z1, y0, y1, mat, c, bw=3.2, bh=1.55, gap=0.12, jitter=0.05, skip=None, seed=0):
-    """Course of individually bevelled ashlar blocks (one mesh object).
-    Front face at y0, back at y1.  `skip(xc, zc)` -> True drops a block."""
+def blocks(name, x0, x1, z0, z1, y0, y1, mat, c, bw=3.2, bh=1.55, gap=0.07, jitter=0.0, skip=None, seed=0):
+    """Flat ashlar course: crisp, flush blocks over a darker mortar core, so the joints read
+    as thin seams on a planar wall (as on the facade sheet).  Front face at y0, back at y1.
+    `skip(xc, zc)` -> True drops a block (the mortar core is not cut, so skip only where
+    another object covers the hole).  `jitter` is accepted for compatibility and ignored."""
     rnd = random.Random(seed)
     bm = bmesh.new()
     rows = max(1, round((z1 - z0) / bh))
@@ -51,17 +53,33 @@ def blocks(name, x0, x1, z0, z1, y0, y1, mat, c, bw=3.2, bh=1.55, gap=0.12, jitt
         zc = z0 + h * (r + 0.5)
         x = x0 - (bw * 0.5 if r % 2 else 0.0)
         while x < x1 - 0.05:
-            w = bw * rnd.uniform(0.8, 1.15)
+            w = bw * rnd.uniform(0.85, 1.15)
             xa, xb = max(x, x0), min(x + w, x1)
             if xb - xa > 0.4 and not (skip and skip((xa + xb) / 2, zc)):
-                dy = rnd.uniform(-jitter, jitter)
-                m = Matrix.Translation(((xa + xb) / 2, (y0 + y1) / 2 + dy, zc)) @ \
+                m = Matrix.Translation(((xa + xb) / 2, (y0 + y1) / 2, zc)) @ \
                     Matrix.Diagonal((xb - xa - gap, y1 - y0, h - gap, 1))
                 bmesh.ops.create_cube(bm, size=1.0, matrix=m)
             x += w
+    if not skip:
+        # mortar core in the SAME mesh (material slot 1) so it follows any later transform;
+        # recessed 0.05 so the joints read as thin dark seams on a flat wall
+        inset = 0.05
+        m = Matrix.Translation(((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2)) @ \
+            Matrix.Diagonal((x1 - x0 - 2 * inset, y1 - y0 - 2 * inset, z1 - z0 - 2 * inset, 1))
+        res = bmesh.ops.create_cube(bm, size=1.0, matrix=m)
+        core_verts = set(res["verts"])
+        for f in bm.faces:
+            if all(v in core_verts for v in f.verts):
+                f.material_index = 1
     ob = L.from_bmesh(name, bm, mat, c)
-    L.add_bevel(ob, 0.09, 2, angle=40)
+    if not skip:
+        ob.data.materials.append(mortar())
+    L.add_bevel(ob, 0.06, 1, angle=40)
     return ob
+
+
+def mortar():
+    return L.flat("MAT_Mortar", (0.50, 0.46, 0.60), rough=0.9)
 
 
 def crystal(name, r, h_top, h_bot, loc, mat, c, sides=6, shoulder=0.38, rot=0.0):

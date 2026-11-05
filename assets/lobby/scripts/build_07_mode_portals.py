@@ -133,8 +133,9 @@ def build_portal(mode, spec, P, root, x_off=0.0):
         h = PILLAR_TOP - PLINTH_Z[1]
         add(L.box(f"MP_{tag}_PillarBase_{sx}", (PILLAR_W + 0.5, PILLAR_W + 0.5, 0.6),
                   (px, 0, PLINTH_Z[1] + 0.3), M, 0.08, c=C["Pillars"]))
-        add(G.blocks(f"MP_{tag}_Pillar_{sx}", px - PILLAR_W / 2, px + PILLAR_W / 2, PLINTH_Z[1] + 0.6, PILLAR_TOP,
-                     -PILLAR_W / 2, PILLAR_W / 2, M, C["Pillars"], bw=PILLAR_W, bh=1.5, seed=7 + sx))
+        # smooth marble shaft (the arena sheet's inner pillars are plain shafts, not block stacks)
+        add(L.box(f"MP_{tag}_Pillar_{sx}", (PILLAR_W, PILLAR_W, PILLAR_TOP - PLINTH_Z[1] - 0.6),
+                  (px, 0, (PLINTH_Z[1] + 0.6 + PILLAR_TOP) / 2), M, 0.08, c=C["Pillars"]))
         add(L.box(f"MP_{tag}_PillarNeon_{sx}", (0.36, 0.1, h - 3.0), (px, -PILLAR_W / 2 - 0.02, PLINTH_Z[1] + 1.6 +
                                                                      (h - 3.0) / 2), neon, 0.02, c=C["Pillars"]))
         for zb in (PLINTH_Z[1] + 1.05, PILLAR_TOP - 0.9):
@@ -147,8 +148,9 @@ def build_portal(mode, spec, P, root, x_off=0.0):
 
     # ---------------- lintel + sign (gold chamfered frame, navy panel, white 3D text)
     # lintel ends inside the pillars (ending flush with their outer faces z-fought in v1)
-    add(G.blocks(f"MP_{tag}_Lintel", -PILLAR_X, PILLAR_X, LINTEL_Z[0], LINTEL_Z[1],
-                 -1.0, 1.0, M, C["Sign"], bw=2.4, bh=LINTEL_Z[1] - LINTEL_Z[0], seed=11))
+    # smooth marble lintel beam, ending inside the pillars (no flush end faces)
+    add(L.box(f"MP_{tag}_Lintel", (2 * PILLAR_X, 2.0, LINTEL_Z[1] - LINTEL_Z[0]),
+              (0, 0, (LINTEL_Z[0] + LINTEL_Z[1]) / 2), M, 0.08, c=C["Sign"]))
     add(L.box(f"MP_{tag}_LintelGold", (2 * PILLAR_X - PILLAR_W + 0.2, 2.1, 0.14), (0, 0, LINTEL_Z[0] + 0.07), G_, 0.02,
               c=C["Sign"]))
     sy = -1.25
