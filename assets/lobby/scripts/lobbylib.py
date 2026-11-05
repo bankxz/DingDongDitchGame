@@ -675,6 +675,7 @@ def contact_sheet(items, out, cols=3, tile=600, title=None):
 
 def save_blend(name):
     apply_wood_uvs()
+    resolve_zfighting(unit_split=name.startswith(("02_", "06_", "07_")))
     os.makedirs(BLEND, exist_ok=True)
     p = os.path.join(BLEND, name)
     bpy.ops.wm.save_as_mainfile(filepath=p, compress=True)
@@ -768,3 +769,118 @@ def world_box_uv(ob, tile):
             lp[uv].uv = (w[ui] / tile, w[vi] / tile)
     bm.to_mesh(ob.data)
     bm.free()
+
+
+# --------------------------------------------------------------------------- z-fighting resolver
+ZF_AREA_MIN = 2e-3
+ZF_NUDGE = 0.012
+
+
+def _zf_hidden(dg, origin, n):
+    sc = bpy.context.scene
+    ok, loc, nrm, *_ = sc.ray_cast(dg, origin, n, distance=1000.0)
+    if not ok:
+        return False
+    if (loc - origin).length < 0.06 or nrm.dot(n) > 0:
+        return True
+    return False
+
+
+def find_zfighting(unit_split=False):
+    """Visible coplanar, same-facing, overlapping faces between DIFFERENT objects (renders as flicker /
+    black patches).  Returns {(objA, objB): (area, normal)}.  With unit_split, only objects in the same
+    child collection of the ASSET_ root are compared (blends that overlay several separate units)."""
+    from shapely.geometry import Polygon
+    bpy.context.view_layer.update()
+    dg = bpy.context.evaluated_depsgraph_get()
+    unit_of = {}
+    if unit_split:
+        root = next((c for c in bpy.data.collections if c.name.startswith("ASSET_")), None)
+        if root:
+            for ch in root.children:
+                for o in ch.all_objects:
+                    unit_of[o.name] = ch.name
+    buckets = {}
+    for ob in bpy.data.objects:
+        if ob.type != "MESH" or ob.hide_render or ob.name.startswith(("RIG_", "CAM_", "REF_")):
+            continue
+        ev = ob.evaluated_get(dg)
+        me = ev.to_mesh()
+        mw = ob.matrix_world
+        nm = mw.to_3x3().inverted().transposed()
+        for p in me.polygons:
+            if p.area < 1e-5:
+                continue
+            n = (nm @ p.normal).normalized()
+            pts = [mw @ me.vertices[i].co for i in p.vertices]
+            d = n.dot(pts[0])
+            key = (unit_of.get(ob.name, ""), round(n.x / 1e-3), round(n.y / 1e-3), round(n.z / 1e-3), round(d / 2e-3))
+            buckets.setdefault(key, []).append((ob.name, n, pts))
+        ev.to_mesh_clear()
+    hits = {}
+    for key, faces in buckets.items():
+        if len({f[0] for f in faces}) < 2:
+            continue
+        n = faces[0][1]
+        a_ = Vector((1, 0, 0)) if abs(n.x) < 0.9 else Vector((0, 1, 0))
+        u = n.cross(a_).normalized()
+        v = n.cross(u)
+        polys = []
+        for name, _, pts in faces:
+            try:
+                pg = Polygon([(p.dot(u), p.dot(v)) for p in pts]).buffer(0)
+            except Exception:
+                continue
+            if not pg.is_empty:
+                polys.append((name, pg, n.dot(pts[0])))
+        for i in range(len(polys)):
+            for j in range(i + 1, len(polys)):
+                A, B = polys[i], polys[j]
+                if A[0] == B[0]:
+                    continue
+                ax0, ay0, ax1, ay1 = A[1].bounds
+                bx0, by0, bx1, by1 = B[1].bounds
+                if ax1 < bx0 or bx1 < ax0 or ay1 < by0 or by1 < ay0:
+                    continue
+                inter = A[1].intersection(B[1])
+                if inter.area <= ZF_AREA_MIN:
+                    continue
+                c2 = inter.representative_point()
+                p3 = u * c2.x + v * c2.y + n * A[2]
+                if n.z < -0.9 and p3.z < 0.05:
+                    continue
+                if _zf_hidden(dg, p3 + n * 0.003, n):
+                    continue
+                k = tuple(sorted((A[0], B[0])))
+                if k not in hits:
+                    hits[k] = [0.0, n.copy()]
+                hits[k][0] += inter.area
+    return hits
+
+
+def _volume(ob):
+    d = ob.dimensions
+    return d.x * d.y * d.z
+
+
+def resolve_zfighting(unit_split=False, passes=4):
+    """Nudge the smaller object of every z-fighting pair ZF_NUDGE studs along the shared face normal
+    (so it sits cleanly in front).  Repeats until clean.  Prints what it moved."""
+    moved_total = 0
+    for it in range(passes):
+        hits = find_zfighting(unit_split)
+        if not hits:
+            break
+        moved = set()
+        for (a, b), (area, n) in sorted(hits.items(), key=lambda kv: -kv[1][0]):
+            oa, ob_ = bpy.data.objects[a], bpy.data.objects[b]
+            mover = oa if _volume(oa) <= _volume(ob_) else ob_
+            if mover.name in moved:
+                continue
+            mover.location += n * ZF_NUDGE
+            moved.add(mover.name)
+        moved_total += len(moved)
+        print(f"ZFIGHT pass {it + 1}: {len(hits)} pairs, nudged {len(moved)} objects")
+    left = find_zfighting(unit_split)
+    print(f"ZFIGHT remaining pairs: {len(left)}")
+    return left

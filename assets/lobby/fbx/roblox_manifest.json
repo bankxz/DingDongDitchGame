@@ -2918,7 +2918,7 @@
    {
     "part": "Lobby_CraftShop__WoodFrame",
     "material": "MAT_WoodFrame",
-    "tris": 2904,
+    "tris": 2992,
     "roblox": {
      "Material": "Wood",
      "Color": [
@@ -2942,7 +2942,7 @@
     }
    }
   ],
-  "tris_total": 15200
+  "tris_total": 15288
  },
  "Lobby_ArenaGate": {
   "fbx": "fbx/Lobby_ArenaGate.fbx",
