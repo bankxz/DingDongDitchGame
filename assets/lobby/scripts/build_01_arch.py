@@ -8,7 +8,8 @@ Layout of module A (left view of the sheet):
   * banner on the front (-Y) face of the column, overhanging its +X edge
   * bronze balustrade on a marble curb from the column to an end post (+X);
     short rail + post on the -X side
-  * cobblestone floor in front, cyan neon strip along the front edge.
+  * textured cobblestone floor in front (image texture, not modelled stones),
+    cyan neon strip along the front edge.
 Run:  python build_01_arch.py [--no-render]
 """
 import sys, os, math, random
@@ -254,35 +255,9 @@ def build(P, root):
     # neon strip in its channel
     objs.append(L.box("ARCH_FloorNeon", (sx1 - sx0 - 0.2, strip_y1 - strip_y0 - 0.06, 0.12),
                       ((sx0 + sx1) / 2, (strip_y0 + strip_y1) / 2, top_z - 0.1), P["cyan"], 0.02, c=C["Floor"]))
-    # grout bed
-    objs.append(L.box("ARCH_Grout", (sx1 - sx0 - 2 * bord, cob_y1 - cob_y0 + 0.02, 0.1),
-                      ((sx0 + sx1) / 2, (cob_y0 + cob_y1) / 2, top_z - 0.24), P["grout"], 0.0, c=C["Floor"]))
-    # cobblestones (running bond setts, gently irregular)
-    cx0, cx1 = sx0 + bord + 0.05, sx1 - bord - 0.05
-    row_h, gap = 0.95, 0.09
-    y = cob_y0
-    r = 0
-    footprint = BASE_TIERS[0][0] / 2 + 0.08
-    stones = []
-    while y + row_h <= cob_y1 + 0.01:
-        x = cx0 - (0.75 if r % 2 else 0.0)
-        while x < cx1 - 0.2:
-            ln = random.uniform(1.3, 1.75)
-            xa, xb = max(x, cx0), min(x + ln, cx1)
-            if xb - xa > 0.35:
-                xc, yc = (xa + xb) / 2, y + row_h / 2
-                if not (abs(xc - COL_X) < footprint + (xb - xa) / 2 and yc > COL_Y - footprint - row_h / 2):
-                    s = L.box(f"ARCH_Cobble_{len(stones):03d}",
-                              (xb - xa - gap, row_h - gap, 0.26 + random.uniform(-0.03, 0.03)),
-                              (xc + random.uniform(-0.03, 0.03), yc + random.uniform(-0.03, 0.03),
-                               top_z - 0.13 + random.uniform(-0.03, 0.02)),
-                              P["cobble"], 0.07, c=C["Floor"], rot=(0, 0, random.uniform(-0.03, 0.03)))
-                    stones.append(s)
-            x += ln
-        y += row_h
-        r += 1
-    objs += stones
-    print("cobbles", len(stones))
+    # textured cobblestone field (single UV-mapped slab; texture = textures/cobblestone_*.png)
+    objs.append(L.cobble_surface("ARCH_CobbleFloor", sx0 + bord, sx1 - bord, cob_y0, cob_y1, top=top_z - 0.04,
+                                 thick=0.3, c=C["Floor"]))
     return objs
 
 

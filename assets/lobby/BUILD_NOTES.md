@@ -9,6 +9,7 @@ Every image in `renders/` is an actual Cycles render of these models. None of th
 |---|---|
 | `scripts/lobbylib.py` | Shared helpers: bevelled primitives, sweeps, text, shared material palette, render rig, contact sheets |
 | `scripts/build_0N_*.py` | One script per asset. Builds it, saves `blend/0N_*.blend`, renders `renders/<asset>_*.png` |
+| `scripts/make_textures.py` | Tileable cobblestone texture: `textures/cobblestone_albedo.png` + `_normal.png`, 6 × 6 studs per repeat |
 | `scripts/export_roblox.py` | Writes `fbx/*.fbx` (one model per asset or prop), `fbx/roblox_manifest.json` and `src/shared/LobbyAssetStyler.luau` |
 | `blend/` | Blender files, one collection tree per asset (`ASSET_0N_*` → sub-collections) |
 | `renders/` | Inspection renders (front/right/rear/left ortho, 3/4, details, reference-angle matches) and contact sheets |
@@ -52,6 +53,8 @@ Priority used: dedicated prop sheet > close-ups > lobby screenshots (style and s
 - end posts with lantern-shaped gold finials
 - cobble setts in running bond, marble border, cyan strip along the front edge
 
+**Cobblestone floors are a texture, not modelled stones** (your direction). The arch floor and the road tile are flat UV-mapped slabs using `textures/cobblestone_*.png`. The UVs are world-aligned (world XY / 6 studs), so tiles placed next to each other continue the pattern. The texture reproduces the sheet's look: blue-grey to lavender setts, 1.5 × 1.0 studs, running bond, tight warm-grey joints, soft bevel light. It is generated procedurally and seamless by construction; see `renders/texture_cobblestone_tiling_2x2.png`.
+
 **Estimated:**
 - exact depths (column assumed square; arch depth 3.1)
 - arch radius, taken as a circle through the springer and the crown
@@ -62,7 +65,7 @@ Priority used: dedicated prop sheet > close-ups > lobby screenshots (style and s
 **Corrections after comparison:**
 - v1 → v2: the AgX view transform washed out the navy and the neon, so it was switched to Standard
 - marble veins changed from busy and wormy to sparse cracks, matching the reference
-- cobbles darkened to blue-grey with warm grout
+- cobbles darkened to blue-grey with warm grout (later replaced by the texture)
 - bronze darkened
 - arch thickened from 1.9 to 2.3
 - banner star enlarged
@@ -102,7 +105,9 @@ After importing with the 3D Importer, run:
 require(game.ReplicatedStorage.Shared.LobbyAssetStyler).styleAll(workspace)
 ```
 
-This sets Material, Color, Reflectance and Transparency: Marble → `Marble`, emissive → `Neon` with CastShadow off, wood → `Wood`, cobble → `Slate`, cloth → `Fabric`, gold → reflective SmoothPlastic. It then rescales each model to its Blender size in studs, so the result doesn't depend on how the importer converts units.
+Textured cobble surfaces: upload `textures/cobblestone_albedo.png` and `cobblestone_normal.png` to Roblox and paste the two `rbxassetid://` ids into the `TEXTURES` table at the top of `LobbyAssetStyler.luau`. The styler then adds a SurfaceAppearance to every cobble part. Until then those parts fall back to a plain blue-grey Slate.
+
+The styler sets Material, Color, Reflectance and Transparency: Marble → `Marble`, emissive → `Neon` with CastShadow off, wood → `Wood`, cobble → `Slate`, cloth → `Fabric`, gold → reflective SmoothPlastic. It then rescales each model to its Blender size in studs, so the result doesn't depend on how the importer converts units.
 
 **Not yet verified in Studio.** There is no Roblox Studio in this cloud environment. Import, scale and appearance must be checked on a machine with Studio.
 

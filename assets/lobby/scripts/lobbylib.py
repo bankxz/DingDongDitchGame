@@ -617,3 +617,48 @@ def save_blend(name):
     bpy.ops.wm.save_as_mainfile(filepath=p, compress=True)
     print("SAVED", p)
     return p
+
+
+# --------------------------------------------------------------------------- textured cobble floor
+TEXTURES = os.path.join(ROOT, "textures")
+COBBLE_TILE = 6.0          # studs per texture repeat (see make_textures.py)
+
+
+def cobble_tex_material():
+    """Image-textured cobblestone (albedo + normal), UV-mapped at COBBLE_TILE studs/repeat."""
+    name = "MAT_CobbleTex"
+    if name in _MATS:
+        return _MATS[name]
+    m, n, l, b = _new_mat(name)
+    alb = n.new("ShaderNodeTexImage")
+    alb.image = bpy.data.images.load(os.path.join(TEXTURES, "cobblestone_albedo.png"), check_existing=True)
+    nrm = n.new("ShaderNodeTexImage")
+    nrm.image = bpy.data.images.load(os.path.join(TEXTURES, "cobblestone_normal.png"), check_existing=True)
+    nrm.image.colorspace_settings.name = "Non-Color"
+    nm = n.new("ShaderNodeNormalMap")
+    nm.inputs["Strength"].default_value = 0.8
+    l.new(alb.outputs["Color"], b.inputs["Base Color"])
+    l.new(nrm.outputs["Color"], nm.inputs["Color"])
+    l.new(nm.outputs["Normal"], b.inputs["Normal"])
+    b.inputs["Roughness"].default_value = 0.8
+    m.diffuse_color = (0.30, 0.30, 0.40, 1)
+    m["roblox_texture"] = "cobblestone"
+    _MATS[name] = m
+    return m
+
+
+def cobble_surface(name, x0, x1, y0, y1, top=0.0, thick=0.25, c=None, poly_holes=None):
+    """Flat cobblestone floor slab (top at `top`) with world-aligned UVs (UV = worldXY / COBBLE_TILE),
+    so neighbouring tiles continue the texture seamlessly."""
+    bm = bmesh.new()
+    bmesh.ops.create_cube(bm, size=1.0)
+    bmesh.ops.scale(bm, vec=(x1 - x0, y1 - y0, thick), verts=bm.verts)
+    bmesh.ops.translate(bm, vec=((x0 + x1) / 2, (y0 + y1) / 2, top - thick / 2), verts=bm.verts)
+    uv = bm.loops.layers.uv.new("UVMap")
+    for f in bm.faces:
+        ax = max(range(3), key=lambda i: abs(f.normal[i]))
+        ui, vi = [(1, 2), (0, 2), (0, 1)][ax]
+        for lp in f.loops:
+            lp[uv].uv = (lp.vert.co[ui] / COBBLE_TILE, lp.vert.co[vi] / COBBLE_TILE)
+    ob = from_bmesh(name, bm, cobble_tex_material(), c)
+    return ob

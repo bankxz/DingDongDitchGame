@@ -52,11 +52,20 @@ def roblox_props(mat):
     else:
         d = {"Material": "SmoothPlastic"}
     d["Color"] = [round(c, 4) for c in linear_to_srgb(col)]
+    if mat.get("roblox_texture"):
+        # image-textured surface: SurfaceAppearance (ColorMap + NormalMap) once the PNGs are uploaded
+        d["Texture"] = mat["roblox_texture"]
+        d["Color"] = [1.0, 1.0, 1.0]
     return d
 
 
 def linear_to_srgb(c):
     return [12.92 * x if x <= 0.0031308 else 1.055 * (x ** (1 / 2.4)) - 0.055 for x in c]
+
+
+def mat_has_texture(key):
+    m = bpy.data.materials.get(key)
+    return bool(m and m.get("roblox_texture"))
 
 
 def box_uv(bm):
@@ -110,7 +119,8 @@ def merge_by_material(unit, objs):
                 tmp = bpy.data.meshes.new("tmp"); bm.to_mesh(tmp); bm.free()
                 acc.from_mesh(tmp); bpy.data.meshes.remove(tmp)
             bmesh.ops.remove_doubles(acc, verts=acc.verts, dist=1e-5)
-            box_uv(acc)
+            if not (mat_has_texture(key)):
+                box_uv(acc)          # textured materials keep their authored world-aligned UVs
             tris = sum(len(f.verts) - 2 for f in acc.faces)
             acc.to_mesh(me); acc.free()
             mat = bpy.data.materials.get(key)
@@ -207,7 +217,14 @@ def write_luau(manifest):
              "-- Usage (Studio command bar, after importing an FBX with the 3D Importer):",
              "--   require(game.ReplicatedStorage.Shared.LobbyAssetStyler).style(workspace.Lobby_MarbleArch)",
              "-- or style every imported lobby model:  ...LobbyAssetStyler.styleAll(workspace)", "",
-             "type PartSpec = { Material: string, Color: { number }, Reflectance: number?, Transparency: number? }",
+             "type PartSpec = { Material: string, Color: { number }, Reflectance: number?, Transparency: number?, Texture: string? }",
+             "",
+             "-- Upload textures/<name>_albedo.png and _normal.png (Asset Manager / Creator Hub) and paste the",
+             "-- rbxassetid:// ids here. While empty, textured parts fall back to a plain Slate material.",
+             "local TEXTURES: { [string]: { ColorMap: string, NormalMap: string } } = {",
+             "\tcobblestone = { ColorMap = \"\", NormalMap = \"\" },",
+             "}",
+             "local TEXTURE_FALLBACK_COLOR = Color3.fromRGB(110, 112, 140)",
              "type UnitSpec = { size: { number }, parts: { [string]: PartSpec } }", "",
              "local UNITS: { [string]: UnitSpec } = {"]
     for unit, u in sorted(manifest.items()):
@@ -217,6 +234,8 @@ def write_luau(manifest):
         for p in u["parts"]:
             r = p["roblox"]
             extra = ""
+            if "Texture" in r:
+                extra += f', Texture = "{r["Texture"]}"'
             if "Reflectance" in r:
                 extra += f", Reflectance = {r['Reflectance']}"
             if "Transparency" in r:
@@ -233,6 +252,18 @@ def write_luau(manifest):
               "\tpart.Reflectance = spec.Reflectance or 0",
               "\tpart.Transparency = spec.Transparency or 0",
               "\tpart.Anchored = true",
+              "\tif spec.Texture then",
+              "\t\tlocal tex = TEXTURES[spec.Texture]",
+              "\t\tif tex and tex.ColorMap ~= \"\" then",
+              "\t\t\tlocal sa = part:FindFirstChildOfClass(\"SurfaceAppearance\") or Instance.new(\"SurfaceAppearance\")",
+              "\t\t\tsa.ColorMap = tex.ColorMap",
+              "\t\t\tsa.NormalMap = tex.NormalMap",
+              "\t\t\tsa.Parent = part",
+              "\t\telse",
+              "\t\t\tpart.Material = Enum.Material.Slate",
+              "\t\t\tpart.Color = TEXTURE_FALLBACK_COLOR",
+              "\t\tend",
+              "\tend",
               "\tif spec.Material == \"Neon\" then",
               "\t\tpart.CastShadow = false",
               "\tend",

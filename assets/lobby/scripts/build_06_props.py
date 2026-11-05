@@ -7,7 +7,7 @@ Sources: lobby screenshots (1.webp main view, 3.webp spawn-plaza view, 2/4 sheet
 Props (each in its own collection, origin at its own floor centre):
   PROP_BalustradeStraight, PROP_BalustradeCorner, PROP_BalustradeCurved,
   PROP_LanternPost, PROP_PlanterLong, PROP_PlanterSquare, PROP_EventsBanner,
-  PROP_StarBanner, PROP_RoadCobble (cobbles + gold edging + cyan strips + chevrons),
+  PROP_StarBanner, PROP_RoadCobble (textured cobble surface + gold edging + cyan strips + chevrons),
   PROP_FloorMarble, PROP_SpawnPlaza (circular floor + neon star), PROP_StepsCurved,
   PROP_StonePost, PROP_GoldTrim, PROP_NeonEdgeStrip
 """
@@ -301,52 +301,13 @@ def prop_star_banner(c):
 
 
 # ============================================================ floors
-def cobble_field(prefix, x0, x1, y0, y1, c, top=0.0, skip=None, row=0.95, lmin=1.2, lmax=1.7, along="X"):
-    stones = []
-    gap = 0.09
-    if along == "X":
-        a0, a1, b0, b1 = x0, x1, y0, y1
-    else:
-        a0, a1, b0, b1 = y0, y1, x0, x1
-    b = b0
-    r = 0
-    while b + row <= b1 + 0.01:
-        a = a0 - (0.7 if r % 2 else 0)
-        while a < a1 - 0.2:
-            ln = random.uniform(lmin, lmax)
-            aa, ab = max(a, a0), min(a + ln, a1)
-            if ab - aa > 0.35:
-                ca, cb = (aa + ab) / 2, b + row / 2
-                x, y = (ca, cb) if along == "X" else (cb, ca)
-                if not (skip and skip(x, y)):
-                    sz = (ab - aa - gap, row - gap) if along == "X" else (row - gap, ab - aa - gap)
-                    stones.append(L.box(f"{prefix}_{len(stones):03d}", (*sz, 0.28 + random.uniform(-0.03, 0.03)),
-                                        (x + random.uniform(-0.03, 0.03), y + random.uniform(-0.03, 0.03),
-                                         top - 0.14 + random.uniform(-0.03, 0.02)),
-                                        P["cobble"], 0.07, c=c, rot=(0, 0, random.uniform(-0.03, 0.03))))
-            a += ln
-        b += row
-        r += 1
-    return stones
-
-
-def point_in_poly(x, y, poly):
-    ins = False
-    j = len(poly) - 1
-    for i in range(len(poly)):
-        xi, yi = poly[i]; xj, yj = poly[j]
-        if (yi > y) != (yj > y) and x < (xj - xi) * (y - yi) / (yj - yi + 1e-9) + xi:
-            ins = not ins
-        j = i
-    return ins
-
-
 def prop_road(c):
-    """12 x 16 stud cobble road tile, running toward +Y, two inlaid neon chevrons."""
+    """12 x 16 stud road tile (textured cobblestone surface), running toward +Y, two inlaid neon chevrons."""
     W, Lg = 12.0, 16.0
     G = P["gold"]
     o = [L.box("PROP_Road_Bed", (W + 2.0, Lg, 0.8), (0, 0, -0.5), P["marble_dark"], 0.0, c=c),
-         L.box("PROP_Road_Grout", (W - 0.1, Lg, 0.1), (0, 0, -0.25), P["grout"], 0.0, c=c)]
+         L.cobble_surface("PROP_Road_CobbleFloor", -W / 2 + 0.05, W / 2 - 0.05, -Lg / 2, Lg / 2, top=0.0, thick=0.3,
+                          c=c)]
     for s in (-1, 1):
         o.append(L.box(f"PROP_Road_GoldEdge_{s}", (0.3, Lg, 0.3), (s * (W / 2 + 0.85), 0, -0.13), G, 0.04, c=c))
         o.append(L.box(f"PROP_Road_Neon_{s}", (0.4, Lg, 0.22), (s * (W / 2 + 0.4), 0, -0.13), P["cyan"], 0.03, c=c))
@@ -357,13 +318,9 @@ def prop_road(c):
         poly = [(-cw / 2, yc - hh / 2), (0, yc + hh / 2), (cw / 2, yc - hh / 2), (cw / 2 - th, yc - hh / 2),
                 (0, yc + hh / 2 - th * 1.35), (-cw / 2 + th, yc - hh / 2)]
         chevs.append(poly)
-        ch = L.extrude_polygon(f"PROP_Road_Chevron_{k}", poly, 0.18, P["cyan"], c, plane="XY", bevel=0.04)
-        ch.location.z = -0.1
+        ch = L.extrude_polygon(f"PROP_Road_Chevron_{k}", poly, 0.14, P["cyan"], c, plane="XY", bevel=0.03)
+        ch.location.z = -0.04          # neon inlay, 0.03 proud of the textured cobbles
         o.append(ch)
-    skip = lambda x, y: any(point_in_poly(x, y, p) or point_in_poly(x + 0.5, y, p) or point_in_poly(x - 0.5, y, p)
-                            for p in chevs)
-    o += cobble_field("PROP_Road_Cobble", -W / 2 + 0.1, W / 2 - 0.1, -Lg / 2, Lg / 2, c, top=0.0, skip=skip,
-                      along="X")
     return o
 
 
