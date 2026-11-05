@@ -21,16 +21,17 @@
     }
    },
    {
-    "part": "Lobby_MarbleArch__Cobble",
-    "material": "MAT_Cobble",
-    "tris": 6156,
+    "part": "Lobby_MarbleArch__CobbleTex",
+    "material": "MAT_CobbleTex",
+    "tris": 12,
     "roblox": {
      "Material": "Slate",
      "Color": [
-      0.5838,
-      0.5838,
-      0.6652
-     ]
+      1.0,
+      1.0,
+      1.0
+     ],
+     "Texture": "cobblestone"
     }
    },
    {
@@ -44,19 +45,6 @@
       1.0,
       0.8095,
       0.3811
-     ]
-    }
-   },
-   {
-    "part": "Lobby_MarbleArch__Grout",
-    "material": "MAT_Grout",
-    "tris": 12,
-    "roblox": {
-     "Material": "SmoothPlastic",
-     "Color": [
-      0.68,
-      0.6343,
-      0.5838
      ]
     }
    },
@@ -126,14 +114,14 @@
     }
    }
   ],
-  "tris_total": 15560
+  "tris_total": 9404
  },
  "Lobby_PED_Crystal": {
   "fbx": "fbx/Lobby_PED_Crystal.fbx",
   "size_studs": [
    4.26,
    4.26,
-   4.82
+   5.4
   ],
   "parts": [
    {
@@ -145,7 +133,7 @@
      "Transparency": 0.15,
      "Color": [
       0.3492,
-      0.865,
+      0.8267,
       1.0
      ]
     }
@@ -185,9 +173,9 @@
     "roblox": {
      "Material": "Marble",
      "Color": [
-      0.8756,
-      0.8543,
-      0.886
+      0.8095,
+      0.7858,
+      0.821
      ]
     }
    }
@@ -199,7 +187,7 @@
   "size_studs": [
    4.26,
    4.26,
-   5.11
+   5.627
   ],
   "parts": [
    {
@@ -209,8 +197,8 @@
     "roblox": {
      "Material": "Neon",
      "Color": [
-      0.7674,
-      0.4236,
+      0.5064,
+      0.2478,
       1.0
      ]
     }
@@ -222,8 +210,8 @@
     "roblox": {
      "Material": "Neon",
      "Color": [
-      0.9309,
-      0.7977,
+      0.7674,
+      0.65,
       1.0
      ]
     }
@@ -235,8 +223,8 @@
     "roblox": {
      "Material": "Neon",
      "Color": [
-      0.8095,
-      0.4845,
+      0.6097,
+      0.3492,
       1.0
      ]
     }
@@ -248,8 +236,8 @@
     "roblox": {
      "Material": "Neon",
      "Color": [
-      0.8095,
-      0.4845,
+      0.6097,
+      0.3492,
       1.0
      ]
     }
@@ -261,9 +249,9 @@
     "roblox": {
      "Material": "Marble",
      "Color": [
-      0.8756,
-      0.8543,
-      0.886
+      0.8095,
+      0.7858,
+      0.821
      ]
     }
    }
@@ -275,19 +263,19 @@
   "size_studs": [
    4.26,
    4.26,
-   4.82
+   5.28
   ],
   "parts": [
    {
     "part": "Lobby_PED_Shield__Glyph_ShieldFace",
     "material": "MAT_Glyph_ShieldFace",
-    "tris": 188,
+    "tris": 236,
     "roblox": {
      "Material": "Neon",
      "Color": [
       1.0,
-      0.8543,
-      0.4236
+      0.8095,
+      0.3133
      ]
     }
    },
@@ -313,8 +301,8 @@
      "Material": "Neon",
      "Color": [
       1.0,
-      0.9777,
-      0.8543
+      0.964,
+      0.7977
      ]
     }
    },
@@ -351,21 +339,21 @@
     "roblox": {
      "Material": "Marble",
      "Color": [
-      0.8756,
-      0.8543,
-      0.886
+      0.8095,
+      0.7858,
+      0.821
      ]
     }
    }
   ],
-  "tris_total": 6092
+  "tris_total": 6140
  },
  "Lobby_PED_Flame": {
   "fbx": "fbx/Lobby_PED_Flame.fbx",
   "size_studs": [
    4.26,
    4.26,
-   4.986
+   5.479
   ],
   "parts": [
    {
@@ -376,8 +364,8 @@
      "Material": "Neon",
      "Color": [
       1.0,
-      0.722,
-      0.2478
+      0.65,
+      0.1517
      ]
     }
    },
@@ -389,8 +377,8 @@
      "Material": "Neon",
      "Color": [
       1.0,
-      0.4366,
-      0.2478
+      0.3133,
+      0.1517
      ]
     }
    },
@@ -402,8 +390,8 @@
      "Material": "Neon",
      "Color": [
       1.0,
-      0.9453,
-      0.5838
+      0.9063,
+      0.4845
      ]
     }
    },
@@ -440,9 +428,9 @@
     "roblox": {
      "Material": "Marble",
      "Color": [
-      0.8756,
-      0.8543,
-      0.886
+      0.8095,
+      0.7858,
+      0.821
      ]
     }
    }
@@ -454,7 +442,7 @@
   "size_studs": [
    4.26,
    4.26,
-   4.935
+   5.418
   ],
   "parts": [
    {
@@ -464,8 +452,8 @@
     "roblox": {
      "Material": "Neon",
      "Color": [
-      0.7354,
-      0.9163,
+      0.5371,
+      0.7977,
       1.0
      ]
     }
@@ -503,9 +491,9 @@
     "roblox": {
      "Material": "Marble",
      "Color": [
-      0.8756,
-      0.8543,
-      0.886
+      0.8095,
+      0.7858,
+      0.821
      ]
     }
    }
@@ -517,7 +505,7 @@
   "size_studs": [
    4.26,
    4.26,
-   4.817
+   5.277
   ],
   "parts": [
    {
@@ -527,9 +515,9 @@
     "roblox": {
      "Material": "Neon",
      "Color": [
-      0.4236,
-      0.9777,
-      0.6262
+      0.2478,
+      0.9309,
+      0.5371
      ]
     }
    },
@@ -540,9 +528,9 @@
     "roblox": {
      "Material": "Neon",
      "Color": [
-      0.8543,
+      0.7977,
       1.0,
-      0.7977
+      0.7354
      ]
     }
    },
@@ -579,9 +567,9 @@
     "roblox": {
      "Material": "Marble",
      "Color": [
-      0.8756,
-      0.8543,
-      0.886
+      0.8095,
+      0.7858,
+      0.821
      ]
     }
    }
@@ -593,7 +581,7 @@
   "size_studs": [
    4.26,
    4.26,
-   4.911
+   5.389
   ],
   "parts": [
    {
@@ -604,8 +592,8 @@
      "Material": "Neon",
      "Color": [
       1.0,
-      0.9309,
-      0.6262
+      0.9063,
+      0.5838
      ]
     }
    },
@@ -656,9 +644,9 @@
     "roblox": {
      "Material": "Marble",
      "Color": [
-      0.8756,
-      0.8543,
-      0.886
+      0.8095,
+      0.7858,
+      0.821
      ]
     }
    }
@@ -670,7 +658,7 @@
   "size_studs": [
    4.26,
    4.26,
-   4.57
+   4.98
   ],
   "parts": [
    {
@@ -681,8 +669,8 @@
      "Material": "Neon",
      "Color": [
       1.0,
-      0.7674,
-      0.9777
+      0.6652,
+      0.9547
      ]
     }
    },
@@ -706,8 +694,8 @@
     "roblox": {
      "Material": "Neon",
      "Color": [
-      0.9063,
-      0.5371,
+      0.8543,
+      0.3811,
       1.0
      ]
     }
@@ -745,9 +733,9 @@
     "roblox": {
      "Material": "Marble",
      "Color": [
-      0.8756,
-      0.8543,
-      0.886
+      0.8095,
+      0.7858,
+      0.821
      ]
     }
    }
@@ -759,7 +747,7 @@
   "size_studs": [
    4.26,
    4.26,
-   4.258
+   4.605
   ],
   "parts": [
    {
@@ -769,8 +757,8 @@
     "roblox": {
      "Material": "Neon",
      "Color": [
-      0.8808,
-      0.9309,
+      0.8543,
+      0.9163,
       1.0
      ]
     }
@@ -782,8 +770,8 @@
     "roblox": {
      "Material": "Neon",
      "Color": [
-      0.5838,
-      0.9063,
+      0.3492,
+      0.8543,
       1.0
      ]
     }
@@ -821,14 +809,853 @@
     "roblox": {
      "Material": "Marble",
      "Color": [
-      0.8756,
-      0.8543,
-      0.886
+      0.8095,
+      0.7858,
+      0.821
      ]
     }
    }
   ],
   "tris_total": 6092
+ },
+ "Lobby_MarketShop": {
+  "fbx": "fbx/Lobby_MarketShop.fbx",
+  "size_studs": [
+   16.44,
+   7.502,
+   14.43
+  ],
+  "parts": [
+   {
+    "part": "Lobby_MarketShop__AwningRed",
+    "material": "MAT_AwningRed",
+    "tris": 2120,
+    "roblox": {
+     "Material": "Fabric",
+     "Color": [
+      0.865,
+      0.2209,
+      0.4492
+     ]
+    }
+   },
+   {
+    "part": "Lobby_MarketShop__AwningWhite",
+    "material": "MAT_AwningWhite",
+    "tris": 2248,
+    "roblox": {
+     "Material": "Fabric",
+     "Color": [
+      0.9777,
+      0.964,
+      0.9686
+     ]
+    }
+   },
+   {
+    "part": "Lobby_MarketShop__Cork",
+    "material": "MAT_Cork",
+    "tris": 700,
+    "roblox": {
+     "Material": "SmoothPlastic",
+     "Color": [
+      0.8095,
+      0.68,
+      0.5271
+     ]
+    }
+   },
+   {
+    "part": "Lobby_MarketShop__CrystalPurple",
+    "material": "MAT_CrystalPurple",
+    "tris": 296,
+    "roblox": {
+     "Material": "Glass",
+     "Transparency": 0.15,
+     "Color": [
+      0.5838,
+      0.2717,
+      1.0
+     ]
+    }
+   },
+   {
+    "part": "Lobby_MarketShop__Gold",
+    "material": "MAT_Gold",
+    "tris": 4584,
+    "roblox": {
+     "Material": "SmoothPlastic",
+     "Reflectance": 0.2,
+     "Color": [
+      1.0,
+      0.8095,
+      0.3811
+     ]
+    }
+   },
+   {
+    "part": "Lobby_MarketShop__LanternGlow",
+    "material": "MAT_LanternGlow",
+    "tris": 216,
+    "roblox": {
+     "Material": "Neon",
+     "Color": [
+      1.0,
+      0.8543,
+      0.5371
+     ]
+    }
+   },
+   {
+    "part": "Lobby_MarketShop__LanternIron",
+    "material": "MAT_LanternIron",
+    "tris": 272,
+    "roblox": {
+     "Material": "Metal",
+     "Color": [
+      0.5371,
+      0.4492,
+      0.3492
+     ]
+    }
+   },
+   {
+    "part": "Lobby_MarketShop__Marble",
+    "material": "MAT_Marble",
+    "tris": 1296,
+    "roblox": {
+     "Material": "Marble",
+     "Color": [
+      0.9357,
+      0.9212,
+      0.9547
+     ]
+    }
+   },
+   {
+    "part": "Lobby_MarketShop__Parchment",
+    "material": "MAT_Parchment",
+    "tris": 376,
+    "roblox": {
+     "Material": "SmoothPlastic",
+     "Color": [
+      0.9686,
+      0.9261,
+      0.821
+     ]
+    }
+   },
+   {
+    "part": "Lobby_MarketShop__Potion_Blue",
+    "material": "MAT_Potion_Blue",
+    "tris": 816,
+    "roblox": {
+     "Material": "Glass",
+     "Transparency": 0.15,
+     "Color": [
+      0.1897,
+      0.4614,
+      1.0
+     ]
+    }
+   },
+   {
+    "part": "Lobby_MarketShop__Potion_Cyan",
+    "material": "MAT_Potion_Cyan",
+    "tris": 816,
+    "roblox": {
+     "Material": "Glass",
+     "Transparency": 0.15,
+     "Color": [
+      0.1517,
+      0.9309,
+      1.0
+     ]
+    }
+   },
+   {
+    "part": "Lobby_MarketShop__Potion_Green",
+    "material": "MAT_Potion_Green",
+    "tris": 816,
+    "roblox": {
+     "Material": "Glass",
+     "Transparency": 0.15,
+     "Color": [
+      0.4845,
+      1.0,
+      0.3133
+     ]
+    }
+   },
+   {
+    "part": "Lobby_MarketShop__Potion_Pink",
+    "material": "MAT_Potion_Pink",
+    "tris": 816,
+    "roblox": {
+     "Material": "Glass",
+     "Transparency": 0.15,
+     "Color": [
+      1.0,
+      0.3492,
+      0.8267
+     ]
+    }
+   },
+   {
+    "part": "Lobby_MarketShop__Potion_Purple",
+    "material": "MAT_Potion_Purple",
+    "tris": 816,
+    "roblox": {
+     "Material": "Glass",
+     "Transparency": 0.15,
+     "Color": [
+      0.6652,
+      0.2209,
+      1.0
+     ]
+    }
+   },
+   {
+    "part": "Lobby_MarketShop__SignMaroon",
+    "material": "MAT_SignMaroon",
+    "tris": 44,
+    "roblox": {
+     "Material": "SmoothPlastic",
+     "Color": [
+      0.6097,
+      0.1897,
+      0.2934
+     ]
+    }
+   },
+   {
+    "part": "Lobby_MarketShop__SignText",
+    "material": "MAT_SignText",
+    "tris": 6792,
+    "roblox": {
+     "Material": "SmoothPlastic",
+     "Color": [
+      1.0,
+      0.9261,
+      0.722
+     ]
+    }
+   },
+   {
+    "part": "Lobby_MarketShop__WoodBackWall",
+    "material": "MAT_WoodBackWall",
+    "tris": 1188,
+    "roblox": {
+     "Material": "Wood",
+     "Color": [
+      0.5838,
+      0.41,
+      0.2478
+     ]
+    }
+   },
+   {
+    "part": "Lobby_MarketShop__WoodBeam",
+    "material": "MAT_WoodBeam",
+    "tris": 2730,
+    "roblox": {
+     "Material": "Wood",
+     "Color": [
+      0.6944,
+      0.4845,
+      0.2828
+     ]
+    }
+   },
+   {
+    "part": "Lobby_MarketShop__WoodCrate",
+    "material": "MAT_WoodCrate",
+    "tris": 5124,
+    "roblox": {
+     "Material": "Wood",
+     "Color": [
+      0.7736,
+      0.5838,
+      0.3318
+     ]
+    }
+   },
+   {
+    "part": "Lobby_MarketShop__WoodCrateV",
+    "material": "MAT_WoodCrateV",
+    "tris": 1296,
+    "roblox": {
+     "Material": "Wood",
+     "Color": [
+      0.7736,
+      0.5838,
+      0.3318
+     ]
+    }
+   },
+   {
+    "part": "Lobby_MarketShop__WoodPanel",
+    "material": "MAT_WoodPanel",
+    "tris": 1188,
+    "roblox": {
+     "Material": "Wood",
+     "Color": [
+      0.6652,
+      0.4614,
+      0.2717
+     ]
+    }
+   },
+   {
+    "part": "Lobby_MarketShop__WoodPost",
+    "material": "MAT_WoodPost",
+    "tris": 1404,
+    "roblox": {
+     "Material": "Wood",
+     "Color": [
+      0.6944,
+      0.4845,
+      0.2828
+     ]
+    }
+   },
+   {
+    "part": "Lobby_MarketShop__bookBlue",
+    "material": "MAT_bookBlue",
+    "tris": 108,
+    "roblox": {
+     "Material": "SmoothPlastic",
+     "Color": [
+      0.3811,
+      0.5371,
+      0.7674
+     ]
+    }
+   },
+   {
+    "part": "Lobby_MarketShop__bookNavy",
+    "material": "MAT_bookNavy",
+    "tris": 324,
+    "roblox": {
+     "Material": "SmoothPlastic",
+     "Color": [
+      0.2934,
+      0.3959,
+      0.68
+     ]
+    }
+   },
+   {
+    "part": "Lobby_MarketShop__bookRed",
+    "material": "MAT_bookRed",
+    "tris": 492,
+    "roblox": {
+     "Material": "Fabric",
+     "Color": [
+      0.7674,
+      0.2717,
+      0.3133
+     ]
+    }
+   },
+   {
+    "part": "Lobby_MarketShop__bookTeal",
+    "material": "MAT_bookTeal",
+    "tris": 108,
+    "roblox": {
+     "Material": "SmoothPlastic",
+     "Color": [
+      0.3133,
+      0.5469,
+      0.618
+     ]
+    }
+   }
+  ],
+  "tris_total": 36986
+ },
+ "Lobby_CraftShop": {
+  "fbx": "fbx/Lobby_CraftShop.fbx",
+  "size_studs": [
+   15.1,
+   10.03,
+   14.625
+  ],
+  "parts": [
+   {
+    "part": "Lobby_CraftShop__Books",
+    "material": "MAT_Books",
+    "tris": 648,
+    "roblox": {
+     "Material": "SmoothPlastic",
+     "Color": [
+      0.3133,
+      0.4366,
+      0.7674
+     ]
+    }
+   },
+   {
+    "part": "Lobby_CraftShop__CanopyBlue",
+    "material": "MAT_CanopyBlue",
+    "tris": 196,
+    "roblox": {
+     "Material": "Fabric",
+     "Color": [
+      0.2717,
+      0.41,
+      0.8095
+     ]
+    }
+   },
+   {
+    "part": "Lobby_CraftShop__CanopyBlueEdge",
+    "material": "MAT_CanopyBlueEdge",
+    "tris": 496,
+    "roblox": {
+     "Material": "Fabric",
+     "Color": [
+      0.2717,
+      0.41,
+      0.8095
+     ]
+    }
+   },
+   {
+    "part": "Lobby_CraftShop__Cork",
+    "material": "MAT_Cork",
+    "tris": 552,
+    "roblox": {
+     "Material": "SmoothPlastic",
+     "Color": [
+      0.8095,
+      0.68,
+      0.5271
+     ]
+    }
+   },
+   {
+    "part": "Lobby_CraftShop__CrystalPurple",
+    "material": "MAT_CrystalPurple",
+    "tris": 132,
+    "roblox": {
+     "Material": "Glass",
+     "Transparency": 0.15,
+     "Color": [
+      0.5838,
+      0.2717,
+      1.0
+     ]
+    }
+   },
+   {
+    "part": "Lobby_CraftShop__Gold",
+    "material": "MAT_Gold",
+    "tris": 8148,
+    "roblox": {
+     "Material": "SmoothPlastic",
+     "Reflectance": 0.2,
+     "Color": [
+      1.0,
+      0.8095,
+      0.3811
+     ]
+    }
+   },
+   {
+    "part": "Lobby_CraftShop__Iron",
+    "material": "MAT_Iron",
+    "tris": 1504,
+    "roblox": {
+     "Material": "Metal",
+     "Color": [
+      0.3492,
+      0.3656,
+      0.4236
+     ]
+    }
+   },
+   {
+    "part": "Lobby_CraftShop__LanternGlow",
+    "material": "MAT_LanternGlow",
+    "tris": 216,
+    "roblox": {
+     "Material": "Neon",
+     "Color": [
+      1.0,
+      0.7674,
+      0.3811
+     ]
+    }
+   },
+   {
+    "part": "Lobby_CraftShop__Marble",
+    "material": "MAT_Marble",
+    "tris": 8100,
+    "roblox": {
+     "Material": "Marble",
+     "Color": [
+      0.9357,
+      0.9212,
+      0.9547
+     ]
+    }
+   },
+   {
+    "part": "Lobby_CraftShop__MarbleShade",
+    "material": "MAT_MarbleShade",
+    "tris": 596,
+    "roblox": {
+     "Material": "Marble",
+     "Color": [
+      0.9063,
+      0.8911,
+      0.9453
+     ]
+    }
+   },
+   {
+    "part": "Lobby_CraftShop__NeonCyan",
+    "material": "MAT_NeonCyan",
+    "tris": 204,
+    "roblox": {
+     "Material": "Neon",
+     "Color": [
+      0.2478,
+      0.8808,
+      1.0
+     ]
+    }
+   },
+   {
+    "part": "Lobby_CraftShop__Parchment",
+    "material": "MAT_Parchment",
+    "tris": 492,
+    "roblox": {
+     "Material": "SmoothPlastic",
+     "Color": [
+      0.9686,
+      0.9063,
+      0.7858
+     ]
+    }
+   },
+   {
+    "part": "Lobby_CraftShop__PotionBlue",
+    "material": "MAT_PotionBlue",
+    "tris": 320,
+    "roblox": {
+     "Material": "Glass",
+     "Transparency": 0.15,
+     "Color": [
+      0.2478,
+      0.7674,
+      1.0
+     ]
+    }
+   },
+   {
+    "part": "Lobby_CraftShop__PotionPink",
+    "material": "MAT_PotionPink",
+    "tris": 320,
+    "roblox": {
+     "Material": "Glass",
+     "Transparency": 0.15,
+     "Color": [
+      1.0,
+      0.4614,
+      0.8267
+     ]
+    }
+   },
+   {
+    "part": "Lobby_CraftShop__PurpleGlow",
+    "material": "MAT_PurpleGlow",
+    "tris": 320,
+    "roblox": {
+     "Material": "Neon",
+     "Color": [
+      0.7014,
+      0.4236,
+      1.0
+     ]
+    }
+   },
+   {
+    "part": "Lobby_CraftShop__SignBlue",
+    "material": "MAT_SignBlue",
+    "tris": 220,
+    "roblox": {
+     "Material": "SmoothPlastic",
+     "Color": [
+      0.206,
+      0.3035,
+      0.6652
+     ]
+    }
+   },
+   {
+    "part": "Lobby_CraftShop__WhiteEmblem",
+    "material": "MAT_WhiteEmblem",
+    "tris": 844,
+    "roblox": {
+     "Material": "SmoothPlastic",
+     "Color": [
+      0.9777,
+      0.9822,
+      1.0
+     ]
+    }
+   },
+   {
+    "part": "Lobby_CraftShop__WoodCrate",
+    "material": "MAT_WoodCrate",
+    "tris": 216,
+    "roblox": {
+     "Material": "Wood",
+     "Color": [
+      0.964,
+      0.8095,
+      0.5469
+     ]
+    }
+   },
+   {
+    "part": "Lobby_CraftShop__WoodFrame",
+    "material": "MAT_WoodFrame",
+    "tris": 5840,
+    "roblox": {
+     "Material": "Wood",
+     "Color": [
+      0.8095,
+      0.618,
+      0.3959
+     ]
+    }
+   },
+   {
+    "part": "Lobby_CraftShop__WoodPlank",
+    "material": "MAT_WoodPlank",
+    "tris": 1404,
+    "roblox": {
+     "Material": "Wood",
+     "Color": [
+      0.8543,
+      0.68,
+      0.4614
+     ]
+    }
+   }
+  ],
+  "tris_total": 30768
+ },
+ "Lobby_ArenaGate": {
+  "fbx": "fbx/Lobby_ArenaGate.fbx",
+  "size_studs": [
+   59.9,
+   12.29,
+   23.717
+  ],
+  "parts": [
+   {
+    "part": "Lobby_ArenaGate__BoardBar",
+    "material": "MAT_BoardBar",
+    "tris": 1320,
+    "roblox": {
+     "Material": "Neon",
+     "Color": [
+      0.6262,
+      0.7674,
+      1.0
+     ]
+    }
+   },
+   {
+    "part": "Lobby_ArenaGate__CrownBronze",
+    "material": "MAT_CrownBronze",
+    "tris": 1064,
+    "roblox": {
+     "Material": "Metal",
+     "Color": [
+      0.9309,
+      0.7014,
+      0.4845
+     ]
+    }
+   },
+   {
+    "part": "Lobby_ArenaGate__GateCrystal",
+    "material": "MAT_GateCrystal",
+    "tris": 320,
+    "roblox": {
+     "Material": "Glass",
+     "Transparency": 0.15,
+     "Color": [
+      0.2209,
+      0.7674,
+      1.0
+     ]
+    }
+   },
+   {
+    "part": "Lobby_ArenaGate__GateStone_p1",
+    "material": "MAT_GateStone",
+    "tris": 9216,
+    "roblox": {
+     "Material": "Slate",
+     "Color": [
+      0.8756,
+      0.8543,
+      0.9357
+     ]
+    }
+   },
+   {
+    "part": "Lobby_ArenaGate__GateStone_p2",
+    "material": "MAT_GateStone",
+    "tris": 13824,
+    "roblox": {
+     "Material": "Slate",
+     "Color": [
+      0.8756,
+      0.8543,
+      0.9357
+     ]
+    }
+   },
+   {
+    "part": "Lobby_ArenaGate__GateStone_p3",
+    "material": "MAT_GateStone",
+    "tris": 16320,
+    "roblox": {
+     "Material": "Slate",
+     "Color": [
+      0.8756,
+      0.8543,
+      0.9357
+     ]
+    }
+   },
+   {
+    "part": "Lobby_ArenaGate__GateStone_p4",
+    "material": "MAT_GateStone",
+    "tris": 15232,
+    "roblox": {
+     "Material": "Slate",
+     "Color": [
+      0.8756,
+      0.8543,
+      0.9357
+     ]
+    }
+   },
+   {
+    "part": "Lobby_ArenaGate__GateStoneJoint",
+    "material": "MAT_GateStoneJoint",
+    "tris": 1956,
+    "roblox": {
+     "Material": "Slate",
+     "Color": [
+      0.7354,
+      0.7152,
+      0.8095
+     ]
+    }
+   },
+   {
+    "part": "Lobby_ArenaGate__Gold",
+    "material": "MAT_Gold",
+    "tris": 6108,
+    "roblox": {
+     "Material": "SmoothPlastic",
+     "Reflectance": 0.2,
+     "Color": [
+      1.0,
+      0.8095,
+      0.3811
+     ]
+    }
+   },
+   {
+    "part": "Lobby_ArenaGate__NavyCloth",
+    "material": "MAT_NavyCloth",
+    "tris": 572,
+    "roblox": {
+     "Material": "Fabric",
+     "Color": [
+      0.1517,
+      0.2478,
+      0.5657
+     ]
+    }
+   },
+   {
+    "part": "Lobby_ArenaGate__NeonCyan",
+    "material": "MAT_NeonCyan",
+    "tris": 1248,
+    "roblox": {
+     "Material": "Neon",
+     "Color": [
+      0.2478,
+      0.8808,
+      1.0
+     ]
+    }
+   },
+   {
+    "part": "Lobby_ArenaGate__NeonCyanSoft",
+    "material": "MAT_NeonCyanSoft",
+    "tris": 24,
+    "roblox": {
+     "Material": "Neon",
+     "Color": [
+      0.4845,
+      0.9063,
+      1.0
+     ]
+    }
+   },
+   {
+    "part": "Lobby_ArenaGate__PortalSwirl",
+    "material": "MAT_PortalSwirl",
+    "tris": 20,
+    "roblox": {
+     "Material": "Neon",
+     "Color": [
+      0.4236,
+      0.8808,
+      1.0
+     ]
+    }
+   },
+   {
+    "part": "Lobby_ArenaGate__Silver",
+    "material": "MAT_Silver",
+    "tris": 1064,
+    "roblox": {
+     "Material": "SmoothPlastic",
+     "Color": [
+      0.9163,
+      0.9261,
+      0.9547
+     ]
+    }
+   },
+   {
+    "part": "Lobby_ArenaGate__WhiteEmblem",
+    "material": "MAT_WhiteEmblem",
+    "tris": 2252,
+    "roblox": {
+     "Material": "SmoothPlastic",
+     "Color": [
+      0.9777,
+      0.9822,
+      1.0
+     ]
+    }
+   }
+  ],
+  "tris_total": 70540
  },
  "Lobby_PROP_BalustradeStraight": {
   "fbx": "fbx/Lobby_PROP_BalustradeStraight.fbx",
@@ -909,8 +1736,8 @@
  "Lobby_PROP_BalustradeCurved": {
   "fbx": "fbx/Lobby_PROP_BalustradeCurved.fbx",
   "size_studs": [
-   2.3,
    8.556,
+   2.3,
    4.45
   ],
   "parts": [
@@ -1248,16 +2075,17 @@
   ],
   "parts": [
    {
-    "part": "Lobby_PROP_RoadCobble__Cobble",
-    "material": "MAT_Cobble",
-    "tris": 13716,
+    "part": "Lobby_PROP_RoadCobble__CobbleTex",
+    "material": "MAT_CobbleTex",
+    "tris": 12,
     "roblox": {
      "Material": "Slate",
      "Color": [
-      0.5838,
-      0.5838,
-      0.6652
-     ]
+      1.0,
+      1.0,
+      1.0
+     ],
+     "Texture": "cobblestone"
     }
    },
    {
@@ -1271,19 +2099,6 @@
       1.0,
       0.8095,
       0.3811
-     ]
-    }
-   },
-   {
-    "part": "Lobby_PROP_RoadCobble__Grout",
-    "material": "MAT_Grout",
-    "tris": 12,
-    "roblox": {
-     "Material": "SmoothPlastic",
-     "Color": [
-      0.68,
-      0.6343,
-      0.5838
      ]
     }
    },
@@ -1314,7 +2129,7 @@
     }
    }
   ],
-  "tris_total": 14668
+  "tris_total": 952
  },
  "Lobby_PROP_FloorMarble": {
   "fbx": "fbx/Lobby_PROP_FloorMarble.fbx",

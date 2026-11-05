@@ -4,17 +4,68 @@
 --   require(game.ReplicatedStorage.Shared.LobbyAssetStyler).style(workspace.Lobby_MarbleArch)
 -- or style every imported lobby model:  ...LobbyAssetStyler.styleAll(workspace)
 
-type PartSpec = { Material: string, Color: { number }, Reflectance: number?, Transparency: number? }
+type PartSpec = { Material: string, Color: { number }, Reflectance: number?, Transparency: number?, Texture: string? }
+
+-- Upload textures/<name>_albedo.png and _normal.png (Asset Manager / Creator Hub) and paste the
+-- rbxassetid:// ids here. While empty, textured parts fall back to a plain Slate material.
+local TEXTURES: { [string]: { ColorMap: string, NormalMap: string } } = {
+	cobblestone = { ColorMap = "", NormalMap = "" },
+}
+local TEXTURE_FALLBACK_COLOR = Color3.fromRGB(110, 112, 140)
 type UnitSpec = { size: { number }, parts: { [string]: PartSpec } }
 
 local UNITS: { [string]: UnitSpec } = {
+	["Lobby_ArenaGate"] = {
+		size = { 59.9, 12.29, 23.717 },
+		parts = {
+			["Lobby_ArenaGate__BoardBar"] = { Material = "Neon", Color = { 0.6262, 0.7674, 1.0 } },
+			["Lobby_ArenaGate__CrownBronze"] = { Material = "Metal", Color = { 0.9309, 0.7014, 0.4845 } },
+			["Lobby_ArenaGate__GateCrystal"] = { Material = "Glass", Color = { 0.2209, 0.7674, 1.0 }, Transparency = 0.15 },
+			["Lobby_ArenaGate__GateStone_p1"] = { Material = "Slate", Color = { 0.8756, 0.8543, 0.9357 } },
+			["Lobby_ArenaGate__GateStone_p2"] = { Material = "Slate", Color = { 0.8756, 0.8543, 0.9357 } },
+			["Lobby_ArenaGate__GateStone_p3"] = { Material = "Slate", Color = { 0.8756, 0.8543, 0.9357 } },
+			["Lobby_ArenaGate__GateStone_p4"] = { Material = "Slate", Color = { 0.8756, 0.8543, 0.9357 } },
+			["Lobby_ArenaGate__GateStoneJoint"] = { Material = "Slate", Color = { 0.7354, 0.7152, 0.8095 } },
+			["Lobby_ArenaGate__Gold"] = { Material = "SmoothPlastic", Color = { 1.0, 0.8095, 0.3811 }, Reflectance = 0.2 },
+			["Lobby_ArenaGate__NavyCloth"] = { Material = "Fabric", Color = { 0.1517, 0.2478, 0.5657 } },
+			["Lobby_ArenaGate__NeonCyan"] = { Material = "Neon", Color = { 0.2478, 0.8808, 1.0 } },
+			["Lobby_ArenaGate__NeonCyanSoft"] = { Material = "Neon", Color = { 0.4845, 0.9063, 1.0 } },
+			["Lobby_ArenaGate__PortalSwirl"] = { Material = "Neon", Color = { 0.4236, 0.8808, 1.0 } },
+			["Lobby_ArenaGate__Silver"] = { Material = "SmoothPlastic", Color = { 0.9163, 0.9261, 0.9547 } },
+			["Lobby_ArenaGate__WhiteEmblem"] = { Material = "SmoothPlastic", Color = { 0.9777, 0.9822, 1.0 } },
+		},
+	},
+	["Lobby_CraftShop"] = {
+		size = { 15.1, 10.03, 14.625 },
+		parts = {
+			["Lobby_CraftShop__Books"] = { Material = "SmoothPlastic", Color = { 0.3133, 0.4366, 0.7674 } },
+			["Lobby_CraftShop__CanopyBlue"] = { Material = "Fabric", Color = { 0.2717, 0.41, 0.8095 } },
+			["Lobby_CraftShop__CanopyBlueEdge"] = { Material = "Fabric", Color = { 0.2717, 0.41, 0.8095 } },
+			["Lobby_CraftShop__Cork"] = { Material = "SmoothPlastic", Color = { 0.8095, 0.68, 0.5271 } },
+			["Lobby_CraftShop__CrystalPurple"] = { Material = "Glass", Color = { 0.5838, 0.2717, 1.0 }, Transparency = 0.15 },
+			["Lobby_CraftShop__Gold"] = { Material = "SmoothPlastic", Color = { 1.0, 0.8095, 0.3811 }, Reflectance = 0.2 },
+			["Lobby_CraftShop__Iron"] = { Material = "Metal", Color = { 0.3492, 0.3656, 0.4236 } },
+			["Lobby_CraftShop__LanternGlow"] = { Material = "Neon", Color = { 1.0, 0.7674, 0.3811 } },
+			["Lobby_CraftShop__Marble"] = { Material = "Marble", Color = { 0.9357, 0.9212, 0.9547 } },
+			["Lobby_CraftShop__MarbleShade"] = { Material = "Marble", Color = { 0.9063, 0.8911, 0.9453 } },
+			["Lobby_CraftShop__NeonCyan"] = { Material = "Neon", Color = { 0.2478, 0.8808, 1.0 } },
+			["Lobby_CraftShop__Parchment"] = { Material = "SmoothPlastic", Color = { 0.9686, 0.9063, 0.7858 } },
+			["Lobby_CraftShop__PotionBlue"] = { Material = "Glass", Color = { 0.2478, 0.7674, 1.0 }, Transparency = 0.15 },
+			["Lobby_CraftShop__PotionPink"] = { Material = "Glass", Color = { 1.0, 0.4614, 0.8267 }, Transparency = 0.15 },
+			["Lobby_CraftShop__PurpleGlow"] = { Material = "Neon", Color = { 0.7014, 0.4236, 1.0 } },
+			["Lobby_CraftShop__SignBlue"] = { Material = "SmoothPlastic", Color = { 0.206, 0.3035, 0.6652 } },
+			["Lobby_CraftShop__WhiteEmblem"] = { Material = "SmoothPlastic", Color = { 0.9777, 0.9822, 1.0 } },
+			["Lobby_CraftShop__WoodCrate"] = { Material = "Wood", Color = { 0.964, 0.8095, 0.5469 } },
+			["Lobby_CraftShop__WoodFrame"] = { Material = "Wood", Color = { 0.8095, 0.618, 0.3959 } },
+			["Lobby_CraftShop__WoodPlank"] = { Material = "Wood", Color = { 0.8543, 0.68, 0.4614 } },
+		},
+	},
 	["Lobby_MarbleArch"] = {
 		size = { 21.0, 10.2, 27.05 },
 		parts = {
 			["Lobby_MarbleArch__Bronze"] = { Material = "Metal", Color = { 0.7084, 0.6097, 0.4956 } },
-			["Lobby_MarbleArch__Cobble"] = { Material = "Slate", Color = { 0.5838, 0.5838, 0.6652 } },
+			["Lobby_MarbleArch__CobbleTex"] = { Material = "Slate", Color = { 1.0, 1.0, 1.0 }, Texture = "cobblestone" },
 			["Lobby_MarbleArch__Gold"] = { Material = "SmoothPlastic", Color = { 1.0, 0.8095, 0.3811 }, Reflectance = 0.2 },
-			["Lobby_MarbleArch__Grout"] = { Material = "SmoothPlastic", Color = { 0.68, 0.6343, 0.5838 } },
 			["Lobby_MarbleArch__Marble"] = { Material = "Marble", Color = { 0.9357, 0.9212, 0.9547 } },
 			["Lobby_MarbleArch__NavyCloth"] = { Material = "Fabric", Color = { 0.1517, 0.2478, 0.5657 } },
 			["Lobby_MarbleArch__NeonCyan"] = { Material = "Neon", Color = { 0.2478, 0.8808, 1.0 } },
@@ -22,95 +73,126 @@ local UNITS: { [string]: UnitSpec } = {
 			["Lobby_MarbleArch__WhiteEmblem"] = { Material = "SmoothPlastic", Color = { 0.9777, 0.9822, 1.0 } },
 		},
 	},
-	["Lobby_PED_Crystal"] = {
-		size = { 4.26, 4.26, 4.82 },
+	["Lobby_MarketShop"] = {
+		size = { 16.44, 7.502, 14.43 },
 		parts = {
-			["Lobby_PED_Crystal__Glyph_Crystal"] = { Material = "Glass", Color = { 0.3492, 0.865, 1.0 }, Transparency = 0.15 },
+			["Lobby_MarketShop__AwningRed"] = { Material = "Fabric", Color = { 0.865, 0.2209, 0.4492 } },
+			["Lobby_MarketShop__AwningWhite"] = { Material = "Fabric", Color = { 0.9777, 0.964, 0.9686 } },
+			["Lobby_MarketShop__Cork"] = { Material = "SmoothPlastic", Color = { 0.8095, 0.68, 0.5271 } },
+			["Lobby_MarketShop__CrystalPurple"] = { Material = "Glass", Color = { 0.5838, 0.2717, 1.0 }, Transparency = 0.15 },
+			["Lobby_MarketShop__Gold"] = { Material = "SmoothPlastic", Color = { 1.0, 0.8095, 0.3811 }, Reflectance = 0.2 },
+			["Lobby_MarketShop__LanternGlow"] = { Material = "Neon", Color = { 1.0, 0.8543, 0.5371 } },
+			["Lobby_MarketShop__LanternIron"] = { Material = "Metal", Color = { 0.5371, 0.4492, 0.3492 } },
+			["Lobby_MarketShop__Marble"] = { Material = "Marble", Color = { 0.9357, 0.9212, 0.9547 } },
+			["Lobby_MarketShop__Parchment"] = { Material = "SmoothPlastic", Color = { 0.9686, 0.9261, 0.821 } },
+			["Lobby_MarketShop__Potion_Blue"] = { Material = "Glass", Color = { 0.1897, 0.4614, 1.0 }, Transparency = 0.15 },
+			["Lobby_MarketShop__Potion_Cyan"] = { Material = "Glass", Color = { 0.1517, 0.9309, 1.0 }, Transparency = 0.15 },
+			["Lobby_MarketShop__Potion_Green"] = { Material = "Glass", Color = { 0.4845, 1.0, 0.3133 }, Transparency = 0.15 },
+			["Lobby_MarketShop__Potion_Pink"] = { Material = "Glass", Color = { 1.0, 0.3492, 0.8267 }, Transparency = 0.15 },
+			["Lobby_MarketShop__Potion_Purple"] = { Material = "Glass", Color = { 0.6652, 0.2209, 1.0 }, Transparency = 0.15 },
+			["Lobby_MarketShop__SignMaroon"] = { Material = "SmoothPlastic", Color = { 0.6097, 0.1897, 0.2934 } },
+			["Lobby_MarketShop__SignText"] = { Material = "SmoothPlastic", Color = { 1.0, 0.9261, 0.722 } },
+			["Lobby_MarketShop__WoodBackWall"] = { Material = "Wood", Color = { 0.5838, 0.41, 0.2478 } },
+			["Lobby_MarketShop__WoodBeam"] = { Material = "Wood", Color = { 0.6944, 0.4845, 0.2828 } },
+			["Lobby_MarketShop__WoodCrate"] = { Material = "Wood", Color = { 0.7736, 0.5838, 0.3318 } },
+			["Lobby_MarketShop__WoodCrateV"] = { Material = "Wood", Color = { 0.7736, 0.5838, 0.3318 } },
+			["Lobby_MarketShop__WoodPanel"] = { Material = "Wood", Color = { 0.6652, 0.4614, 0.2717 } },
+			["Lobby_MarketShop__WoodPost"] = { Material = "Wood", Color = { 0.6944, 0.4845, 0.2828 } },
+			["Lobby_MarketShop__bookBlue"] = { Material = "SmoothPlastic", Color = { 0.3811, 0.5371, 0.7674 } },
+			["Lobby_MarketShop__bookNavy"] = { Material = "SmoothPlastic", Color = { 0.2934, 0.3959, 0.68 } },
+			["Lobby_MarketShop__bookRed"] = { Material = "Fabric", Color = { 0.7674, 0.2717, 0.3133 } },
+			["Lobby_MarketShop__bookTeal"] = { Material = "SmoothPlastic", Color = { 0.3133, 0.5469, 0.618 } },
+		},
+	},
+	["Lobby_PED_Crystal"] = {
+		size = { 4.26, 4.26, 5.4 },
+		parts = {
+			["Lobby_PED_Crystal__Glyph_Crystal"] = { Material = "Glass", Color = { 0.3492, 0.8267, 1.0 }, Transparency = 0.15 },
 			["Lobby_PED_Crystal__PedNeon_Crystal"] = { Material = "Glass", Color = { 0.3492, 0.865, 1.0 }, Transparency = 0.15 },
 			["Lobby_PED_Crystal__PedStem_Crystal"] = { Material = "Glass", Color = { 0.3492, 0.865, 1.0 }, Transparency = 0.15 },
-			["Lobby_PED_Crystal__PedestalMarble"] = { Material = "Marble", Color = { 0.8756, 0.8543, 0.886 } },
+			["Lobby_PED_Crystal__PedestalMarble"] = { Material = "Marble", Color = { 0.8095, 0.7858, 0.821 } },
 		},
 	},
 	["Lobby_PED_Emerald"] = {
-		size = { 4.26, 4.26, 4.817 },
+		size = { 4.26, 4.26, 5.277 },
 		parts = {
-			["Lobby_PED_Emerald__Glyph_Emerald"] = { Material = "Neon", Color = { 0.4236, 0.9777, 0.6262 } },
-			["Lobby_PED_Emerald__Glyph_EmeraldVein"] = { Material = "Neon", Color = { 0.8543, 1.0, 0.7977 } },
+			["Lobby_PED_Emerald__Glyph_Emerald"] = { Material = "Neon", Color = { 0.2478, 0.9309, 0.5371 } },
+			["Lobby_PED_Emerald__Glyph_EmeraldVein"] = { Material = "Neon", Color = { 0.7977, 1.0, 0.7354 } },
 			["Lobby_PED_Emerald__PedNeon_Emerald"] = { Material = "Neon", Color = { 0.4845, 1.0, 0.6262 } },
 			["Lobby_PED_Emerald__PedStem_Emerald"] = { Material = "Neon", Color = { 0.4845, 1.0, 0.6262 } },
-			["Lobby_PED_Emerald__PedestalMarble"] = { Material = "Marble", Color = { 0.8756, 0.8543, 0.886 } },
+			["Lobby_PED_Emerald__PedestalMarble"] = { Material = "Marble", Color = { 0.8095, 0.7858, 0.821 } },
 		},
 	},
 	["Lobby_PED_Flame"] = {
-		size = { 4.26, 4.26, 4.986 },
+		size = { 4.26, 4.26, 5.479 },
 		parts = {
-			["Lobby_PED_Flame__Glyph_FlameOrange"] = { Material = "Neon", Color = { 1.0, 0.722, 0.2478 } },
-			["Lobby_PED_Flame__Glyph_FlameRed"] = { Material = "Neon", Color = { 1.0, 0.4366, 0.2478 } },
-			["Lobby_PED_Flame__Glyph_FlameYellow"] = { Material = "Neon", Color = { 1.0, 0.9453, 0.5838 } },
+			["Lobby_PED_Flame__Glyph_FlameOrange"] = { Material = "Neon", Color = { 1.0, 0.65, 0.1517 } },
+			["Lobby_PED_Flame__Glyph_FlameRed"] = { Material = "Neon", Color = { 1.0, 0.3133, 0.1517 } },
+			["Lobby_PED_Flame__Glyph_FlameYellow"] = { Material = "Neon", Color = { 1.0, 0.9063, 0.4845 } },
 			["Lobby_PED_Flame__PedNeon_Flame"] = { Material = "Neon", Color = { 1.0, 0.4845, 0.5838 } },
 			["Lobby_PED_Flame__PedStem_Flame"] = { Material = "Neon", Color = { 1.0, 0.4845, 0.5838 } },
-			["Lobby_PED_Flame__PedestalMarble"] = { Material = "Marble", Color = { 0.8756, 0.8543, 0.886 } },
+			["Lobby_PED_Flame__PedestalMarble"] = { Material = "Marble", Color = { 0.8095, 0.7858, 0.821 } },
 		},
 	},
 	["Lobby_PED_Lightning"] = {
-		size = { 4.26, 4.26, 5.11 },
+		size = { 4.26, 4.26, 5.627 },
 		parts = {
-			["Lobby_PED_Lightning__Glyph_LightningBody"] = { Material = "Neon", Color = { 0.7674, 0.4236, 1.0 } },
-			["Lobby_PED_Lightning__Glyph_LightningRim"] = { Material = "Neon", Color = { 0.9309, 0.7977, 1.0 } },
-			["Lobby_PED_Lightning__PedNeon_Lightning"] = { Material = "Neon", Color = { 0.8095, 0.4845, 1.0 } },
-			["Lobby_PED_Lightning__PedStem_Lightning"] = { Material = "Neon", Color = { 0.8095, 0.4845, 1.0 } },
-			["Lobby_PED_Lightning__PedestalMarble"] = { Material = "Marble", Color = { 0.8756, 0.8543, 0.886 } },
+			["Lobby_PED_Lightning__Glyph_LightningBody"] = { Material = "Neon", Color = { 0.5064, 0.2478, 1.0 } },
+			["Lobby_PED_Lightning__Glyph_LightningRim"] = { Material = "Neon", Color = { 0.7674, 0.65, 1.0 } },
+			["Lobby_PED_Lightning__PedNeon_Lightning"] = { Material = "Neon", Color = { 0.6097, 0.3492, 1.0 } },
+			["Lobby_PED_Lightning__PedStem_Lightning"] = { Material = "Neon", Color = { 0.6097, 0.3492, 1.0 } },
+			["Lobby_PED_Lightning__PedestalMarble"] = { Material = "Marble", Color = { 0.8095, 0.7858, 0.821 } },
 		},
 	},
 	["Lobby_PED_Orb"] = {
-		size = { 4.26, 4.26, 4.57 },
+		size = { 4.26, 4.26, 4.98 },
 		parts = {
-			["Lobby_PED_Orb__Glyph_OrbEye"] = { Material = "Neon", Color = { 1.0, 0.7674, 0.9777 } },
+			["Lobby_PED_Orb__Glyph_OrbEye"] = { Material = "Neon", Color = { 1.0, 0.6652, 0.9547 } },
 			["Lobby_PED_Orb__Glyph_OrbPupil"] = { Material = "SmoothPlastic", Color = { 0.5371, 0.2478, 0.6652 } },
-			["Lobby_PED_Orb__Glyph_OrbRing"] = { Material = "Neon", Color = { 0.9063, 0.5371, 1.0 } },
+			["Lobby_PED_Orb__Glyph_OrbRing"] = { Material = "Neon", Color = { 0.8543, 0.3811, 1.0 } },
 			["Lobby_PED_Orb__PedNeon_Orb"] = { Material = "Neon", Color = { 0.9309, 0.5371, 1.0 } },
 			["Lobby_PED_Orb__PedStem_Orb"] = { Material = "Neon", Color = { 0.9309, 0.5371, 1.0 } },
-			["Lobby_PED_Orb__PedestalMarble"] = { Material = "Marble", Color = { 0.8756, 0.8543, 0.886 } },
+			["Lobby_PED_Orb__PedestalMarble"] = { Material = "Marble", Color = { 0.8095, 0.7858, 0.821 } },
 		},
 	},
 	["Lobby_PED_Shield"] = {
-		size = { 4.26, 4.26, 4.82 },
+		size = { 4.26, 4.26, 5.28 },
 		parts = {
-			["Lobby_PED_Shield__Glyph_ShieldFace"] = { Material = "Neon", Color = { 1.0, 0.8543, 0.4236 } },
+			["Lobby_PED_Shield__Glyph_ShieldFace"] = { Material = "Neon", Color = { 1.0, 0.8095, 0.3133 } },
 			["Lobby_PED_Shield__Glyph_ShieldGold"] = { Material = "SmoothPlastic", Color = { 1.0, 0.7977, 0.3492 }, Reflectance = 0.2 },
-			["Lobby_PED_Shield__Glyph_ShieldStar"] = { Material = "Neon", Color = { 1.0, 0.9777, 0.8543 } },
+			["Lobby_PED_Shield__Glyph_ShieldStar"] = { Material = "Neon", Color = { 1.0, 0.964, 0.7977 } },
 			["Lobby_PED_Shield__PedNeon_Shield"] = { Material = "Neon", Color = { 1.0, 0.8095, 0.3492 } },
 			["Lobby_PED_Shield__PedStem_Shield"] = { Material = "Neon", Color = { 1.0, 0.8095, 0.3492 } },
-			["Lobby_PED_Shield__PedestalMarble"] = { Material = "Marble", Color = { 0.8756, 0.8543, 0.886 } },
+			["Lobby_PED_Shield__PedestalMarble"] = { Material = "Marble", Color = { 0.8095, 0.7858, 0.821 } },
 		},
 	},
 	["Lobby_PED_Sun"] = {
-		size = { 4.26, 4.26, 4.911 },
+		size = { 4.26, 4.26, 5.389 },
 		parts = {
-			["Lobby_PED_Sun__Glyph_SunCore"] = { Material = "Neon", Color = { 1.0, 0.9309, 0.6262 } },
+			["Lobby_PED_Sun__Glyph_SunCore"] = { Material = "Neon", Color = { 1.0, 0.9063, 0.5838 } },
 			["Lobby_PED_Sun__Glyph_SunGold"] = { Material = "SmoothPlastic", Color = { 1.0, 0.8095, 0.3811 }, Reflectance = 0.2 },
 			["Lobby_PED_Sun__PedNeon_Sun"] = { Material = "Neon", Color = { 1.0, 0.865, 0.4614 } },
 			["Lobby_PED_Sun__PedStem_Sun"] = { Material = "Neon", Color = { 1.0, 0.865, 0.4614 } },
-			["Lobby_PED_Sun__PedestalMarble"] = { Material = "Marble", Color = { 0.8756, 0.8543, 0.886 } },
+			["Lobby_PED_Sun__PedestalMarble"] = { Material = "Marble", Color = { 0.8095, 0.7858, 0.821 } },
 		},
 	},
 	["Lobby_PED_Wind"] = {
-		size = { 4.26, 4.26, 4.935 },
+		size = { 4.26, 4.26, 5.418 },
 		parts = {
-			["Lobby_PED_Wind__Glyph_Wind"] = { Material = "Neon", Color = { 0.7354, 0.9163, 1.0 } },
+			["Lobby_PED_Wind__Glyph_Wind"] = { Material = "Neon", Color = { 0.5371, 0.7977, 1.0 } },
 			["Lobby_PED_Wind__PedNeon_Wind"] = { Material = "Neon", Color = { 0.5371, 0.8267, 1.0 } },
 			["Lobby_PED_Wind__PedStem_Wind"] = { Material = "Neon", Color = { 0.5371, 0.8267, 1.0 } },
-			["Lobby_PED_Wind__PedestalMarble"] = { Material = "Marble", Color = { 0.8756, 0.8543, 0.886 } },
+			["Lobby_PED_Wind__PedestalMarble"] = { Material = "Marble", Color = { 0.8095, 0.7858, 0.821 } },
 		},
 	},
 	["Lobby_PED_Wings"] = {
-		size = { 4.26, 4.26, 4.258 },
+		size = { 4.26, 4.26, 4.605 },
 		parts = {
-			["Lobby_PED_Wings__Glyph_Wings"] = { Material = "Neon", Color = { 0.8808, 0.9309, 1.0 } },
-			["Lobby_PED_Wings__Glyph_WingsGem"] = { Material = "Neon", Color = { 0.5838, 0.9063, 1.0 } },
+			["Lobby_PED_Wings__Glyph_Wings"] = { Material = "Neon", Color = { 0.8543, 0.9163, 1.0 } },
+			["Lobby_PED_Wings__Glyph_WingsGem"] = { Material = "Neon", Color = { 0.3492, 0.8543, 1.0 } },
 			["Lobby_PED_Wings__PedNeon_Wings"] = { Material = "Neon", Color = { 0.8543, 0.9309, 1.0 } },
 			["Lobby_PED_Wings__PedStem_Wings"] = { Material = "Neon", Color = { 0.8543, 0.9309, 1.0 } },
-			["Lobby_PED_Wings__PedestalMarble"] = { Material = "Marble", Color = { 0.8756, 0.8543, 0.886 } },
+			["Lobby_PED_Wings__PedestalMarble"] = { Material = "Marble", Color = { 0.8095, 0.7858, 0.821 } },
 		},
 	},
 	["Lobby_PROP_BalustradeCorner"] = {
@@ -121,7 +203,7 @@ local UNITS: { [string]: UnitSpec } = {
 		},
 	},
 	["Lobby_PROP_BalustradeCurved"] = {
-		size = { 2.3, 8.556, 4.45 },
+		size = { 8.556, 2.3, 4.45 },
 		parts = {
 			["Lobby_PROP_BalustradeCurved__Gold"] = { Material = "SmoothPlastic", Color = { 1.0, 0.8095, 0.3811 }, Reflectance = 0.2 },
 			["Lobby_PROP_BalustradeCurved__Marble"] = { Material = "Marble", Color = { 0.9357, 0.9212, 0.9547 } },
@@ -192,9 +274,8 @@ local UNITS: { [string]: UnitSpec } = {
 	["Lobby_PROP_RoadCobble"] = {
 		size = { 14.0, 16.0, 0.93 },
 		parts = {
-			["Lobby_PROP_RoadCobble__Cobble"] = { Material = "Slate", Color = { 0.5838, 0.5838, 0.6652 } },
+			["Lobby_PROP_RoadCobble__CobbleTex"] = { Material = "Slate", Color = { 1.0, 1.0, 1.0 }, Texture = "cobblestone" },
 			["Lobby_PROP_RoadCobble__Gold"] = { Material = "SmoothPlastic", Color = { 1.0, 0.8095, 0.3811 }, Reflectance = 0.2 },
-			["Lobby_PROP_RoadCobble__Grout"] = { Material = "SmoothPlastic", Color = { 0.68, 0.6343, 0.5838 } },
 			["Lobby_PROP_RoadCobble__MarbleShade"] = { Material = "Marble", Color = { 0.9063, 0.8911, 0.9453 } },
 			["Lobby_PROP_RoadCobble__NeonCyan"] = { Material = "Neon", Color = { 0.2478, 0.8808, 1.0 } },
 		},
@@ -244,6 +325,18 @@ local function applyPart(part: BasePart, spec: PartSpec)
 	part.Reflectance = spec.Reflectance or 0
 	part.Transparency = spec.Transparency or 0
 	part.Anchored = true
+	if spec.Texture then
+		local tex = TEXTURES[spec.Texture]
+		if tex and tex.ColorMap ~= "" then
+			local sa = part:FindFirstChildOfClass("SurfaceAppearance") or Instance.new("SurfaceAppearance")
+			sa.ColorMap = tex.ColorMap
+			sa.NormalMap = tex.NormalMap
+			sa.Parent = part
+		else
+			part.Material = Enum.Material.Slate
+			part.Color = TEXTURE_FALLBACK_COLOR
+		end
+	end
 	if spec.Material == "Neon" then
 		part.CastShadow = false
 	end

@@ -91,6 +91,95 @@ From the lobby screenshots:
 - the chain to the arches (its attachment points are cut off in every view)
 - the step count (3, from the wide plaza view)
 
+## Asset 02 — Ability pedestals and glyphs
+
+One marble pedestal is shared by every ability: base plinth with a glowing groove and edge ring, drum, overhanging top rim, and a neon groove in the top face. Each ability has its own neon colour.
+
+Nine glyphs, all solid geometry with bevels, each standing edge-on on a thin stem:
+- **Five from the pedestal sheet:** crystal cluster, lightning bolt with neon outline, shield with star, three-layer flame, four-blade wind spiral.
+- **Four extras from the lobby images:** emerald leaf crest, gold compass sun, purple eye-orb, white wings.
+
+**Not built:** the red phoenix. It is too unclear in every lobby image to reconstruct reliably.
+
+**Reference inconsistencies:** the shield has a star in row 1 of the sheet but not in row 3 (row 1 followed). The wind spiral shows 3 or 4 blades depending on the view (4 used).
+
+**Estimated:** glyph thickness, the hidden backs (mirrored), and ring radii.
+
+**Fixes:** lightning changed from magenta to violet; wind tinted pale cyan; beauty shot widened.
+
+Exported as nine Roblox models, `Lobby_PED_<Ability>`.
+
+## Asset 03 — Market shop
+
+**From the sheet:** about 16 × 14 studs.
+- 10-stripe red and white awning with a rolled front edge and scalloped valance
+- gold-framed maroon MARKET SHOP sign with laurel sprigs
+- two hanging lanterns
+- shelf holding a crystal, books, a scroll and a chest
+- five potions (purple, blue, pink, cyan, green)
+- X-braced counter panels, marble post bases, side crates, knee braces
+
+**Estimated:** depth of about 4.2 studs between post centres (from the side view), the plank back wall, the ridge end caps, the hip side flaps and the sign struts.
+
+**Inconsistency:** the side view shows a single-slope canopy, while the front view implies a hipped roof. Built as a single slope with hip side flaps.
+
+**Fixes:** wood darkened, back board added (light was showing through), black flicker from overlapping faces removed, purple and blue potions separated from pink and cyan.
+
+## Asset 04 — Craft shop
+
+This is a separate structure, not a recoloured market shop.
+- tiled marble plinth; staggered-block marble back wall and side piers
+- wooden frame with knee braces and gold diamond plates
+- blue tonal-striped hip canopy with a gold crenellated valance
+- ridge beam with end blocks
+- royal-blue CRAFT SHOP sign with gold frame
+- plank counter; wall shelves with books and scrolls
+- hanging hammer and pickaxe
+- violet crystal cluster on a glow ring
+- anvil on a gold-trimmed block with a cyan rune
+- two potions, an X-braced crate and two lanterns on iron arms
+
+**Estimated:** 9.5-stud depth and the rear.
+
+**Inconsistency:** the front view puts the posts inside the pier edge, the 3/4 view on the outer corner. The front view was followed.
+
+**Fixes:** sign and canopy blues deepened; crystal emission lowered, because it was clipping to pink.
+
+## Asset 05 — Arena entrance gate
+
+**From the facade sheet's front view:** about 59.9 × 23.7 studs, with a wall about 12 studs deep including the towers.
+- block-course lavender marble with crenellations
+- outer towers and inner pillars with inset neon strips, gold bands and crystal finials
+- gable with a centre crystal
+- genuine thick hex portal: 16.4 wide × 12.6 tall, marble frame, inset neon hex, swirling energy surface
+- crystal sconces, steps with neon risers
+- ENTER THE ARENA sign
+- MOST KILLS and TOP TIME boards with gold, silver and bronze crown models
+- star banners
+
+**Estimated:** depths and the plain rear.
+
+**Inconsistencies:**
+- The lobby images show a castle behind the gate; the sheet was followed.
+- The brief said the portal is about 16 tall; on the sheet it is 16 *wide*, so the sheet's proportions were used.
+
+**Roblox caveat:** the portal swirl is a procedural Blender shader. In Roblox it becomes a flat Neon hex until a swirl texture is baked.
+
+## Export summary (from `export_roblox.py`, re-imported into Blender to verify)
+
+| Model | MeshParts | Triangles | Size, studs (X × Y × Z, Z up) |
+|---|---|---|---|
+| Lobby_MarbleArch | 8 | 9,404 | 21.0 × 10.2 × 27.0 |
+| Lobby_PED_* (9 variants) | 4–6 each | 5.3k–8.4k each | 4.3 × 4.3 × 4.6–5.6 |
+| Lobby_MarketShop | 26 | 36,986 | 16.4 × 7.5 × 14.4 |
+| Lobby_CraftShop | 20 | 30,768 | 15.1 × 10.0 × 14.6 |
+| Lobby_ArenaGate | 15 | 70,540 | 59.9 × 12.3 × 23.7 |
+| Lobby_PROP_* (15 props) | 1–6 each | 0.3k–15.7k each | see `fbx/roblox_manifest.json` |
+
+Every MeshPart is under 18k triangles. All 28 FBX files import back with UVs and the expected dimensions.
+
+The shops and gate are deliberately unoptimised (fidelity first, as the brief asked). Decimation or LODs should wait until the models are approved.
+
 ## Roblox pipeline
 
 `export_roblox.py` works like this:
