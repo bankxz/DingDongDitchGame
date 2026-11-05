@@ -151,8 +151,10 @@ def prop_balustrade_curved(c, R=16.0, span=30):
     for k in range(n):
         a = a0 + ga + (a1 - a0 - 2 * ga) * (k + 0.5) / n
         o.append(lathe(f"PROP_BalCurve_Bal_{k}", BAL_PROF, 12, M, c, (R * math.cos(a), R * math.sin(a), 0.55)))
-    for ob in o:   # recentre so the module origin is on the arc midpoint
-        ob.location.x -= R
+    for ob in o:   # recentre on the arc midpoint, then turn so the run follows +X like the straight module
+        x, y = ob.location.x - R, ob.location.y
+        ob.location.x, ob.location.y = -y, x
+        ob.rotation_euler.z += math.pi / 2
     return o
 
 
