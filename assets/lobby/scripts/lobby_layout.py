@@ -50,8 +50,8 @@ MODE_PORTAL_Y = (53.0, 73.0)    # DUELS / PRACTICE portal centres on the west te
 PORTAL_BACK_TO_PLANE = 3.5      # mode portal: bbox back (plinth back) -> portal plane (asset 07 local y=0)
 PORTAL_TRIGGER_CZ = 6.0
 # background castle islands: (x, y, z bottom, yaw, scale) - far enough to read as sky dressing
-CASTLES = [(-115.0, 35.0, -22.0, 25.0, 1.0), (125.0, 95.0, -6.0, -35.0, 0.8), (-78.0, 165.0, 20.0, 30.0, 0.7),
-           (105.0, -45.0, -30.0, -120.0, 0.7), (82.0, 175.0, 24.0, -20.0, 0.75), (-60.0, -95.0, -40.0, 150.0, 0.55)]
+CASTLES = [(-115.0, 35.0, -22.0, 25.0, 1.0), (125.0, 95.0, -6.0, -35.0, 0.8), (-92.0, 107.0, 24.0, 35.0, 0.6),
+           (105.0, -45.0, -30.0, -120.0, 0.7), (92.0, 107.0, 33.0, -35.0, 0.6), (-60.0, -95.0, -40.0, 150.0, 0.55)]
 
 ROOT_BLEND = L.BLEND
 UNIT_SOURCES = {
@@ -420,12 +420,19 @@ def render_previews():
         ("lobby_aerial_view", L.camera("CAM_aerial", (-95.0, -45.0, 85.0), (6.0, 70.0, 0.0), lens=26), (1600, 900)),
         ("lobby_rear_view", L.camera("CAM_rear", (0.0, 178.0, 70.0), (0.0, 40.0, 0.0), lens=24), (1600, 900)),
     ]
+    only = next((a.split("=", 1)[1].split(",") for a in sys.argv if a.startswith("--views=")), None)
     out = []
     for name, cam, res in views:
-        out.append((name.replace("lobby_", "").replace("_", " "), L.render(cam, os.path.join(L.RENDERS, f"{name}.png"), res)))
+        path = os.path.join(L.RENDERS, f"{name}.png")
+        if only is None or name.replace("lobby_", "").replace("_view", "") in only or not os.path.exists(path):
+            L.render(cam, path, res)
+        out.append((name.replace("lobby_", "").replace("_", " "), path))
     plan = L.camera("CAM_plan", (0, 70, 400), (0, 70, 0), ortho=170)
     plan.rotation_euler = (0, 0, 0)
-    out.append(("plan (top ortho)", L.render(plan, os.path.join(L.RENDERS, "lobby_plan_view.png"), (1100, 1100))))
+    pp = os.path.join(L.RENDERS, "lobby_plan_view.png")
+    if only is None or "plan" in only:
+        L.render(plan, pp, (1100, 1100))
+    out.append(("plan (top ortho)", pp))
     L.contact_sheet(out, os.path.join(L.RENDERS, "lobby_assembly_sheet.png"), cols=2, tile=800,
                     title="ASSEMBLED LOBBY MAP - Blender Cycles renders")
 

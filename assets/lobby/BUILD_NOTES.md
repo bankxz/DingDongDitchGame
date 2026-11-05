@@ -220,7 +220,35 @@ Blender-only shading (procedural marble veins, wood grain, stripe patterns, emis
 **Choices that depart from the references:**
 - The road is 5 arch bays long; the spawn reference shows roughly that many before the gate.
 - The pedestals fill 3 bays per side rather than running all the way to the gate, because there are only 9 glyph variants.
-- The west terrace has no counterpart in the references. It exists so the balustrade module grid closes on both sides.
-- Not modelled yet: the background floating castle islands and clouds (reference 5).
+- The west terrace has no counterpart in the references. It exists so the balustrade module grid closes on both sides, and it now holds the two mode portals.
 
 The same layout is written to `src/shared/LobbyLayout.luau` for a future Studio assembly. No Studio assembler has been written yet.
+
+## Asset 07 — Mode portals: DUELS (red) and PRACTICE (yellow)
+
+There is no reference for these. They reuse the arena gate's construction rather than a new design: same hex portal build (marble frame, darker lip, neon ring, swirl surface), block-course plinth, steps with neon risers, pillars with neon strips, gold bands and crystal finials, gold-framed navy sign with white lettering, and hanging banners.
+
+Only two things change per mode:
+- **Accent colour** (your choice): Duels red, Practice yellow. The yellow is kept brighter and more saturated than the gold trim so they stay distinct.
+- **Medallion emblem:** crossed swords for Duels, a bullseye for Practice.
+
+Each portal is about 16 × 10.7 × 17.4 studs, smaller than the arena gate so the arena stays the main landmark.
+
+**Fixes:** emission lowered (strong emission was clipping red to pink and yellow to white); the lintel end face no longer sits flush with the pillar face, which caused flicker.
+
+**In the lobby:** both portals sit on the west terrace, facing the road and opposite the shops. In front of each is an invisible trigger volume, `DuelsTeleportZone` / `PracticeTeleportZone`. These are wireframe boxes in the .blend, and they're also listed in `LobbyLayout.luau`. **The teleport scripting itself (TeleportService to the Duels and Practice places) is not written.**
+
+## Asset 08 — Floating castle island (reference image 5)
+
+About 64 × 44 × 61 studs and 24.4k triangles.
+- voxel island: green ground slab (no grass, trees or flowers, per the brief), stepped lavender-stone underside, floating cubes
+- blocky waterfall
+- white marble keep and four towers with stepped blue pyramid roofs, cyan crystal finials and red pennants
+- crenellations with gold bands, glowing arched windows, star banners
+- lit doorway, stairs with cyan risers, four lanterns
+
+**Estimated:** the depth and rear of the castle (never shown in any reference), and the voxel layout of the underside.
+
+**Simplified:** walls are plain marble without individual block seams, to stay within the triangle budget.
+
+**In the lobby:** six copies float in the sky at different scales and rotations. Two are positioned to show in the spawn view, as in the main reference.
