@@ -359,11 +359,12 @@ def build(P, root):
                               wood_frame, 0.05, c=C["Props"]))
     for sz_ in (-1, 1):
         for sy_ in (-1, 1):
-            objs.append(L.box(f"CRF_CrateEdgeX_{sz_}{sy_}", (cw, t, t), (ccx, ccy + sy_ * (cd / 2 - t / 2),
+            # horizontal edges fit BETWEEN the corner posts (full-length ends z-fought -> black corner dots)
+            objs.append(L.box(f"CRF_CrateEdgeX_{sz_}{sy_}", (cw - 2 * t + 0.01, t, t), (ccx, ccy + sy_ * (cd / 2 - t / 2),
                                                                          ccz + sz_ * (chh / 2 - t / 2)),
                               wood_frame, 0.05, c=C["Props"]))
         for sx in (-1, 1):
-            objs.append(L.box(f"CRF_CrateEdgeY_{sz_}{sx}", (t, cd, t), (ccx + sx * (cw / 2 - t / 2), ccy,
+            objs.append(L.box(f"CRF_CrateEdgeY_{sz_}{sx}", (t, cd - 2 * t + 0.01, t), (ccx + sx * (cw / 2 - t / 2), ccy,
                                                                         ccz + sz_ * (chh / 2 - t / 2)),
                               wood_frame, 0.05, c=C["Props"]))
     # X on front, back and both sides: ONE merged solid per face, clipped to the frame opening,
