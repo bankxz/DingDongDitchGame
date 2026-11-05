@@ -345,7 +345,7 @@ def build_castle(C):
     # door passage side walls (so the recess reads as a corridor)
     for sx in (-1, 1):
         objs.append(bx(f"FC_Door_Jamb{sx}", (0.3, wy1 - wy0 + 0.4, DOOR_H), (DOOR_X + sx * (DOOR_W / 2 + 0.15),
-                       (wy0 + wy1) / 2 + 0.2, z0 + DOOR_H / 2), M["stone_dark"], C["Castle"], 0.03))
+                       (wy0 + wy1) / 2 + 0.2, z0 + DOOR_H / 2), M["door"], C["Castle"], 0.03))   # warm-lit corridor
     objs.append(bx("FC_Door_Floor", (DOOR_W, wy1 - wy0 + 0.4, 0.1), (DOOR_X, (wy0 + wy1) / 2 + 0.2, z0 + 0.05),
                    M["stone_dark"], C["Castle"], 0.0))
     # front-wall banners flanking the entrance, windows left of the keep
@@ -423,7 +423,7 @@ def main(do_render=True):
             bpy.data.objects.remove(ob)
     L.beauty_lights()
     L.setup_render((900, 506), 28)
-    cam = L.camera("CAM_refmatch", (-44.0, -98.0, 26.0), (1.0, 0.0, 4.0), lens=42)
+    cam = L.camera("CAM_refmatch", (-46.0, -104.0, 30.0), (1.0, 0.0, 7.5), lens=40)
     items.append(("refmatch_3q (sky)", L.render(cam, os.path.join(L.RENDERS, "castle_refmatch.png"))))
     cam = L.camera("CAM_beauty", (60.0, -100.0, 4.0), (0.0, 0.0, 3.0), lens=40)
     items.append(("beauty_low_right (sky)", L.render(cam, os.path.join(L.RENDERS, "castle_beauty.png"))))
