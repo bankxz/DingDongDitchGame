@@ -2877,8 +2877,8 @@
  "Lobby_FloatingCastle": {
   "fbx": "fbx/Lobby_FloatingCastle.fbx",
   "size_studs": [
-   167.494,
-   164.458,
+   158.52,
+   158.131,
    147.68
   ],
   "parts": [
@@ -2893,19 +2893,6 @@
       0.3492,
       0.9309,
       1.0
-     ]
-    }
-   },
-   {
-    "part": "Lobby_FloatingCastle__CastleMortar",
-    "material": "MAT_CastleMortar",
-    "tris": 180,
-    "roblox": {
-     "Material": "SmoothPlastic",
-     "Color": [
-      0.8323,
-      0.8095,
-      0.886
      ]
     }
    },
@@ -2952,7 +2939,7 @@
    {
     "part": "Lobby_FloatingCastle__IslandRock",
     "material": "MAT_IslandRock",
-    "tris": 5532,
+    "tris": 9432,
     "roblox": {
      "Material": "SmoothPlastic",
      "Color": [
@@ -2978,7 +2965,7 @@
    {
     "part": "Lobby_FloatingCastle__Marble",
     "material": "MAT_Marble",
-    "tris": 15000,
+    "tris": 8436,
     "roblox": {
      "Material": "Marble",
      "Color": [
@@ -3067,6 +3054,20 @@
     }
    },
    {
+    "part": "Lobby_FloatingCastle__Tex_castle_brick",
+    "material": "MAT_Tex_castle_brick",
+    "tris": 244,
+    "roblox": {
+     "Material": "SmoothPlastic",
+     "Color": [
+      1.0,
+      1.0,
+      1.0
+     ],
+     "Texture": "castle_brick"
+    }
+   },
+   {
     "part": "Lobby_FloatingCastle__WarmInterior",
     "material": "MAT_WarmInterior",
     "tris": 12,
@@ -3119,6 +3120,6 @@
     }
    }
   ],
-  "tris_total": 32612
+  "tris_total": 30012
  }
 }

@@ -6,9 +6,10 @@
 
 type PartSpec = { Material: string, Color: { number }, Reflectance: number?, Transparency: number?, Texture: string? }
 
--- Upload textures/<name>_albedo.png and _normal.png (Asset Manager / Creator Hub) and paste the
+-- Upload textures/<name>_albedo.png and _normal.png (one pair per entry below) (Asset Manager / Creator Hub) and paste the
 -- rbxassetid:// ids here. While empty, textured parts fall back to a plain Slate material.
 local TEXTURES: { [string]: { ColorMap: string, NormalMap: string } } = {
+	castle_brick = { ColorMap = "", NormalMap = "" },
 	cobblestone = { ColorMap = "", NormalMap = "" },
 }
 local TEXTURE_FALLBACK_COLOR = Color3.fromRGB(110, 112, 140)
@@ -82,10 +83,9 @@ local UNITS: { [string]: UnitSpec } = {
 		},
 	},
 	["Lobby_FloatingCastle"] = {
-		size = { 167.494, 164.458, 147.68 },
+		size = { 158.52, 158.131, 147.68 },
 		parts = {
 			["Lobby_FloatingCastle__CastleCrystal"] = { Material = "Glass", Color = { 0.3492, 0.9309, 1.0 }, Transparency = 0.15 },
-			["Lobby_FloatingCastle__CastleMortar"] = { Material = "SmoothPlastic", Color = { 0.8323, 0.8095, 0.886 } },
 			["Lobby_FloatingCastle__Gold"] = { Material = "SmoothPlastic", Color = { 1.0, 0.8095, 0.3811 }, Reflectance = 0.2 },
 			["Lobby_FloatingCastle__GroundGreen"] = { Material = "SmoothPlastic", Color = { 0.4845, 0.7858, 0.3133 } },
 			["Lobby_FloatingCastle__GroundGreenLight"] = { Material = "SmoothPlastic", Color = { 0.6012, 0.8543, 0.3811 } },
@@ -98,6 +98,7 @@ local UNITS: { [string]: UnitSpec } = {
 			["Lobby_FloatingCastle__PennantRed"] = { Material = "Fabric", Color = { 0.9309, 0.2209, 0.2478 } },
 			["Lobby_FloatingCastle__RoofBlue"] = { Material = "SmoothPlastic", Color = { 0.1897, 0.3492, 0.8095 } },
 			["Lobby_FloatingCastle__RoofBlueDark"] = { Material = "SmoothPlastic", Color = { 0.1517, 0.2717, 0.7014 } },
+			["Lobby_FloatingCastle__Tex_castle_brick"] = { Material = "SmoothPlastic", Color = { 1.0, 1.0, 1.0 }, Texture = "castle_brick" },
 			["Lobby_FloatingCastle__WarmInterior"] = { Material = "Neon", Color = { 1.0, 0.7674, 0.4614 } },
 			["Lobby_FloatingCastle__WaterfallCyan"] = { Material = "Neon", Color = { 0.5371, 0.9309, 1.0 } },
 			["Lobby_FloatingCastle__WhiteEmblem"] = { Material = "SmoothPlastic", Color = { 0.9777, 0.9822, 1.0 } },
