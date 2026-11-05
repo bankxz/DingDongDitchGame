@@ -201,3 +201,26 @@ The styler sets Material, Color, Reflectance and Transparency: Marble → `Marbl
 **Not yet verified in Studio.** There is no Roblox Studio in this cloud environment. Import, scale and appearance must be checked on a machine with Studio.
 
 Blender-only shading (procedural marble veins, wood grain, stripe patterns, emission bloom) does not carry over to Roblox. There it is approximated by Roblox materials and Neon. Baking these to SurfaceAppearance textures is the next step if closer texture fidelity is needed.
+
+## Lobby map assembly (Blender)
+
+`scripts/lobby_layout.py` builds `blend/lobby_assembled.blend`. Every finished asset is pulled from its own `.blend` as a collection instance, so edits to an asset carry through to the map when the script is re-run. It renders `renders/lobby_*.png`, collected in `lobby_assembly_sheet.png`.
+
+**Layout,** taken from the spawn-view, aerial and plaza references:
+- The spawn plaza is at the south. A curved balustrade sits on its curb.
+- Five cobble road tiles run north to the arena gate.
+- Five mirrored arch pairs span the road every 16 studs, and the EVENTS banner hangs from the first pair.
+- Nine ability pedestals stand between the arch columns, angled toward the spawn.
+- The market and craft shops sit on an east terrace. A west overlook terrace holds planters and lanterns.
+- Lantern posts flank both ends of the road.
+- The floating island has a marble deck, a gold edge band and a stepped underside.
+- The balustrade runs around the whole perimeter. Every straight edge is 12 + 10n studs long, so the modules fit with no gaps or overlaps. The one exception is the plaza shoulder module, stretched 9%.
+- Box figures 5 studs tall stand in several areas as player-scale references.
+
+**Choices that depart from the references:**
+- The road is 5 arch bays long; the spawn reference shows roughly that many before the gate.
+- The pedestals fill 3 bays per side rather than running all the way to the gate, because there are only 9 glyph variants.
+- The west terrace has no counterpart in the references. It exists so the balustrade module grid closes on both sides.
+- Not modelled yet: the background floating castle islands and clouds (reference 5).
+
+The same layout is written to `src/shared/LobbyLayout.luau` for a future Studio assembly. No Studio assembler has been written yet.

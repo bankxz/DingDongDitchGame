@@ -379,7 +379,7 @@ def render_previews():
     views = [
         ("lobby_spawn_view", L.camera("CAM_spawn", (0, -11.0, 9.0), (0, 60, 7.0), lens=20), (1600, 900)),
         ("lobby_abilities_view", L.camera("CAM_abil", (-2.0, 17.0, 6.0), (-13.0, 48.0, 2.5), lens=24), (1600, 900)),
-        ("lobby_shops_view", L.camera("CAM_shops", (14.0, 38.0, 8.0), (37.0, 66.0, 4.0), lens=24), (1600, 900)),
+        ("lobby_shops_view", L.camera("CAM_shops", (24.0, 30.0, 8.0), (37.0, 64.0, 4.0), lens=24), (1600, 900)),
         ("lobby_plaza_view", L.camera("CAM_plaza", (-13.0, -12.0, 10.0), (12.0, 55.0, 4.0), lens=18), (1600, 900)),
         ("lobby_aerial_view", L.camera("CAM_aerial", (-95.0, -45.0, 85.0), (6.0, 70.0, 0.0), lens=26), (1600, 900)),
         ("lobby_rear_view", L.camera("CAM_rear", (0.0, 178.0, 70.0), (0.0, 40.0, 0.0), lens=24), (1600, 900)),
