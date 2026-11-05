@@ -6,8 +6,8 @@ portal construction (marble frame, darker lip, neon ring, swirling energy surfac
 block-course marble plinth, neon-riser steps, neon-strip pillars with crystal finials,
 gold-framed navy sign with white 3D lettering, and hanging banners.  Only the accent
 colour and the medallion emblem change per mode so players can tell them apart:
-  DUELS     red-orange neon / swirl / crystals, crossed-swords medallion
-  PRACTICE  emerald neon / swirl / crystals, bullseye-target medallion
+  DUELS     red neon / swirl / crystals, crossed-swords medallion
+  PRACTICE  yellow neon / swirl / crystals, bullseye-target medallion
 Each portal is about 16 studs wide and 17 tall (a smaller sibling of the 16 x 12.6 arena
 portal: these are side destinations, the arena stays the hero landmark).
 Front faces -Y, centred on x = 0, floor at z = 0.
@@ -35,12 +35,14 @@ SIGN_W, SIGN_H, SIGN_CZ = 10.6, 2.5, 13.55
 N_STEPS, STEP_H, STEP_D, STEP_W = 3, PLINTH_Z[1] / 3, 1.2, 8.0
 
 MODES = {
-    "Duels": dict(neon=(1.0, 0.16, 0.05), crystal=(1.0, 0.22, 0.10), cloth=(0.36, 0.02, 0.05),
-                  swirl=[(0.0, (0.35, 0.01, 0.0)), (0.55, (1.0, 0.25, 0.02)), (0.8, (1.0, 0.85, 0.45)),
-                         (0.9, (0.95, 0.12, 0.02))], core=(1.0, 0.65, 0.3), text="DUELS", emblem="swords"),
-    "Practice": dict(neon=(0.10, 1.0, 0.30), crystal=(0.15, 1.0, 0.45), cloth=(0.02, 0.20, 0.09),
-                     swirl=[(0.0, (0.0, 0.22, 0.06)), (0.55, (0.12, 0.95, 0.35)), (0.8, (0.75, 1.0, 0.8)),
-                            (0.9, (0.05, 0.75, 0.25))], core=(0.6, 1.0, 0.7), text="PRACTICE", emblem="target"),
+    # DUELS = red
+    "Duels": dict(neon=(1.0, 0.03, 0.03), crystal=(1.0, 0.06, 0.06), cloth=(0.30, 0.01, 0.02),
+                  swirl=[(0.0, (0.30, 0.0, 0.0)), (0.55, (1.0, 0.05, 0.03)), (0.8, (1.0, 0.55, 0.5)),
+                         (0.9, (0.85, 0.02, 0.02))], core=(1.0, 0.45, 0.4), text="DUELS", emblem="swords"),
+    # PRACTICE = yellow (brighter / more saturated than the gold trim so the two stay distinct)
+    "Practice": dict(neon=(1.0, 0.80, 0.0), crystal=(1.0, 0.85, 0.05), cloth=(0.42, 0.24, 0.0),
+                     swirl=[(0.0, (0.40, 0.22, 0.0)), (0.55, (1.0, 0.78, 0.0)), (0.8, (1.0, 0.97, 0.6)),
+                            (0.9, (0.95, 0.65, 0.0))], core=(1.0, 0.95, 0.55), text="PRACTICE", emblem="target"),
 }
 
 
