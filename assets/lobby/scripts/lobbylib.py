@@ -12,6 +12,7 @@ ROOT = os.path.dirname(HERE)                      # assets/lobby
 RENDERS = os.path.join(ROOT, "renders")
 BLEND = os.path.join(ROOT, "blend")
 FBX = os.path.join(ROOT, "fbx")
+TEXTURES_DIR = os.path.join(ROOT, "textures")
 FONT_BLACK = "/usr/share/fonts/opentype/inter/Inter-Black.otf"
 FONT_XBOLD = "/usr/share/fonts/opentype/inter/Inter-ExtraBold.otf"
 
@@ -373,33 +374,85 @@ def varied(name, colors, rough=0.7, metal=0.0, attr="Random"):
     return m
 
 
+WOOD_TILE = 6.0       # studs per wood-grain repeat (make_textures.wood_grain)
+
+
 def wood(name="MAT_Wood", light=(0.62, 0.36, 0.17), dark=(0.42, 0.22, 0.09), scale=1.0, axis="Z"):
-    """Stylised timber: warm base with long soft grain bands."""
+    """Stylised timber.  Every wood material shares ONE tileable grain texture (textures/wood_grain.png)
+    at the same density; only the tint (dark -> light) differs per material.  Grain direction comes from
+    per-object UVs laid along each plank's long axis (plank_uv, applied automatically in save_blend), so
+    posts, beams, planks and crates all read uniformly.  `scale`/`axis` are kept for compatibility."""
     if name in _MATS:
         return _MATS[name]
     m, n, l, b = _new_mat(name)
-    tc = n.new("ShaderNodeTexCoord")
-    mp = n.new("ShaderNodeMapping")
-    s = {"X": (0.15, 3, 3), "Y": (3, 0.15, 3), "Z": (3, 3, 0.15)}[axis]
-    mp.inputs["Scale"].default_value = tuple(v * scale for v in s)
-    l.new(tc.outputs["Object"], mp.inputs["Vector"])
-    nz = n.new("ShaderNodeTexNoise")
-    nz.inputs["Scale"].default_value = 2.0
-    nz.inputs["Detail"].default_value = 4
-    nz.inputs["Distortion"].default_value = 3.0
-    l.new(mp.outputs["Vector"], nz.inputs["Vector"])
+    uvn = n.new("ShaderNodeUVMap")
+    img = n.new("ShaderNodeTexImage")
+    img.image = bpy.data.images.load(os.path.join(TEXTURES_DIR, "wood_grain.png"), check_existing=True)
+    img.image.colorspace_settings.name = "Non-Color"
+    l.new(uvn.outputs["UV"], img.inputs["Vector"])
     r = n.new("ShaderNodeValToRGB")
-    r.color_ramp.elements[0].position = 0.38
+    r.color_ramp.elements[0].position = 0.3          # grain map spans ~0.3-0.7: stretch it to the tint range
     r.color_ramp.elements[0].color = (*dark, 1)
-    r.color_ramp.elements[1].position = 0.62
+    r.color_ramp.elements[1].position = 0.7
     r.color_ramp.elements[1].color = (*light, 1)
-    l.new(nz.outputs["Fac"], r.inputs["Fac"])
+    l.new(img.outputs["Color"], r.inputs["Fac"])
     l.new(r.outputs["Color"], b.inputs["Base Color"])
     b.inputs["Roughness"].default_value = 0.6
-    m.diffuse_color = (*light, 1)
+    m.diffuse_color = (*[(a + c) / 2 for a, c in zip(light, dark)], 1)
     m["roblox_material"] = "Wood"
+    m["wood_uv"] = True
     _MATS[name] = m
     return m
+
+
+def plank_uv(ob, tile=WOOD_TILE):
+    """Grain-aligned UVs: on every face, U runs along the longer of the face's two in-plane object
+    axes (so grain follows the plank), in studs / tile, with a per-object offset so neighbouring
+    planks do not repeat the same streaks."""
+    import hashlib
+    me = ob.data
+    if not me.vertices:
+        return
+    xs = [v.co for v in me.vertices]
+    dims = [max(c[i] for c in xs) - min(c[i] for c in xs) for i in range(3)]
+    h = hashlib.md5(ob.name.encode()).digest()
+    ou, ov = h[0] / 255.0, h[1] / 255.0
+    bm = bmesh.new()
+    bm.from_mesh(me)
+    uv = bm.loops.layers.uv.verify()
+    for f in bm.faces:
+        ax = max(range(3), key=lambda i: abs(f.normal[i]))
+        a, b = [i for i in range(3) if i != ax]
+        u_ax, v_ax = (a, b) if dims[a] >= dims[b] else (b, a)
+        for lp in f.loops:
+            lp[uv].uv = (lp.vert.co[u_ax] / tile + ou, lp.vert.co[v_ax] / tile + ov)
+    bm.to_mesh(me)
+    bm.free()
+
+
+def apply_wood_uvs():
+    for ob in bpy.data.objects:
+        if ob.type == "MESH" and any(m and m.get("wood_uv") for m in ob.data.materials):
+            plank_uv(ob)
+
+
+def x_brace(name, w, h, bar, depth, mat, c):
+    """ONE solid X brace (both planks merged) clipped exactly to a w x h frame opening, in the XZ plane,
+    extruded `depth` along Y (centred).  No overlapping planks -> no z-fighting at the cross."""
+    from shapely.geometry import Polygon, box as sbox
+    from shapely.ops import unary_union
+
+    def strip(p0, p1):
+        d = (Vector(p1) - Vector(p0)).normalized()
+        nrm = Vector((-d.y, d.x)) * (bar / 2)
+        a, b = Vector(p0) - d * bar, Vector(p1) + d * bar
+        return Polygon([tuple(a + nrm), tuple(b + nrm), tuple(b - nrm), tuple(a - nrm)])
+    xs = unary_union([strip((-w / 2, -h / 2), (w / 2, h / 2)), strip((-w / 2, h / 2), (w / 2, -h / 2))])
+    shape = xs.intersection(sbox(-w / 2, -h / 2, w / 2, h / 2))
+    if shape.geom_type != "Polygon":
+        shape = max(shape.geoms, key=lambda g: g.area)
+    pts = [tuple(p) for p in list(shape.exterior.coords)[:-1]]
+    return extrude_polygon(name, pts, depth, mat, c, bevel=0.02)
 
 
 def stripes(name, c1, c2, width=1.0, axis=0, offset=0.0, rough=0.55):
@@ -621,6 +674,7 @@ def contact_sheet(items, out, cols=3, tile=600, title=None):
 
 
 def save_blend(name):
+    apply_wood_uvs()
     os.makedirs(BLEND, exist_ok=True)
     p = os.path.join(BLEND, name)
     bpy.ops.wm.save_as_mainfile(filepath=p, compress=True)

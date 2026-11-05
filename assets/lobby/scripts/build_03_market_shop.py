@@ -389,13 +389,10 @@ def build(M, root):
         for k in range(5):
             objs.append(L.box(f"MKT_PanelPlank_{px0:.1f}_{k}", (w / 5 - 0.05, 0.14, h),
                               (px0 + w / 5 * (k + 0.5), fy + 0.05, (pz0 + pz1) / 2), M["woodPanel"], 0.03, c=C["Counter"]))
-        ang = math.atan2(h, w)
-        diag = math.hypot(w, h) - 0.2
-        for s in (-1, 1):
-            # the second plank lies OVER the first (offset outward): equal depths z-fought -> black centres
-            objs.append(L.box(f"MKT_PanelBrace_{px0:.1f}_{s}", (diag, 0.22, 0.34),
-                              ((px0 + px1) / 2, fy - 0.1 - (0.12 if s > 0 else 0.0), (pz0 + pz1) / 2),
-                              M["woodH"], 0.05, c=C["Counter"], rot=(0, s * ang, 0)))
+        # ONE merged X, clipped to the panel opening, front face level with the frame rails (fy - 0.15)
+        xb = L.x_brace(f"MKT_PanelX_{px0:.1f}", w - 0.01, h - 0.01, 0.36, 0.24, M["woodH"], C["Counter"])
+        xb.location = ((px0 + px1) / 2, fy - 0.15 + 0.12, (pz0 + pz1) / 2)
+        objs.append(xb)
 
     # ---- shelves (upper merchandise shelf + lower side shelf)
     for z, nm, x0, x1 in ((SHELF_Z, "Upper", wx0, wx1), (SHELF2_Z, "Lower", wx1 - 3.0, wx1)):
@@ -510,23 +507,19 @@ def build(M, root):
             for cy in (-1, 1):
                 o.append(L.box(name + f"_Corner_{cx}{cy}", (e + 0.05, e + 0.05, sz_ + 0.02), (x + cx * (sx_ / 2 - e / 2), y + cy * (sy_ / 2 - e / 2), sz_ / 2),
                                M["crateV"], 0.04, c=C["Crates"]))
-        # X braces on the four faces
+        # X on each face: ONE merged solid clipped to the frame opening, front face level with the rims
+        d = 0.12
         for face in ("-y", "+y", "-x", "+x"):
-            w = (sx_ if "y" in face else sy_) - 2 * e
-            h = sz_ - 2 * e
-            ang = math.atan2(h, w)
-            dl = math.hypot(w, h)
-            for s in (-1, 1):
-                if "y" in face:
-                    out = 1 if face[0] == "+" else -1          # second plank lies over the first
-                    yy = y + (sy_ / 2 + 0.02) * out + (0.07 * out if s > 0 else 0.0)
-                    o.append(L.box(name + f"_Brace{face}{s}", (dl, 0.1, 0.22), (x, yy, sz_ / 2), M["crate"], 0.03, c=C["Crates"],
-                                   rot=(0, s * ang, 0)))
-                else:
-                    out = 1 if face[0] == "+" else -1
-                    xx = x + (sx_ / 2 + 0.02) * out + (0.07 * out if s > 0 else 0.0)
-                    o.append(L.box(name + f"_Brace{face}{s}", (0.1, dl, 0.22), (xx, y, sz_ / 2), M["crate"], 0.03, c=C["Crates"],
-                                   rot=(s * ang, 0, 0)))
+            w = (sx_ if "y" in face else sy_) - 2 * e - 0.01
+            h = sz_ - 2 * e - 0.01
+            xb = L.x_brace(name + f"_X{face}", w, h, 0.22, d, M["crate"], C["Crates"])
+            out = 1 if face[0] == "+" else -1
+            if "y" in face:
+                xb.location = (x, y + out * (sy_ / 2 - d / 2), sz_ / 2)
+            else:
+                xb.location = (x + out * (sx_ / 2 - d / 2), y, sz_ / 2)
+                xb.rotation_euler = (0, 0, math.pi / 2)
+            o.append(xb)
         return o
 
     objs += crate("MKT_CrateL", (-6.95, -1.3), (2.2, 2.2, 2.5))

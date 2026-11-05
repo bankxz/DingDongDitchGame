@@ -165,6 +165,38 @@ def castle_brick():
     print("TEXTURE castle_brick")
 
 
+WOOD_TILE_STUDS = 6.0
+
+
+def wood_grain():
+    """Grey-scale, tileable wood-grain map (grain runs along U / image X).  All wood materials share it
+    and tint it; one tile = 6 x 6 studs.  Integer frequencies + periodic warp keep it seamless."""
+    T = WOOD_TILE_STUDS
+    px = (np.arange(RES) + 0.5) / RES * T
+    X, Y = np.meshgrid(px, px)
+    warp = 0.9 * periodic_noise(X, Y, T, 2, 51)                       # gentle waviness along the grain
+    g = np.zeros_like(X)
+    for fy, a, ph in ((9, 0.45, 0.3), (17, 0.3, 1.7), (31, 0.18, 2.9)):
+        g += a * np.sin(2 * math.pi * fy * Y / T + warp * (1 + fy / 20) + ph)
+    g = g / 0.93
+    rng = np.random.default_rng(53)                                    # fine streaks: integer freqs only
+    fibre = np.zeros_like(X)
+    for fx, fy in ((1, 41), (2, 57), (1, 73), (3, 89)):
+        fibre += np.sin(2 * math.pi * (fx * X + fy * Y) / T + rng.uniform(0, 2 * math.pi))
+    fibre *= 0.05 / 4 * 2
+    v = np.clip(0.5 + 0.22 * g + fibre, 0, 1)                         # soft, painterly contrast
+    v = v ** 0.9
+    Image.fromarray((v * 255).astype(np.uint8), mode="L").save(os.path.join(OUT, "wood_grain.png"))
+    a = Image.open(os.path.join(OUT, "wood_grain.png"))
+    prev = Image.new("L", (RES * 2, RES * 2))
+    for i in range(2):
+        for j in range(2):
+            prev.paste(a, (i * RES, j * RES))
+    prev.resize((RES, RES)).save(os.path.join(os.path.dirname(HERE), "renders", "texture_wood_grain_tiling_2x2.png"))
+    print("TEXTURE wood_grain")
+
+
 if __name__ == "__main__":
     cobblestone()
     castle_brick()
+    wood_grain()

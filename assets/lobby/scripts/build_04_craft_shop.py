@@ -366,24 +366,19 @@ def build(P, root):
             objs.append(L.box(f"CRF_CrateEdgeY_{sz_}{sx}", (t, cd, t), (ccx + sx * (cw / 2 - t / 2), ccy,
                                                                         ccz + sz_ * (chh / 2 - t / 2)),
                               wood_frame, 0.05, c=C["Props"]))
-    # X braces on front and both sides
-    iw, ih = cw - 2 * t, chh - 2 * t
-    ang = math.atan2(ih, iw)
-    for s in (-1, 1):
-        objs.append(L.box(f"CRF_CrateXFront_{s}", (math.hypot(iw, ih) - 0.55, 0.2, 0.3),
-                          (ccx, ccy - cd / 2 + 0.02 - (0.12 if s > 0 else 0.0), ccz), wood_frame, 0.04, c=C["Props"],
-                          rot=(0, s * ang, 0)))        # second plank over the first (no z-fight at the cross)
-        objs.append(L.box(f"CRF_CrateXBack_{s}", (math.hypot(iw, ih) - 0.55, 0.2, 0.3),
-                          (ccx, ccy + cd / 2 - 0.02 + (0.12 if s > 0 else 0.0), ccz), wood_frame, 0.04, c=C["Props"],
-                          rot=(0, s * ang, 0)))
-    iwd = cd - 2 * t
-    angd = math.atan2(ih, iwd)
+    # X on front, back and both sides: ONE merged solid per face, clipped to the frame opening,
+    # front face level with the frame edges (reference: the X sits flush in the frame)
+    d = 0.14
+    iw, ih, iwd = cw - 2 * t - 0.01, chh - 2 * t - 0.01, cd - 2 * t - 0.01
+    for tag, out in (("Front", -1), ("Back", 1)):
+        xb = L.x_brace(f"CRF_CrateX{tag}", iw, ih, 0.3, d, wood_frame, C["Props"])
+        xb.location = (ccx, ccy + out * (cd / 2 - d / 2), ccz)
+        objs.append(xb)
     for sx in (-1, 1):
-        for s in (-1, 1):
-            objs.append(L.box(f"CRF_CrateXSide_{sx}{s}", (0.2, math.hypot(iwd, ih) - 0.55, 0.3),
-                              (ccx + sx * (cw / 2 - 0.02) + (sx * 0.12 if s > 0 else 0.0), ccy, ccz), wood_frame, 0.04,
-                              c=C["Props"],
-                              rot=(s * angd, 0, 0)))
+        xb = L.x_brace(f"CRF_CrateXSide_{sx}", iwd, ih, 0.3, d, wood_frame, C["Props"])
+        xb.location = (ccx + sx * (cw / 2 - d / 2), ccy, ccz)
+        xb.rotation_euler = (0, 0, math.pi / 2)
+        objs.append(xb)
 
     # ------------------------------------------------ lanterns on bracket arms
     for s in (-1, 1):
