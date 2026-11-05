@@ -1025,6 +1025,86 @@
    ]
   },
   {
+   "unit": "Lobby_PED_Ice",
+   "zone": "Abilities",
+   "target": [
+    -10.0,
+    53.9,
+    0.0
+   ],
+   "yaw": 45,
+   "scale": 1.0,
+   "stretch": [
+    1,
+    1,
+    1
+   ]
+  },
+  {
+   "unit": "Lobby_PED_Water",
+   "zone": "Abilities",
+   "target": [
+    -10.0,
+    69.5,
+    0.0
+   ],
+   "yaw": 45,
+   "scale": 1.0,
+   "stretch": [
+    1,
+    1,
+    1
+   ]
+  },
+  {
+   "unit": "Lobby_PED_Earth",
+   "zone": "Abilities",
+   "target": [
+    -10.0,
+    74.7,
+    0.0
+   ],
+   "yaw": 45,
+   "scale": 1.0,
+   "stretch": [
+    1,
+    1,
+    1
+   ]
+  },
+  {
+   "unit": "Lobby_PED_Moon",
+   "zone": "Abilities",
+   "target": [
+    -10.0,
+    79.9,
+    0.0
+   ],
+   "yaw": 45,
+   "scale": 1.0,
+   "stretch": [
+    1,
+    1,
+    1
+   ]
+  },
+  {
+   "unit": "Lobby_PED_Shadow",
+   "zone": "Abilities",
+   "target": [
+    -10.0,
+    85.1,
+    0.0
+   ],
+   "yaw": 45,
+   "scale": 1.0,
+   "stretch": [
+    1,
+    1,
+    1
+   ]
+  },
+  {
    "unit": "Lobby_PED_Emerald",
    "zone": "Abilities",
    "target": [
@@ -1078,6 +1158,166 @@
    "target": [
     10.0,
     33.1,
+    0.0
+   ],
+   "yaw": -45,
+   "scale": 1.0,
+   "stretch": [
+    1,
+    1,
+    1
+   ]
+  },
+  {
+   "unit": "Lobby_PED_Heart",
+   "zone": "Abilities",
+   "target": [
+    10.0,
+    38.3,
+    0.0
+   ],
+   "yaw": -45,
+   "scale": 1.0,
+   "stretch": [
+    1,
+    1,
+    1
+   ]
+  },
+  {
+   "unit": "Lobby_PED_Star",
+   "zone": "Abilities",
+   "target": [
+    10.0,
+    43.5,
+    0.0
+   ],
+   "yaw": -45,
+   "scale": 1.0,
+   "stretch": [
+    1,
+    1,
+    1
+   ]
+  },
+  {
+   "unit": "Lobby_PED_Poison",
+   "zone": "Abilities",
+   "target": [
+    10.0,
+    48.7,
+    0.0
+   ],
+   "yaw": -45,
+   "scale": 1.0,
+   "stretch": [
+    1,
+    1,
+    1
+   ]
+  },
+  {
+   "unit": "Lobby_PED_Speed",
+   "zone": "Abilities",
+   "target": [
+    10.0,
+    53.9,
+    0.0
+   ],
+   "yaw": -45,
+   "scale": 1.0,
+   "stretch": [
+    1,
+    1,
+    1
+   ]
+  },
+  {
+   "unit": "Lobby_PED_Sword",
+   "zone": "Abilities",
+   "target": [
+    10.0,
+    59.1,
+    0.0
+   ],
+   "yaw": -45,
+   "scale": 1.0,
+   "stretch": [
+    1,
+    1,
+    1
+   ]
+  },
+  {
+   "unit": "Lobby_PED_Gravity",
+   "zone": "Abilities",
+   "target": [
+    10.0,
+    64.3,
+    0.0
+   ],
+   "yaw": -45,
+   "scale": 1.0,
+   "stretch": [
+    1,
+    1,
+    1
+   ]
+  },
+  {
+   "unit": "Lobby_PED_Arrow",
+   "zone": "Abilities",
+   "target": [
+    10.0,
+    69.5,
+    0.0
+   ],
+   "yaw": -45,
+   "scale": 1.0,
+   "stretch": [
+    1,
+    1,
+    1
+   ]
+  },
+  {
+   "unit": "Lobby_PED_Vine",
+   "zone": "Abilities",
+   "target": [
+    10.0,
+    74.7,
+    0.0
+   ],
+   "yaw": -45,
+   "scale": 1.0,
+   "stretch": [
+    1,
+    1,
+    1
+   ]
+  },
+  {
+   "unit": "Lobby_PED_Sound",
+   "zone": "Abilities",
+   "target": [
+    10.0,
+    79.9,
+    0.0
+   ],
+   "yaw": -45,
+   "scale": 1.0,
+   "stretch": [
+    1,
+    1,
+    1
+   ]
+  },
+  {
+   "unit": "Lobby_PED_Time",
+   "zone": "Abilities",
+   "target": [
+    10.0,
+    85.1,
     0.0
    ],
    "yaw": -45,
