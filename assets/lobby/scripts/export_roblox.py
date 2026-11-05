@@ -79,7 +79,10 @@ def box_uv(bm):
             lp[uv].uv = (co[u_i] / UV_TILE, co[v_i] / UV_TILE)
 
 
-def merge_by_material(unit, objs):
+MIRROR_X = __import__("mathutils").Matrix.Scale(-1.0, 4, (1.0, 0.0, 0.0))
+
+
+def merge_by_material(unit, objs, mirror=False):
     """Return list of new export objects for this unit."""
     dg = bpy.context.evaluated_depsgraph_get()
     groups = {}   # matname -> list[(mesh, tris)]
@@ -88,6 +91,9 @@ def merge_by_material(unit, objs):
             continue
         me = bpy.data.meshes.new_from_object(ob.evaluated_get(dg))
         me.transform(ob.matrix_world)
+        if mirror:                      # mirrored variant (Roblox cannot use negative scale)
+            me.transform(MIRROR_X)
+            me.flip_normals()
         mats = list(me.materials) or [None]
         # split multi-material meshes per material index
         for mi, m in enumerate(mats):
@@ -137,11 +143,15 @@ def merge_by_material(unit, objs):
 def export_units(blend, units_fn):
     bpy.ops.wm.open_mainfile(filepath=blend)
     results = {}
-    for unit, objs in units_fn():
+    for entry in units_fn():
+        unit, objs = entry[0], entry[1]
+        mirror = len(entry) > 2 and entry[2]
         mn, mx = L.bounds(objs)
+        if mirror:
+            mn, mx = Vector((-mx.x, mn.y, mn.z)), Vector((-mn.x, mx.y, mx.z))
         # origin: centre of footprint, floor at the lowest point
         origin = Vector(((mn.x + mx.x) / 2, (mn.y + mx.y) / 2, mn.z))
-        new, info = merge_by_material(unit, objs)
+        new, info = merge_by_material(unit, objs, mirror)
         for ob in new:
             ob.data.transform(__import__("mathutils").Matrix.Translation(-origin))
         bpy.ops.object.select_all(action="DESELECT")
@@ -180,6 +190,7 @@ def main():
     manifest = {}
     plan = [
         ("01_marble_arch.blend", asset_units, "ASSET_01_MarbleArch", "Lobby_MarbleArch"),
+        ("01_marble_arch.blend", None, "ARCH_SPAN", None),
         ("02_ability_pedestals.blend", None, "ASSET_02_AbilityPedestals", "Lobby_AbilityPedestals"),
         ("03_market_shop.blend", asset_units, "ASSET_03_MarketShop", "Lobby_MarketShop"),
         ("04_craft_shop.blend", asset_units, "ASSET_04_CraftShop", "Lobby_CraftShop"),
@@ -191,7 +202,9 @@ def main():
         if not os.path.exists(path):
             print("SKIP (missing)", blend)
             continue
-        if blend.startswith("06"):
+        if coll == "ARCH_SPAN":
+            manifest.update(export_units(path, arch_span_units))
+        elif blend.startswith("06"):
             manifest.update(export_units(path, props_units))
         elif blend.startswith("02"):
             manifest.update(export_units(path, pedestal_units))
@@ -200,6 +213,16 @@ def main():
     with open(os.path.join(L.FBX, "roblox_manifest.json"), "w") as fh:
         json.dump(manifest, fh, indent=1)
     write_luau(manifest)
+
+
+ARCH_SPAN_COLLS = ("ARCH_Column", "ARCH_Arch", "ARCH_Banner")
+
+
+def arch_span_units():
+    """Lobby arch: column + half arch + banner only (no floor slab / railing), plus a mirrored copy
+    for the opposite side of the road."""
+    objs = [o for n in ARCH_SPAN_COLLS for o in bpy.data.collections[n].all_objects]
+    return [("Lobby_ArchSpan", objs), ("Lobby_ArchSpanMirrored", objs, True)]
 
 
 def pedestal_units():

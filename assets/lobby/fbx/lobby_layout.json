@@ -1,0 +1,1730 @@
+{
+ "placements": [
+  {
+   "unit": "Lobby_PROP_SpawnPlaza",
+   "zone": "Plaza",
+   "target": [
+    0.0,
+    0.0,
+    -1.15
+   ],
+   "yaw": 0.0,
+   "scale": 1.0,
+   "stretch": [
+    1,
+    1,
+    1
+   ]
+  },
+  {
+   "unit": "Lobby_PROP_BalustradeCurved",
+   "zone": "Balustrade",
+   "target": [
+    -14.336,
+    -2.8514,
+    0.355
+   ],
+   "yaw": 105.0,
+   "scale": 0.94375,
+   "stretch": [
+    1,
+    1,
+    1
+   ]
+  },
+  {
+   "unit": "Lobby_PROP_BalustradeCurved",
+   "zone": "Balustrade",
+   "target": [
+    -10.9896,
+    -9.6374,
+    0.355
+   ],
+   "yaw": 135.0,
+   "scale": 0.94375,
+   "stretch": [
+    1,
+    1,
+    1
+   ]
+  },
+  {
+   "unit": "Lobby_PROP_BalustradeCurved",
+   "zone": "Balustrade",
+   "target": [
+    -4.6986,
+    -13.841,
+    0.355
+   ],
+   "yaw": 165.0,
+   "scale": 0.94375,
+   "stretch": [
+    1,
+    1,
+    1
+   ]
+  },
+  {
+   "unit": "Lobby_PROP_BalustradeCurved",
+   "zone": "Balustrade",
+   "target": [
+    2.8514,
+    -14.336,
+    0.355
+   ],
+   "yaw": 195.0,
+   "scale": 0.94375,
+   "stretch": [
+    1,
+    1,
+    1
+   ]
+  },
+  {
+   "unit": "Lobby_PROP_BalustradeCurved",
+   "zone": "Balustrade",
+   "target": [
+    9.6374,
+    -10.9896,
+    0.355
+   ],
+   "yaw": 225.0,
+   "scale": 0.94375,
+   "stretch": [
+    1,
+    1,
+    1
+   ]
+  },
+  {
+   "unit": "Lobby_PROP_BalustradeCurved",
+   "zone": "Balustrade",
+   "target": [
+    13.841,
+    -4.6986,
+    0.355
+   ],
+   "yaw": 255.0,
+   "scale": 0.94375,
+   "stretch": [
+    1,
+    1,
+    1
+   ]
+  },
+  {
+   "unit": "Lobby_PROP_BalustradeStraight",
+   "zone": "Balustrade",
+   "target": [
+    19.421,
+    0.0,
+    0.0
+   ],
+   "yaw": 0,
+   "scale": 1.0,
+   "stretch": [
+    1.09392,
+    1,
+    1
+   ]
+  },
+  {
+   "unit": "Lobby_PROP_BalustradeStraight",
+   "zone": "Balustrade",
+   "target": [
+    -19.421,
+    0.0,
+    0.0
+   ],
+   "yaw": 180,
+   "scale": 1.0,
+   "stretch": [
+    1.09392,
+    1,
+    1
+   ]
+  },
+  {
+   "unit": "Lobby_PROP_BalustradeCorner",
+   "zone": "Balustrade",
+   "target": [
+    28.675,
+    2.325,
+    0.0
+   ],
+   "yaw": 90,
+   "scale": 1.0,
+   "stretch": [
+    1,
+    1,
+    1
+   ]
+  },
+  {
+   "unit": "Lobby_PROP_BalustradeCorner",
+   "zone": "Balustrade",
+   "target": [
+    33.325,
+    39.675,
+    0.0
+   ],
+   "yaw": 270,
+   "scale": 1.0,
+   "stretch": [
+    1,
+    1,
+    1
+   ]
+  },
+  {
+   "unit": "Lobby_PROP_BalustradeCorner",
+   "zone": "Balustrade",
+   "target": [
+    40.675,
+    44.325,
+    0.0
+   ],
+   "yaw": 90,
+   "scale": 1.0,
+   "stretch": [
+    1,
+    1,
+    1
+   ]
+  },
+  {
+   "unit": "Lobby_PROP_BalustradeCorner",
+   "zone": "Balustrade",
+   "target": [
+    40.675,
+    81.675,
+    0.0
+   ],
+   "yaw": 180,
+   "scale": 1.0,
+   "stretch": [
+    1,
+    1,
+    1
+   ]
+  },
+  {
+   "unit": "Lobby_PROP_BalustradeCorner",
+   "zone": "Balustrade",
+   "target": [
+    33.325,
+    86.325,
+    0.0
+   ],
+   "yaw": 0,
+   "scale": 1.0,
+   "stretch": [
+    1,
+    1,
+    1
+   ]
+  },
+  {
+   "unit": "Lobby_PROP_BalustradeCorner",
+   "zone": "Balustrade",
+   "target": [
+    28.675,
+    113.675,
+    0.0
+   ],
+   "yaw": 180,
+   "scale": 1.0,
+   "stretch": [
+    1,
+    1,
+    1
+   ]
+  },
+  {
+   "unit": "Lobby_PROP_BalustradeStraight",
+   "zone": "Balustrade",
+   "target": [
+    31.0,
+    10.9,
+    0.0
+   ],
+   "yaw": 90.0,
+   "scale": 1.0,
+   "stretch": [
+    1.0,
+    1,
+    1
+   ]
+  },
+  {
+   "unit": "Lobby_PROP_BalustradeStraight",
+   "zone": "Balustrade",
+   "target": [
+    31.0,
+    20.9,
+    0.0
+   ],
+   "yaw": 90.0,
+   "scale": 1.0,
+   "stretch": [
+    1.0,
+    1,
+    1
+   ]
+  },
+  {
+   "unit": "Lobby_PROP_BalustradeStraight",
+   "zone": "Balustrade",
+   "target": [
+    31.0,
+    30.9,
+    0.0
+   ],
+   "yaw": 90.0,
+   "scale": 1.0,
+   "stretch": [
+    1.0,
+    1,
+    1
+   ]
+  },
+  {
+   "unit": "Lobby_PROP_BalustradeStraight",
+   "zone": "Balustrade",
+   "target": [
+    43.0,
+    52.9,
+    0.0
+   ],
+   "yaw": 90.0,
+   "scale": 1.0,
+   "stretch": [
+    1.0,
+    1,
+    1
+   ]
+  },
+  {
+   "unit": "Lobby_PROP_BalustradeStraight",
+   "zone": "Balustrade",
+   "target": [
+    43.0,
+    62.9,
+    0.0
+   ],
+   "yaw": 90.0,
+   "scale": 1.0,
+   "stretch": [
+    1.0,
+    1,
+    1
+   ]
+  },
+  {
+   "unit": "Lobby_PROP_BalustradeStraight",
+   "zone": "Balustrade",
+   "target": [
+    43.0,
+    72.9,
+    0.0
+   ],
+   "yaw": 90.0,
+   "scale": 1.0,
+   "stretch": [
+    1.0,
+    1,
+    1
+   ]
+  },
+  {
+   "unit": "Lobby_PROP_BalustradeStraight",
+   "zone": "Balustrade",
+   "target": [
+    31.0,
+    94.9,
+    0.0
+   ],
+   "yaw": 90.0,
+   "scale": 1.0,
+   "stretch": [
+    1.0,
+    1,
+    1
+   ]
+  },
+  {
+   "unit": "Lobby_PROP_BalustradeStraight",
+   "zone": "Balustrade",
+   "target": [
+    31.0,
+    104.9,
+    0.0
+   ],
+   "yaw": 90.0,
+   "scale": 1.0,
+   "stretch": [
+    1.0,
+    1,
+    1
+   ]
+  },
+  {
+   "unit": "Lobby_PROP_BalustradeCorner",
+   "zone": "Balustrade",
+   "target": [
+    -28.675,
+    2.325,
+    0.0
+   ],
+   "yaw": 0,
+   "scale": 1.0,
+   "stretch": [
+    1,
+    1,
+    1
+   ]
+  },
+  {
+   "unit": "Lobby_PROP_BalustradeCorner",
+   "zone": "Balustrade",
+   "target": [
+    -33.325,
+    39.675,
+    0.0
+   ],
+   "yaw": 180,
+   "scale": 1.0,
+   "stretch": [
+    1,
+    1,
+    1
+   ]
+  },
+  {
+   "unit": "Lobby_PROP_BalustradeCorner",
+   "zone": "Balustrade",
+   "target": [
+    -40.675,
+    44.325,
+    0.0
+   ],
+   "yaw": 0,
+   "scale": 1.0,
+   "stretch": [
+    1,
+    1,
+    1
+   ]
+  },
+  {
+   "unit": "Lobby_PROP_BalustradeCorner",
+   "zone": "Balustrade",
+   "target": [
+    -40.675,
+    81.675,
+    0.0
+   ],
+   "yaw": 270,
+   "scale": 1.0,
+   "stretch": [
+    1,
+    1,
+    1
+   ]
+  },
+  {
+   "unit": "Lobby_PROP_BalustradeCorner",
+   "zone": "Balustrade",
+   "target": [
+    -33.325,
+    86.325,
+    0.0
+   ],
+   "yaw": 90,
+   "scale": 1.0,
+   "stretch": [
+    1,
+    1,
+    1
+   ]
+  },
+  {
+   "unit": "Lobby_PROP_BalustradeCorner",
+   "zone": "Balustrade",
+   "target": [
+    -28.675,
+    113.675,
+    0.0
+   ],
+   "yaw": 270,
+   "scale": 1.0,
+   "stretch": [
+    1,
+    1,
+    1
+   ]
+  },
+  {
+   "unit": "Lobby_PROP_BalustradeStraight",
+   "zone": "Balustrade",
+   "target": [
+    -31.0,
+    10.9,
+    0.0
+   ],
+   "yaw": 90.0,
+   "scale": 1.0,
+   "stretch": [
+    1.0,
+    1,
+    1
+   ]
+  },
+  {
+   "unit": "Lobby_PROP_BalustradeStraight",
+   "zone": "Balustrade",
+   "target": [
+    -31.0,
+    20.9,
+    0.0
+   ],
+   "yaw": 90.0,
+   "scale": 1.0,
+   "stretch": [
+    1.0,
+    1,
+    1
+   ]
+  },
+  {
+   "unit": "Lobby_PROP_BalustradeStraight",
+   "zone": "Balustrade",
+   "target": [
+    -31.0,
+    30.9,
+    0.0
+   ],
+   "yaw": 90.0,
+   "scale": 1.0,
+   "stretch": [
+    1.0,
+    1,
+    1
+   ]
+  },
+  {
+   "unit": "Lobby_PROP_BalustradeStraight",
+   "zone": "Balustrade",
+   "target": [
+    -43.0,
+    52.9,
+    0.0
+   ],
+   "yaw": 90.0,
+   "scale": 1.0,
+   "stretch": [
+    1.0,
+    1,
+    1
+   ]
+  },
+  {
+   "unit": "Lobby_PROP_BalustradeStraight",
+   "zone": "Balustrade",
+   "target": [
+    -43.0,
+    62.9,
+    0.0
+   ],
+   "yaw": 90.0,
+   "scale": 1.0,
+   "stretch": [
+    1.0,
+    1,
+    1
+   ]
+  },
+  {
+   "unit": "Lobby_PROP_BalustradeStraight",
+   "zone": "Balustrade",
+   "target": [
+    -43.0,
+    72.9,
+    0.0
+   ],
+   "yaw": 90.0,
+   "scale": 1.0,
+   "stretch": [
+    1.0,
+    1,
+    1
+   ]
+  },
+  {
+   "unit": "Lobby_PROP_BalustradeStraight",
+   "zone": "Balustrade",
+   "target": [
+    -31.0,
+    94.9,
+    0.0
+   ],
+   "yaw": 90.0,
+   "scale": 1.0,
+   "stretch": [
+    1.0,
+    1,
+    1
+   ]
+  },
+  {
+   "unit": "Lobby_PROP_BalustradeStraight",
+   "zone": "Balustrade",
+   "target": [
+    -31.0,
+    104.9,
+    0.0
+   ],
+   "yaw": 90.0,
+   "scale": 1.0,
+   "stretch": [
+    1.0,
+    1,
+    1
+   ]
+  },
+  {
+   "unit": "Lobby_PROP_BalustradeStraight",
+   "zone": "Balustrade",
+   "target": [
+    20.1,
+    116.0,
+    0.0
+   ],
+   "yaw": 180.0,
+   "scale": 1.0,
+   "stretch": [
+    1.0,
+    1,
+    1
+   ]
+  },
+  {
+   "unit": "Lobby_PROP_BalustradeStraight",
+   "zone": "Balustrade",
+   "target": [
+    10.1,
+    116.0,
+    0.0
+   ],
+   "yaw": 180.0,
+   "scale": 1.0,
+   "stretch": [
+    1.0,
+    1,
+    1
+   ]
+  },
+  {
+   "unit": "Lobby_PROP_BalustradeStraight",
+   "zone": "Balustrade",
+   "target": [
+    0.1,
+    116.0,
+    0.0
+   ],
+   "yaw": 180.0,
+   "scale": 1.0,
+   "stretch": [
+    1.0,
+    1,
+    1
+   ]
+  },
+  {
+   "unit": "Lobby_PROP_BalustradeStraight",
+   "zone": "Balustrade",
+   "target": [
+    -9.9,
+    116.0,
+    0.0
+   ],
+   "yaw": 180.0,
+   "scale": 1.0,
+   "stretch": [
+    1.0,
+    1,
+    1
+   ]
+  },
+  {
+   "unit": "Lobby_PROP_BalustradeStraight",
+   "zone": "Balustrade",
+   "target": [
+    -19.9,
+    116.0,
+    0.0
+   ],
+   "yaw": 180.0,
+   "scale": 1.0,
+   "stretch": [
+    1.0,
+    1,
+    1
+   ]
+  },
+  {
+   "unit": "Lobby_PROP_RoadCobble",
+   "zone": "Road",
+   "target": [
+    0.0,
+    23.6,
+    -0.84
+   ],
+   "yaw": 0.0,
+   "scale": 1.0,
+   "stretch": [
+    1,
+    1,
+    1
+   ]
+  },
+  {
+   "unit": "Lobby_PROP_RoadCobble",
+   "zone": "Road",
+   "target": [
+    0.0,
+    39.6,
+    -0.84
+   ],
+   "yaw": 0.0,
+   "scale": 1.0,
+   "stretch": [
+    1,
+    1,
+    1
+   ]
+  },
+  {
+   "unit": "Lobby_PROP_RoadCobble",
+   "zone": "Road",
+   "target": [
+    0.0,
+    55.6,
+    -0.84
+   ],
+   "yaw": 0.0,
+   "scale": 1.0,
+   "stretch": [
+    1,
+    1,
+    1
+   ]
+  },
+  {
+   "unit": "Lobby_PROP_RoadCobble",
+   "zone": "Road",
+   "target": [
+    0.0,
+    71.6,
+    -0.84
+   ],
+   "yaw": 0.0,
+   "scale": 1.0,
+   "stretch": [
+    1,
+    1,
+    1
+   ]
+  },
+  {
+   "unit": "Lobby_PROP_RoadCobble",
+   "zone": "Road",
+   "target": [
+    0.0,
+    87.6,
+    -0.84
+   ],
+   "yaw": 0.0,
+   "scale": 1.0,
+   "stretch": [
+    1,
+    1,
+    1
+   ]
+  },
+  {
+   "unit": "Lobby_ArenaGate",
+   "zone": "ArenaGate",
+   "target": [
+    0.0,
+    101.745,
+    0.0
+   ],
+   "yaw": 0.0,
+   "scale": 1.0,
+   "stretch": [
+    1,
+    1,
+    1
+   ]
+  },
+  {
+   "unit": "Lobby_ArchSpan",
+   "zone": "Arches",
+   "target": [
+    -8.95,
+    22.9,
+    0.0
+   ],
+   "yaw": 0.0,
+   "scale": 1.0,
+   "stretch": [
+    1,
+    1,
+    1
+   ]
+  },
+  {
+   "unit": "Lobby_ArchSpanMirrored",
+   "zone": "Arches",
+   "target": [
+    8.95,
+    22.9,
+    0.0
+   ],
+   "yaw": 0.0,
+   "scale": 1.0,
+   "stretch": [
+    1,
+    1,
+    1
+   ]
+  },
+  {
+   "unit": "Lobby_ArchSpan",
+   "zone": "Arches",
+   "target": [
+    -8.95,
+    38.9,
+    0.0
+   ],
+   "yaw": 0.0,
+   "scale": 1.0,
+   "stretch": [
+    1,
+    1,
+    1
+   ]
+  },
+  {
+   "unit": "Lobby_ArchSpanMirrored",
+   "zone": "Arches",
+   "target": [
+    8.95,
+    38.9,
+    0.0
+   ],
+   "yaw": 0.0,
+   "scale": 1.0,
+   "stretch": [
+    1,
+    1,
+    1
+   ]
+  },
+  {
+   "unit": "Lobby_ArchSpan",
+   "zone": "Arches",
+   "target": [
+    -8.95,
+    54.9,
+    0.0
+   ],
+   "yaw": 0.0,
+   "scale": 1.0,
+   "stretch": [
+    1,
+    1,
+    1
+   ]
+  },
+  {
+   "unit": "Lobby_ArchSpanMirrored",
+   "zone": "Arches",
+   "target": [
+    8.95,
+    54.9,
+    0.0
+   ],
+   "yaw": 0.0,
+   "scale": 1.0,
+   "stretch": [
+    1,
+    1,
+    1
+   ]
+  },
+  {
+   "unit": "Lobby_ArchSpan",
+   "zone": "Arches",
+   "target": [
+    -8.95,
+    70.9,
+    0.0
+   ],
+   "yaw": 0.0,
+   "scale": 1.0,
+   "stretch": [
+    1,
+    1,
+    1
+   ]
+  },
+  {
+   "unit": "Lobby_ArchSpanMirrored",
+   "zone": "Arches",
+   "target": [
+    8.95,
+    70.9,
+    0.0
+   ],
+   "yaw": 0.0,
+   "scale": 1.0,
+   "stretch": [
+    1,
+    1,
+    1
+   ]
+  },
+  {
+   "unit": "Lobby_ArchSpan",
+   "zone": "Arches",
+   "target": [
+    -8.95,
+    86.9,
+    0.0
+   ],
+   "yaw": 0.0,
+   "scale": 1.0,
+   "stretch": [
+    1,
+    1,
+    1
+   ]
+  },
+  {
+   "unit": "Lobby_ArchSpanMirrored",
+   "zone": "Arches",
+   "target": [
+    8.95,
+    86.9,
+    0.0
+   ],
+   "yaw": 0.0,
+   "scale": 1.0,
+   "stretch": [
+    1,
+    1,
+    1
+   ]
+  },
+  {
+   "unit": "Lobby_PROP_EventsBanner",
+   "zone": "Arches",
+   "target": [
+    0.0,
+    22.9,
+    12.2985
+   ],
+   "yaw": 0.0,
+   "scale": 1.0,
+   "stretch": [
+    1,
+    1,
+    1
+   ]
+  },
+  {
+   "unit": "Lobby_PED_Wind",
+   "zone": "Abilities",
+   "target": [
+    -10.5,
+    28.4,
+    0.0
+   ],
+   "yaw": 45,
+   "scale": 1.0,
+   "stretch": [
+    1,
+    1,
+    1
+   ]
+  },
+  {
+   "unit": "Lobby_PED_Crystal",
+   "zone": "Abilities",
+   "target": [
+    -10.5,
+    33.4,
+    0.0
+   ],
+   "yaw": 45,
+   "scale": 1.0,
+   "stretch": [
+    1,
+    1,
+    1
+   ]
+  },
+  {
+   "unit": "Lobby_PED_Lightning",
+   "zone": "Abilities",
+   "target": [
+    -10.5,
+    44.4,
+    0.0
+   ],
+   "yaw": 45,
+   "scale": 1.0,
+   "stretch": [
+    1,
+    1,
+    1
+   ]
+  },
+  {
+   "unit": "Lobby_PED_Shield",
+   "zone": "Abilities",
+   "target": [
+    -10.5,
+    49.4,
+    0.0
+   ],
+   "yaw": 45,
+   "scale": 1.0,
+   "stretch": [
+    1,
+    1,
+    1
+   ]
+  },
+  {
+   "unit": "Lobby_PED_Flame",
+   "zone": "Abilities",
+   "target": [
+    -10.5,
+    60.4,
+    0.0
+   ],
+   "yaw": 45,
+   "scale": 1.0,
+   "stretch": [
+    1,
+    1,
+    1
+   ]
+  },
+  {
+   "unit": "Lobby_PED_Emerald",
+   "zone": "Abilities",
+   "target": [
+    10.5,
+    28.4,
+    0.0
+   ],
+   "yaw": -45,
+   "scale": 1.0,
+   "stretch": [
+    1,
+    1,
+    1
+   ]
+  },
+  {
+   "unit": "Lobby_PED_Sun",
+   "zone": "Abilities",
+   "target": [
+    10.5,
+    33.4,
+    0.0
+   ],
+   "yaw": -45,
+   "scale": 1.0,
+   "stretch": [
+    1,
+    1,
+    1
+   ]
+  },
+  {
+   "unit": "Lobby_PED_Orb",
+   "zone": "Abilities",
+   "target": [
+    10.5,
+    44.4,
+    0.0
+   ],
+   "yaw": -45,
+   "scale": 1.0,
+   "stretch": [
+    1,
+    1,
+    1
+   ]
+  },
+  {
+   "unit": "Lobby_PED_Wings",
+   "zone": "Abilities",
+   "target": [
+    10.5,
+    49.4,
+    0.0
+   ],
+   "yaw": -45,
+   "scale": 1.0,
+   "stretch": [
+    1,
+    1,
+    1
+   ]
+  },
+  {
+   "unit": "Lobby_MarketShop",
+   "zone": "Shops",
+   "target": [
+    37.849,
+    52.22,
+    0.0
+   ],
+   "yaw": -90,
+   "scale": 1.0,
+   "stretch": [
+    1,
+    1,
+    1
+   ]
+  },
+  {
+   "unit": "Lobby_CraftShop",
+   "zone": "Shops",
+   "target": [
+    36.585,
+    74.05,
+    0.0
+   ],
+   "yaw": -90,
+   "scale": 1.0,
+   "stretch": [
+    1,
+    1,
+    1
+   ]
+  },
+  {
+   "unit": "Lobby_PROP_LanternPost",
+   "zone": "Shops",
+   "target": [
+    33.5,
+    62.5,
+    0.0
+   ],
+   "yaw": 0.0,
+   "scale": 1.0,
+   "stretch": [
+    1,
+    1,
+    1
+   ]
+  },
+  {
+   "unit": "Lobby_PROP_PlanterLong",
+   "zone": "Overlook",
+   "target": [
+    -40.4,
+    55.0,
+    0.0
+   ],
+   "yaw": 90,
+   "scale": 1.0,
+   "stretch": [
+    1,
+    1,
+    1
+   ]
+  },
+  {
+   "unit": "Lobby_PROP_PlanterLong",
+   "zone": "Overlook",
+   "target": [
+    -40.4,
+    63.0,
+    0.0
+   ],
+   "yaw": 90,
+   "scale": 1.0,
+   "stretch": [
+    1,
+    1,
+    1
+   ]
+  },
+  {
+   "unit": "Lobby_PROP_PlanterLong",
+   "zone": "Overlook",
+   "target": [
+    -40.4,
+    71.0,
+    0.0
+   ],
+   "yaw": 90,
+   "scale": 1.0,
+   "stretch": [
+    1,
+    1,
+    1
+   ]
+  },
+  {
+   "unit": "Lobby_PROP_LanternPost",
+   "zone": "Overlook",
+   "target": [
+    -40.4,
+    46.5,
+    0.0
+   ],
+   "yaw": 0.0,
+   "scale": 1.0,
+   "stretch": [
+    1,
+    1,
+    1
+   ]
+  },
+  {
+   "unit": "Lobby_PROP_LanternPost",
+   "zone": "Overlook",
+   "target": [
+    -40.4,
+    79.5,
+    0.0
+   ],
+   "yaw": 0.0,
+   "scale": 1.0,
+   "stretch": [
+    1,
+    1,
+    1
+   ]
+  },
+  {
+   "unit": "Lobby_PROP_PlanterSquare",
+   "zone": "Overlook",
+   "target": [
+    -35.5,
+    46.5,
+    0.0
+   ],
+   "yaw": 0.0,
+   "scale": 1.0,
+   "stretch": [
+    1,
+    1,
+    1
+   ]
+  },
+  {
+   "unit": "Lobby_PROP_PlanterSquare",
+   "zone": "Overlook",
+   "target": [
+    -35.5,
+    79.5,
+    0.0
+   ],
+   "yaw": 0.0,
+   "scale": 1.0,
+   "stretch": [
+    1,
+    1,
+    1
+   ]
+  },
+  {
+   "unit": "Lobby_PROP_LanternPost",
+   "zone": "Road",
+   "target": [
+    -10.5,
+    14.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "scale": 1.0,
+   "stretch": [
+    1,
+    1,
+    1
+   ]
+  },
+  {
+   "unit": "Lobby_PROP_LanternPost",
+   "zone": "Road",
+   "target": [
+    -10.5,
+    91.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "scale": 1.0,
+   "stretch": [
+    1,
+    1,
+    1
+   ]
+  },
+  {
+   "unit": "Lobby_PROP_PlanterLong",
+   "zone": "Plaza",
+   "target": [
+    -23.0,
+    6.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "scale": 1.0,
+   "stretch": [
+    1,
+    1,
+    1
+   ]
+  },
+  {
+   "unit": "Lobby_PROP_LanternPost",
+   "zone": "Road",
+   "target": [
+    10.5,
+    14.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "scale": 1.0,
+   "stretch": [
+    1,
+    1,
+    1
+   ]
+  },
+  {
+   "unit": "Lobby_PROP_LanternPost",
+   "zone": "Road",
+   "target": [
+    10.5,
+    91.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "scale": 1.0,
+   "stretch": [
+    1,
+    1,
+    1
+   ]
+  },
+  {
+   "unit": "Lobby_PROP_PlanterLong",
+   "zone": "Plaza",
+   "target": [
+    23.0,
+    6.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "scale": 1.0,
+   "stretch": [
+    1,
+    1,
+    1
+   ]
+  }
+ ],
+ "parts": [
+  {
+   "name": "Deck_Main",
+   "zone": "Island",
+   "shape": "Block",
+   "center": [
+    0,
+    58.0,
+    -1.25
+   ],
+   "size": [
+    64.4,
+    118.4,
+    2.5
+   ],
+   "material": "Marble",
+   "color": [
+    0.9,
+    0.88,
+    0.96
+   ]
+  },
+  {
+   "name": "Deck_GoldBand",
+   "zone": "Island",
+   "shape": "Block",
+   "center": [
+    0,
+    58.0,
+    -0.9
+   ],
+   "size": [
+    64.64,
+    118.64,
+    0.35
+   ],
+   "material": "SmoothPlastic",
+   "color": [
+    1.0,
+    0.78,
+    0.3
+   ]
+  },
+  {
+   "name": "Deck_Plaza",
+   "zone": "Island",
+   "shape": "Cylinder",
+   "center": [
+    0,
+    0,
+    -1.25
+   ],
+   "size": [
+    32.0,
+    32.0,
+    2.5
+   ],
+   "material": "Marble",
+   "color": [
+    0.9,
+    0.88,
+    0.96
+   ]
+  },
+  {
+   "name": "Deck_PlazaGold",
+   "zone": "Island",
+   "shape": "Cylinder",
+   "center": [
+    0,
+    0,
+    -0.9
+   ],
+   "size": [
+    32.24,
+    32.24,
+    0.35
+   ],
+   "material": "SmoothPlastic",
+   "color": [
+    1.0,
+    0.78,
+    0.3
+   ]
+  },
+  {
+   "name": "Deck_TerraceW",
+   "zone": "Island",
+   "shape": "Block",
+   "center": [
+    -38.2,
+    63.0,
+    -1.25
+   ],
+   "size": [
+    12.0,
+    44.4,
+    2.5
+   ],
+   "material": "Marble",
+   "color": [
+    0.9,
+    0.88,
+    0.96
+   ]
+  },
+  {
+   "name": "Deck_TerraceGoldW",
+   "zone": "Island",
+   "shape": "Block",
+   "center": [
+    -38.32,
+    63.0,
+    -0.9
+   ],
+   "size": [
+    12.24,
+    44.64,
+    0.35
+   ],
+   "material": "SmoothPlastic",
+   "color": [
+    1.0,
+    0.78,
+    0.3
+   ]
+  },
+  {
+   "name": "Under_TerraceW",
+   "zone": "Island",
+   "shape": "Block",
+   "center": [
+    -36.2,
+    63.0,
+    -5.0
+   ],
+   "size": [
+    8.0,
+    40.4,
+    5.0
+   ],
+   "material": "Slate",
+   "color": [
+    0.7,
+    0.66,
+    0.8
+   ]
+  },
+  {
+   "name": "Deck_TerraceE",
+   "zone": "Island",
+   "shape": "Block",
+   "center": [
+    38.2,
+    63.0,
+    -1.25
+   ],
+   "size": [
+    12.0,
+    44.4,
+    2.5
+   ],
+   "material": "Marble",
+   "color": [
+    0.9,
+    0.88,
+    0.96
+   ]
+  },
+  {
+   "name": "Deck_TerraceGoldE",
+   "zone": "Island",
+   "shape": "Block",
+   "center": [
+    38.32,
+    63.0,
+    -0.9
+   ],
+   "size": [
+    12.24,
+    44.64,
+    0.35
+   ],
+   "material": "SmoothPlastic",
+   "color": [
+    1.0,
+    0.78,
+    0.3
+   ]
+  },
+  {
+   "name": "Under_TerraceE",
+   "zone": "Island",
+   "shape": "Block",
+   "center": [
+    36.2,
+    63.0,
+    -5.0
+   ],
+   "size": [
+    8.0,
+    40.4,
+    5.0
+   ],
+   "material": "Slate",
+   "color": [
+    0.7,
+    0.66,
+    0.8
+   ]
+  },
+  {
+   "name": "Under_Main_0",
+   "zone": "Island",
+   "shape": "Block",
+   "center": [
+    0,
+    58.0,
+    -5.0
+   ],
+   "size": [
+    60.4,
+    114.4,
+    5.0
+   ],
+   "material": "Slate",
+   "color": [
+    0.7,
+    0.66,
+    0.8
+   ]
+  },
+  {
+   "name": "Under_Plaza_0",
+   "zone": "Island",
+   "shape": "Cylinder",
+   "center": [
+    0,
+    0,
+    -5.0
+   ],
+   "size": [
+    28.8,
+    28.8,
+    5.0
+   ],
+   "material": "Slate",
+   "color": [
+    0.7,
+    0.66,
+    0.8
+   ]
+  },
+  {
+   "name": "Under_Main_1",
+   "zone": "Island",
+   "shape": "Block",
+   "center": [
+    0,
+    58.0,
+    -10.5
+   ],
+   "size": [
+    52.4,
+    106.4,
+    6.0
+   ],
+   "material": "Slate",
+   "color": [
+    0.58,
+    0.54,
+    0.7
+   ]
+  },
+  {
+   "name": "Under_Plaza_1",
+   "zone": "Island",
+   "shape": "Cylinder",
+   "center": [
+    0,
+    0,
+    -10.5
+   ],
+   "size": [
+    22.4,
+    22.4,
+    6.0
+   ],
+   "material": "Slate",
+   "color": [
+    0.58,
+    0.54,
+    0.7
+   ]
+  },
+  {
+   "name": "Under_Main_2",
+   "zone": "Island",
+   "shape": "Block",
+   "center": [
+    0,
+    58.0,
+    -17.0
+   ],
+   "size": [
+    40.4,
+    94.4,
+    7.0
+   ],
+   "material": "Slate",
+   "color": [
+    0.46,
+    0.43,
+    0.6
+   ]
+  },
+  {
+   "name": "Under_Plaza_2",
+   "zone": "Island",
+   "shape": "Cylinder",
+   "center": [
+    0,
+    0,
+    -17.0
+   ],
+   "size": [
+    12.8,
+    12.8,
+    7.0
+   ],
+   "material": "Slate",
+   "color": [
+    0.46,
+    0.43,
+    0.6
+   ]
+  },
+  {
+   "name": "Under_Main_3",
+   "zone": "Island",
+   "shape": "Block",
+   "center": [
+    0,
+    58.0,
+    -23.5
+   ],
+   "size": [
+    26.4,
+    80.4,
+    6.0
+   ],
+   "material": "Slate",
+   "color": [
+    0.46,
+    0.43,
+    0.6
+   ]
+  }
+ ],
+ "spawn": [
+  0.0,
+  0.0,
+  0.45
+ ],
+ "rigs": [
+  [
+   0.0,
+   3.0
+  ],
+  [
+   -13.5,
+   31.0
+  ],
+  [
+   32.5,
+   56.0
+  ],
+  [
+   0.0,
+   93.6
+  ]
+ ]
+}

@@ -472,9 +472,9 @@ def world_color(color=(0.82, 0.84, 0.88), strength=1.0, sky=False):
         l.new(tc.outputs["Generated"], sep.inputs[0])
         r = n.new("ShaderNodeValToRGB")
         r.color_ramp.elements[0].position = 0.5
-        r.color_ramp.elements[0].color = (0.78, 0.86, 1.0, 1)
-        r.color_ramp.elements[1].position = 0.85
-        r.color_ramp.elements[1].color = (0.25, 0.52, 0.95, 1)
+        r.color_ramp.elements[0].color = (0.50, 0.70, 1.0, 1)
+        r.color_ramp.elements[1].position = 0.75
+        r.color_ramp.elements[1].color = (0.10, 0.33, 0.92, 1)
         l.new(sep.outputs["Z"], r.inputs["Fac"])
         l.new(r.outputs["Color"], bg.inputs["Color"])
     else:
