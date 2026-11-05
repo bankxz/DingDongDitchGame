@@ -50,8 +50,8 @@ MODE_PORTAL_Y = (53.0, 73.0)    # DUELS / PRACTICE portal centres on the west te
 PORTAL_BACK_TO_PLANE = 3.5      # mode portal: bbox back (plinth back) -> portal plane (asset 07 local y=0)
 PORTAL_TRIGGER_CZ = 6.0
 # background castle islands: (x, y, z bottom, yaw, scale) - far enough to read as sky dressing
-CASTLES = [(-115.0, 35.0, -22.0, 25.0, 1.0), (125.0, 95.0, -6.0, -35.0, 0.8), (-95.0, 175.0, 12.0, 60.0, 0.65),
-           (105.0, -45.0, -30.0, -120.0, 0.7), (25.0, 240.0, 4.0, 180.0, 0.9), (-60.0, -95.0, -40.0, 150.0, 0.55)]
+CASTLES = [(-115.0, 35.0, -22.0, 25.0, 1.0), (125.0, 95.0, -6.0, -35.0, 0.8), (-78.0, 165.0, 20.0, 30.0, 0.7),
+           (105.0, -45.0, -30.0, -120.0, 0.7), (82.0, 175.0, 24.0, -20.0, 0.75), (-60.0, -95.0, -40.0, 150.0, 0.55)]
 
 ROOT_BLEND = L.BLEND
 UNIT_SOURCES = {
@@ -414,6 +414,7 @@ def render_previews():
     views = [
         ("lobby_spawn_view", L.camera("CAM_spawn", (0, -11.0, 9.0), (0, 60, 7.0), lens=20), (1600, 900)),
         ("lobby_abilities_view", L.camera("CAM_abil", (-2.0, 17.0, 6.0), (-13.0, 48.0, 2.5), lens=24), (1600, 900)),
+        ("lobby_modes_view", L.camera("CAM_modes", (-6.0, 63.0, 8.0), (-38.0, 63.0, 6.5), lens=22), (1600, 900)),
         ("lobby_shops_view", L.camera("CAM_shops", (24.0, 30.0, 8.0), (37.0, 64.0, 4.0), lens=24), (1600, 900)),
         ("lobby_plaza_view", L.camera("CAM_plaza", (-13.0, -12.0, 10.0), (12.0, 55.0, 4.0), lens=18), (1600, 900)),
         ("lobby_aerial_view", L.camera("CAM_aerial", (-95.0, -45.0, 85.0), (6.0, 70.0, 0.0), lens=26), (1600, 900)),

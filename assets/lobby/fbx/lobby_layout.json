@@ -1137,11 +1137,11 @@
    ]
   },
   {
-   "unit": "Lobby_PROP_PlanterLong",
-   "zone": "Overlook",
+   "unit": "Lobby_PORTAL_Duels",
+   "zone": "ModePortals",
    "target": [
-    -40.4,
-    55.0,
+    -36.2481,
+    53.0,
     0.0
    ],
    "yaw": 90,
@@ -1153,45 +1153,29 @@
    ]
   },
   {
-   "unit": "Lobby_PROP_PlanterLong",
-   "zone": "Overlook",
+   "unit": "Lobby_PORTAL_Practice",
+   "zone": "ModePortals",
    "target": [
-    -40.4,
+    -36.2481,
+    73.0,
+    0.0
+   ],
+   "yaw": 90,
+   "scale": 1.0,
+   "stretch": [
+    1,
+    1,
+    1
+   ]
+  },
+  {
+   "unit": "Lobby_PROP_LanternPost",
+   "zone": "ModePortals",
+   "target": [
+    -38.1,
     63.0,
     0.0
    ],
-   "yaw": 90,
-   "scale": 1.0,
-   "stretch": [
-    1,
-    1,
-    1
-   ]
-  },
-  {
-   "unit": "Lobby_PROP_PlanterLong",
-   "zone": "Overlook",
-   "target": [
-    -40.4,
-    71.0,
-    0.0
-   ],
-   "yaw": 90,
-   "scale": 1.0,
-   "stretch": [
-    1,
-    1,
-    1
-   ]
-  },
-  {
-   "unit": "Lobby_PROP_LanternPost",
-   "zone": "Overlook",
-   "target": [
-    -40.4,
-    46.5,
-    0.0
-   ],
    "yaw": 0.0,
    "scale": 1.0,
    "stretch": [
@@ -1201,14 +1185,14 @@
    ]
   },
   {
-   "unit": "Lobby_PROP_LanternPost",
-   "zone": "Overlook",
+   "unit": "Lobby_FloatingCastle",
+   "zone": "Sky",
    "target": [
-    -40.4,
-    79.5,
-    0.0
+    -115.0,
+    35.0,
+    -22.0
    ],
-   "yaw": 0.0,
+   "yaw": 25.0,
    "scale": 1.0,
    "stretch": [
     1,
@@ -1217,15 +1201,15 @@
    ]
   },
   {
-   "unit": "Lobby_PROP_PlanterSquare",
-   "zone": "Overlook",
+   "unit": "Lobby_FloatingCastle",
+   "zone": "Sky",
    "target": [
-    -35.5,
-    46.5,
-    0.0
+    125.0,
+    95.0,
+    -6.0
    ],
-   "yaw": 0.0,
-   "scale": 1.0,
+   "yaw": -35.0,
+   "scale": 0.8,
    "stretch": [
     1,
     1,
@@ -1233,15 +1217,63 @@
    ]
   },
   {
-   "unit": "Lobby_PROP_PlanterSquare",
-   "zone": "Overlook",
+   "unit": "Lobby_FloatingCastle",
+   "zone": "Sky",
    "target": [
-    -35.5,
-    79.5,
-    0.0
+    -78.0,
+    165.0,
+    20.0
    ],
-   "yaw": 0.0,
-   "scale": 1.0,
+   "yaw": 30.0,
+   "scale": 0.7,
+   "stretch": [
+    1,
+    1,
+    1
+   ]
+  },
+  {
+   "unit": "Lobby_FloatingCastle",
+   "zone": "Sky",
+   "target": [
+    105.0,
+    -45.0,
+    -30.0
+   ],
+   "yaw": -120.0,
+   "scale": 0.7,
+   "stretch": [
+    1,
+    1,
+    1
+   ]
+  },
+  {
+   "unit": "Lobby_FloatingCastle",
+   "zone": "Sky",
+   "target": [
+    82.0,
+    175.0,
+    24.0
+   ],
+   "yaw": -20.0,
+   "scale": 0.75,
+   "stretch": [
+    1,
+    1,
+    1
+   ]
+  },
+  {
+   "unit": "Lobby_FloatingCastle",
+   "zone": "Sky",
+   "target": [
+    -60.0,
+    -95.0,
+    -40.0
+   ],
+   "yaw": 150.0,
+   "scale": 0.55,
    "stretch": [
     1,
     1,
@@ -1726,5 +1758,35 @@
    0.0,
    93.6
   ]
+ ],
+ "triggers": [
+  {
+   "name": "DuelsTeleportZone",
+   "mode": "Duels",
+   "center": [
+    -37.7,
+    53.0,
+    6.0
+   ],
+   "size": [
+    2.4,
+    7.0,
+    5.6
+   ]
+  },
+  {
+   "name": "PracticeTeleportZone",
+   "mode": "Practice",
+   "center": [
+    -37.7,
+    73.0,
+    6.0
+   ],
+   "size": [
+    2.4,
+    7.0,
+    5.6
+   ]
+  }
  ]
 }
