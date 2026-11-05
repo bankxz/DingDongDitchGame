@@ -64,14 +64,19 @@ def mats():
     M["water"] = L.glass_emissive("MAT_WaterfallCyan", (0.25, 0.85, 1.0), 1.1, alpha=0.85)
     M["iron"] = L.flat("MAT_LanternIron", (0.13, 0.15, 0.22), rough=0.45, metal=0.6)
     M["mortar"] = L.flat("MAT_CastleMortar", (0.66, 0.62, 0.76), rough=0.9)
+    # walls are flat surfaces with a tiling ashlar TEXTURE (user direction: bricks are not modelled)
+    M["brick"] = L.tex_material("castle_brick", fallback=(0.86, 0.84, 0.92))
+
+
+BRICK_TILE = 12.0          # studs per texture repeat (make_textures.CASTLE_BRICK_TILE_STUDS)
 
 
 def flat_blocks(name, x0, x1, z0, z1, y0, y1, c, mat=None, bw=4.0, bh=2.3, seed=0, skip=None):
-    """Flat ashlar wall (arena-gate helper); bevel stripped - crisp, cheap distant asset."""
-    ob = G.blocks(name, x0, x1, z0, z1, y0, y1, mat or M["marble"], c, bw=bw, bh=bh, seed=seed, skip=skip)
-    ob.modifiers.clear()
-    if len(ob.data.materials) > 1:      # subtle seams: the sheet's joints are light, not dark lines
-        ob.data.materials[1] = M["mortar"]
+    """Solid wall block textured with the castle ashlar texture (no modelled bricks).
+    UVs are world-projected in main() after every piece has its final transform."""
+    ob = L.box(name, (x1 - x0, y1 - y0, z1 - z0), (0, 0, 0), M["brick"], 0.0, c=c)
+    # geometry baked at absolute coordinates, object at the origin (callers re-place / rotate it)
+    ob.data.transform(Matrix.Translation(((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2)))
     return ob
 
 
@@ -121,7 +126,9 @@ def build_island(C):
     objs.append(L.from_bmesh("FC_IslandGroundLight", bm_g2, M["grass2"], C["Island"]))
     objs.append(L.from_bmesh("FC_IslandRockLayer", bm_r, M["rock"], C["Island"]))
 
-    # faceted polygonal boulder underside (bottom view): rings of low-poly boulders tapering down
+    # faceted underside: rings of boulders tapering down, then FUSED into one solid faceted mass
+    # (user direction: the rocks under the island are one solid piece, not separate stones)
+    under = []
     k = 0
     rings = [(0.84, -14.0, 17, 25.0), (0.62, -21.0, 13, 25.0), (0.40, -28.0, 9, 23.0), (0.17, -35.0, 5, 21.0)]
     for frac, zc, count, size in rings:
@@ -129,9 +136,10 @@ def build_island(C):
             a = 2 * math.pi * q / count + rnd.uniform(-0.2, 0.2) + frac
             r = frac * ISLAND_R * rnd.uniform(0.85, 1.05)
             k += 1
-            objs.append(boulder(f"FC_Boulder_{k:02d}", (r * math.cos(a), r * math.sin(a), zc + rnd.uniform(-3, 3)),
-                                size * rnd.uniform(0.8, 1.15), rnd, C["Island"]))
-    objs.append(boulder("FC_Boulder_Tip", (4.0, -2.0, -43.0), 15.0, rnd, C["Island"]))
+            under.append(boulder(f"FC_Boulder_{k:02d}", (r * math.cos(a), r * math.sin(a), zc + rnd.uniform(-3, 3)),
+                                 size * rnd.uniform(0.8, 1.15), rnd, C["Island"]))
+    under.append(boulder("FC_Boulder_Tip", (4.0, -2.0, -43.0), 15.0, rnd, C["Island"]))
+    objs.append(fuse_solid("FC_IslandUnderside", under, C["Island"]))
     # floating rock chunks below the island
     for q in range(10):
         a = rnd.uniform(0, 2 * math.pi)
@@ -139,6 +147,50 @@ def build_island(C):
         objs.append(boulder(f"FC_Chunk_{q:02d}", (r * math.cos(a), r * math.sin(a), rnd.uniform(-62, -44)),
                             rnd.uniform(2.5, 5.0), rnd, C["Island"], subdiv=1))
     return objs
+
+
+def fuse_solid(name, parts, c, voxel=1.4, target_faces=2400):
+    """Union overlapping parts into ONE closed mesh (voxel remesh), then collapse-decimate back
+    to a low-poly faceted look with flat shading."""
+    bpy.context.view_layer.update()
+    dg = bpy.context.evaluated_depsgraph_get()
+    bm = bmesh.new()
+    for ob in parts:
+        me = bpy.data.meshes.new_from_object(ob.evaluated_get(dg))
+        me.transform(ob.matrix_world)
+        bm.from_mesh(me)
+        bpy.data.meshes.remove(me)
+        bpy.data.objects.remove(ob)
+    ob = L.from_bmesh(name, bm, M["rock"], c)
+
+    def bake(mod_setup):
+        mod_setup(ob)
+        bpy.context.view_layer.update()
+        dgx = bpy.context.evaluated_depsgraph_get()
+        me = bpy.data.meshes.new_from_object(ob.evaluated_get(dgx))
+        old = ob.data
+        ob.modifiers.clear()
+        ob.data = me
+        bpy.data.meshes.remove(old)
+
+    def remesh(o):
+        r = o.modifiers.new("Fuse", "REMESH")
+        r.mode = "VOXEL"
+        r.voxel_size = voxel
+    bake(remesh)
+    n = len(ob.data.polygons)
+
+    def decimate(o):
+        d = o.modifiers.new("Facet", "DECIMATE")
+        d.decimate_type = "COLLAPSE"
+        d.ratio = min(1.0, target_faces / max(n, 1))
+    bake(decimate)
+    if not ob.data.materials:
+        ob.data.materials.append(M["rock"])
+    for p in ob.data.polygons:
+        p.use_smooth = False
+    print("FUSED", name, n, "->", len(ob.data.polygons), "faces")
+    return ob
 
 
 def boulder(name, loc, size, rnd, c, subdiv=1):
@@ -380,9 +432,10 @@ def build_castle(C):
     body = slab_with_hole("FC_GateBody", outer, inner, gy0 + 0.4, gy1, M["shade"], c)
     body.location.z = PLAT_TOP
     o.append(body)
-    face = flat_blocks("FC_GateFace", -GATE_W / 2, GATE_W / 2, PLAT_TOP, PLAT_TOP + GATE_H, gy0, gy0 + 0.45, c,
-                       bw=4.6, bh=3.0, seed=77,
-                       skip=lambda x, z: abs(x) < ARCH_W / 2 + 0.9 and (z - PLAT_TOP) < ARCH_H + 0.9)
+    # textured gate face with the arched opening cut out (hidden behind the arch ring by 0.9)
+    hole = [(x, max(z, 0.05)) for x, z in arch_poly(ARCH_W + 1.8, ARCH_H + 0.9)][::-1]
+    face = slab_with_hole("FC_GateFace", outer, hole, gy0, gy0 + 0.45, M["brick"], c)
+    face.location.z = PLAT_TOP
     o.append(face)
     ring = G.frame_prism("FC_GateArchRing", arch_poly(ARCH_W + 2.4, ARCH_H + 1.2), arch_poly(ARCH_W, ARCH_H),
                          gy0 - 0.35, gy0 + 1.6, M["marble"], c, 0.0, cz=PLAT_TOP)
@@ -472,6 +525,10 @@ def main(do_render=True):
     root = L.coll("ASSET_08_FloatingCastle")
     C = {k: L.coll(f"FC_{k}", root) for k in ("Island", "Platform", "Castle", "Stairs", "Waterfall")}
     objs = build_island(C) + build_castle(C) + build_stairs(C) + build_waterfall(C)
+    bpy.context.view_layer.update()
+    for ob in objs:
+        if ob.type == "MESH" and M["brick"].name in [m.name for m in ob.data.materials if m]:
+            L.world_box_uv(ob, BRICK_TILE)
     mn, mx = L.bounds(objs)
     print("TRIS", tri_count(objs), "SIZE", tuple(round(v, 1) for v in (mx - mn)), "MINZ", round(mn.z, 1),
           "MAXZ", round(mx.z, 1))

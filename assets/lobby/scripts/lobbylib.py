@@ -671,3 +671,46 @@ def cobble_surface(name, x0, x1, y0, y1, top=0.0, thick=0.25, c=None, poly_holes
             lp[uv].uv = (lp.vert.co[ui] / COBBLE_TILE, lp.vert.co[vi] / COBBLE_TILE)
     ob = from_bmesh(name, bm, cobble_tex_material(), c)
     return ob
+
+
+def tex_material(key, normal_strength=0.6, rough=0.55, fallback=(0.88, 0.86, 0.94)):
+    """Image-textured material from textures/<key>_albedo.png + _normal.png (UV-mapped)."""
+    name = f"MAT_Tex_{key}"
+    if name in _MATS:
+        return _MATS[name]
+    m, n, l, b = _new_mat(name)
+    alb = n.new("ShaderNodeTexImage")
+    alb.image = bpy.data.images.load(os.path.join(TEXTURES, f"{key}_albedo.png"), check_existing=True)
+    nrm = n.new("ShaderNodeTexImage")
+    nrm.image = bpy.data.images.load(os.path.join(TEXTURES, f"{key}_normal.png"), check_existing=True)
+    nrm.image.colorspace_settings.name = "Non-Color"
+    nm = n.new("ShaderNodeNormalMap")
+    nm.inputs["Strength"].default_value = normal_strength
+    l.new(alb.outputs["Color"], b.inputs["Base Color"])
+    l.new(nrm.outputs["Color"], nm.inputs["Color"])
+    l.new(nm.outputs["Normal"], b.inputs["Normal"])
+    b.inputs["Roughness"].default_value = rough
+    m.diffuse_color = (*fallback, 1)
+    m["roblox_texture"] = key
+    _MATS[name] = m
+    return m
+
+
+def world_box_uv(ob, tile):
+    """Box-project UVs from WORLD coordinates (call after the object's final transform), so a
+    tiling texture continues seamlessly across separate walls, towers and rotated pieces."""
+    bpy.context.view_layer.update()
+    mw = ob.matrix_world
+    nmat = mw.to_3x3().inverted().transposed()
+    bm = bmesh.new()
+    bm.from_mesh(ob.data)
+    uv = bm.loops.layers.uv.verify()
+    for f in bm.faces:
+        nw = nmat @ f.normal
+        ax = max(range(3), key=lambda i: abs(nw[i]))
+        ui, vi = [(1, 2), (0, 2), (0, 1)][ax]
+        for lp in f.loops:
+            w = mw @ lp.vert.co
+            lp[uv].uv = (w[ui] / tile, w[vi] / tile)
+    bm.to_mesh(ob.data)
+    bm.free()

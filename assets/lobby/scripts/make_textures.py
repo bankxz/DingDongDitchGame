@@ -106,5 +106,65 @@ def cobblestone():
     print("TEXTURES", OUT)
 
 
+CASTLE_BRICK_TILE_STUDS = 12.0
+
+
+def castle_brick():
+    """White/lavender marble ashlar for the floating castle (castle sheet: 'Wall Section',
+    'Wall / Crenellation' close-ups): 4 courses of 3.0-stud blocks, 3 blocks of 4.0 studs per course,
+    running bond, thin LIGHT mortar seams (the sheet's joints are subtle), per-block tint and faint veins.
+    One tile = 12 x 12 studs at 1024 px, periodic in both directions."""
+    T = CASTLE_BRICK_TILE_STUDS
+    px = (np.arange(RES) + 0.5) / RES * T
+    X, Y = np.meshgrid(px, px)
+    W, H = 4.0, 3.0
+    row = np.floor(Y / H).astype(int)
+    xo = np.mod(X + (row % 2) * (W / 2), T)
+    col = np.floor(xo / W).astype(int)
+    u = xo - col * W - W / 2
+    v = Y - row * H - H / 2
+    sid = row * 3 + col
+    rng = np.random.default_rng(12)
+    n_st = 4 * 3
+    tint = rng.uniform(0.95, 1.03, (n_st, 1)) * np.array([[1.0, 1.0, 1.0]])
+    tint[:, 0] *= rng.uniform(0.985, 1.0, n_st)
+    base = np.array([226, 222, 236], float)
+    seam = 0.05                                          # half-width of a joint (studs)
+    dx = W / 2 - np.abs(u)
+    dy = H / 2 - np.abs(v)
+    d = np.minimum(dx, dy)                               # distance to the block edge
+    inside = np.clip((d - seam) / 0.03, 0, 1)            # anti-aliased joint mask
+    # height: flat face, tiny edge chamfer, recessed joint
+    height = np.clip((d - seam) / 0.18, 0, 1) * 0.6 + inside * 0.4
+    s = RES / T
+    hz = height * 0.08
+    gx = (np.roll(hz, -1, 1) - np.roll(hz, 1, 1)) * s / 2
+    gy = (np.roll(hz, -1, 0) - np.roll(hz, 1, 0)) * s / 2
+    nx, ny, nz = -gx, gy, np.ones_like(gx)
+    nl = np.sqrt(nx * nx + ny * ny + nz * nz)
+    normal = np.stack([nx / nl, ny / nl, nz / nl], -1)
+    # faint marble veins: thin bands of a periodic noise field
+    vn = periodic_noise(X, Y, T, 3, 41)
+    has_vein = (rng.random(n_st) < 0.45).astype(float)     # only some blocks carry a faint vein
+    vein = np.clip(1 - np.abs(vn) / 0.018, 0, 1) * 0.22 * has_vein[sid]
+    cloud = 1 + 0.035 * periodic_noise(X, Y, T, 2, 43)
+    stone = base * tint[sid] * cloud[..., None]
+    stone = stone * (1 - vein[..., None]) + np.array([170, 160, 192]) * vein[..., None]
+    light = np.clip(normal @ np.array([-0.4, 0.5, 0.77]), 0, 1.1)
+    stone = stone * (0.9 + 0.12 * light[..., None])
+    mortar = np.array([196, 190, 212], float)
+    albedo = stone * inside[..., None] + mortar * (1 - inside[..., None])
+    Image.fromarray(np.clip(albedo, 0, 255).astype(np.uint8)).save(os.path.join(OUT, "castle_brick_albedo.png"))
+    Image.fromarray(((normal * 0.5 + 0.5) * 255).astype(np.uint8)).save(os.path.join(OUT, "castle_brick_normal.png"))
+    a = Image.open(os.path.join(OUT, "castle_brick_albedo.png"))
+    prev = Image.new("RGB", (RES * 2, RES * 2))
+    for i in range(2):
+        for j in range(2):
+            prev.paste(a, (i * RES, j * RES))
+    prev.resize((RES, RES)).save(os.path.join(os.path.dirname(HERE), "renders", "texture_castle_brick_tiling_2x2.png"))
+    print("TEXTURE castle_brick")
+
+
 if __name__ == "__main__":
     cobblestone()
+    castle_brick()
