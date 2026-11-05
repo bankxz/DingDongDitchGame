@@ -41,7 +41,7 @@ ARCH_HALF_SPAN = 15.0           # column centre -> crown (arch module CROWN.x - 
 ARCH_LOCAL_Y = 0.9              # arch plane offset inside the arch module (COL_Y)
 ARCH_Y = [22.0 + 16.0 * k for k in range(5)]
 PED_X = 10.0                    # pedestal edge 12.13 < arch column base 12.2: rows run past the columns
-PED_Y0, PED_Y1, PED_STEP = 17.5, 87.5, 5.2
+PED_Y0, PED_Y1, PED_STEP = 17.5, 88.0, 4.7   # 16 slots per side; 4 per side left open for passages
 ISLAND_HALF = 31.0              # balustrade line of the main deck
 TERRACE_OUT = 43.0
 TERRACE_Y0, TERRACE_Y1 = 32.0, 74.0   # (31,0)->(31,32)=12+20, terrace 42=12+30, (31,74)->(31,116)=12+30
@@ -51,6 +51,7 @@ EDGE_OVERHANG = 1.2             # deck extends past the balustrade line
 # so each portal is reached through a clear arched passage from the road
 BAY_CENTRES = [22.0 + 16.0 * k + 0.9 + 8.0 for k in range(4)]     # 30.9, 46.9, 62.9, 78.9
 MODE_PORTAL_Y = (BAY_CENTRES[1], BAY_CENTRES[2])
+SHOP_Y = (BAY_CENTRES[1], BAY_CENTRES[2])            # MARKET / CRAFT shops, east side, same bays
 PATH_W = 6.0                    # marble path from the road edge to each portal
 PORTAL_BACK_TO_PLANE = 3.5      # mode portal: bbox back (plinth back) -> portal plane (asset 07 local y=0)
 PORTAL_TRIGGER_CZ = 6.0
@@ -67,9 +68,10 @@ UNIT_SOURCES = {
     "Lobby_ArenaGate": ("05_arena_gate.blend", ["ASSET_05_ArenaGate"]),
 }
 # ability pedestal rows (west keeps the spawn-view reference order near -> far)
-WEST_ABILITIES = ["Wind", "Crystal", "Lightning", "Shield", "Flame", "Ice", "Water", "Earth", "Moon", "Shadow"]
+WEST_ABILITIES = ["Wind", "Crystal", "Lightning", "Shield", "Flame", "Ice", "Water", "Earth", "Moon", "Shadow",
+                  "Vine", "Sound"]
 EAST_ABILITIES = ["Emerald", "Sun", "Orb", "Wings", "Heart", "Star", "Poison", "Speed", "Sword", "Gravity", "Arrow",
-                  "Vine", "Sound", "Time"]
+                  "Time"]
 for g in WEST_ABILITIES + EAST_ABILITIES:
     UNIT_SOURCES[f"Lobby_PED_{g}"] = ("02_ability_pedestals.blend", [f"PED_{g}"])
 UNIT_SOURCES["Lobby_PORTAL_Duels"] = ("07_mode_portals.blend", ["MP_Duels"])
@@ -280,21 +282,33 @@ def build_layout():
     # continuous rows along both road edges (reference: pedestals line the whole road).
     # West slots inside the DUELS / PRACTICE openings (paths +-3.55 + pedestal radius) stay empty.
     slots = [PED_Y0 + PED_STEP * k for k in range(int((PED_Y1 - PED_Y0) / PED_STEP) + 1)]
-    clear = [(yc - PATH_W / 2 - 0.55 - 2.2, yc + PATH_W / 2 + 0.55 + 2.2) for yc in MODE_PORTAL_Y]
-    west_slots = [y for y in slots if not any(a < y < b for a, b in clear)]
+    def open_slots(axes):
+        clear = [(yc - PATH_W / 2 - 0.55 - 2.2, yc + PATH_W / 2 + 0.55 + 2.2) for yc in axes]
+        return [y for y in slots if not any(a < y < b for a, b in clear)]
+    west_slots = open_slots(MODE_PORTAL_Y)          # passages to DUELS / PRACTICE
+    east_slots = open_slots(SHOP_Y)                 # passages to the MARKET / CRAFT shops
     for name, y in zip([n for n in WEST_ABILITIES if f"Lobby_PED_{n}" in _SRC], west_slots):
         place_B(f"Lobby_PED_{name}", "Abilities", (-PED_X, y, DECK_TOP), 45)
-    for name, y in zip([n for n in EAST_ABILITIES if f"Lobby_PED_{n}" in _SRC], slots):
+    for name, y in zip([n for n in EAST_ABILITIES if f"Lobby_PED_{n}" in _SRC], east_slots):
         place_B(f"Lobby_PED_{name}", "Abilities", (PED_X, y, DECK_TOP), -45)
-    print("PEDESTAL SLOTS west", len(west_slots), "east", len(slots))
+    print("PEDESTAL SLOTS west", len(west_slots), "east", len(east_slots))
 
     # ---------------- east terrace: shops facing the road
     mk = _SRC["Lobby_MarketShop"][2]
     cr = _SRC["Lobby_CraftShop"][2]
     back = TERRACE_OUT - 1.4
-    place_B("Lobby_MarketShop", "Shops", (back - mk.y / 2, TERRACE_Y0 + 2.0 + mk.x / 2, DECK_TOP), -90)
-    place_B("Lobby_CraftShop", "Shops", (back - cr.y / 2, TERRACE_Y1 - 2.4 - cr.x / 2, DECK_TOP), -90)
-    place_B("Lobby_PROP_LanternPost", "Shops", (ISLAND_HALF + 2.5, (TERRACE_Y0 + TERRACE_Y1) / 2 - 0.5, DECK_TOP))
+    # each shop sits behind an open arch bay (mirrors the DUELS / PRACTICE openings on the west)
+    place_B("Lobby_MarketShop", "Shops", (back - mk.y / 2, SHOP_Y[0], DECK_TOP), -90)
+    place_B("Lobby_CraftShop", "Shops", (back - cr.y / 2, SHOP_Y[1], DECK_TOP), -90)
+    for name, yc in (("Market", SHOP_Y[0]), ("Craft", SHOP_Y[1])):
+        x0, x1 = 7.2, ISLAND_HALF + 0.3
+        cx, ln = (x0 + x1) / 2, x1 - x0
+        part(f"Path_{name}", "Shops", (cx, yc, 0.02), (ln, PATH_W, 0.1), "Marble", (0.97, 0.95, 1.0))
+        for sy in (-1, 1):
+            part(f"Path_{name}_Gold_{'S' if sy < 0 else 'N'}", "Shops",
+                 (cx, yc + sy * (PATH_W / 2 + 0.2), 0.04), (ln, 0.3, 0.14), "SmoothPlastic", GOLD)
+            part(f"Path_{name}_Neon_{'S' if sy < 0 else 'N'}", "Shops",
+                 (cx, yc + sy * (PATH_W / 2 - 0.35), 0.075), (ln, 0.25, 0.05), "Neon", (0.05, 0.75, 1.0))
 
     # ---------------- west terrace: game-mode portals (DUELS, PRACTICE) facing the road, opposite the shops
     back = -(TERRACE_OUT - 1.4)
@@ -329,7 +343,7 @@ def build_layout():
     # ---------------- lantern posts flanking the road ends, planters on the plaza shoulders
     for sx in (-1, 1):
         place_B("Lobby_PROP_LanternPost", "Road", (sx * PED_X, 14.0, DECK_TOP))
-        place_B("Lobby_PROP_LanternPost", "Road", (sx * PED_X, ROAD_Y1 - 4.6, DECK_TOP))
+        place_B("Lobby_PROP_LanternPost", "Road", (sx * PED_X, ROAD_Y1 - 2.6, DECK_TOP))
         place_B("Lobby_PROP_PlanterLong", "Plaza", (sx * 23.0, 6.0, DECK_TOP))
 
 

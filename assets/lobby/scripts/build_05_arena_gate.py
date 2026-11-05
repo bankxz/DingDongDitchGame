@@ -393,7 +393,14 @@ def build(P, root):
     oz = GABLE_PEAK - 0.2
     add(frame_prism("GATE_OrnamentFrame", diamond(2.35), diamond(1.45), -1.1, 0.9, M, C["Wall"], 0.08, cz=oz))
     add(frame_prism("GATE_OrnamentGold", diamond(1.5), diamond(1.25), -1.2, 0.6, G, C["Trim"], 0.03, cz=oz))
-    gem = crystal("GATE_OrnamentCrystal", 1.25, 0.75, 0.75, (0, -0.4, oz), crys, C["Crystals"], sides=4)
+    # gem girdle inset 0.17 inside the gold rim opening (r 1.25): equal radii z-fought (flickering faces)
+    # solid backing plate closing the ornament's hole (roof slabs showed through it)
+    # front at y=-0.95: just behind the gold rim front (-1.2), in front of the roof slabs that cut in
+    back = L.extrude_polygon("GATE_OrnamentBack", diamond(1.32), 1.5, MD, C["Wall"])
+    back.location = (0, -0.2, oz)
+    add(back)
+    # gem seated on the plate, standing proud of the rim
+    gem = crystal("GATE_OrnamentCrystal", 1.08, 0.95, 0.12, (0, -1.0, oz), crys, C["Crystals"], sides=4)
     gem.rotation_euler = (math.pi / 2, 0, 0)
     add(gem)
 
