@@ -3021,7 +3021,7 @@
    {
     "part": "Lobby_ArenaGate__GateStoneJoint",
     "material": "MAT_GateStoneJoint",
-    "tris": 884,
+    "tris": 896,
     "roblox": {
      "Material": "Slate",
      "Color": [
@@ -3137,7 +3137,7 @@
     }
    }
   ],
-  "tris_total": 32992
+  "tris_total": 33004
  },
  "Lobby_PROP_BalustradeStraight": {
   "fbx": "fbx/Lobby_PROP_BalustradeStraight.fbx",
