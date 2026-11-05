@@ -270,3 +270,27 @@ The mode portals' pillars and lintel were also block stacks; they are now smooth
 - **Underside:** the boulders are fused into one solid rock mass (`FC_IslandUnderside`). They are unioned with a voxel remesh, then reduced to about 4.6k faceted faces with flat shading.
 - **Size:** about 31.7k triangles, footprint about 158 × 158 studs.
 - **In Roblox:** upload the two castle_brick PNGs and paste their asset IDs into the `castle_brick` entry of `TEXTURES` in `LobbyAssetStyler.luau`. Until then the walls fall back to plain Slate.
+
+## Roblox export layout (editable)
+
+Each FBX imports as a model with this hierarchy (verified by re-importing every FBX into Blender; not yet verified in Studio):
+
+```
+Lobby_MarketShop
+  Canopy | Counter | Sign | Structure ...     group = Blender sub-collection
+  Crates
+    Crates_CrateL                             item = parts whose bounds touch (one crate, lantern, potion ...)
+      WoodCrate__CrateL                       one MeshPart per material
+  Lanterns
+    Lanterns_Lantern
+      LanternGlow__LanternGlass_L             every NEON / glowing piece is its own MeshPart
+```
+
+`LobbyAssetStyler` reads the material from the part-name prefix (text before `__`). Parts can therefore be renamed, moved or duplicated freely. Neon parts get the CollectionService tag `LobbyNeon` and attribute `Neon = true`; CastShadow and CanCollide are turned off on them.
+
+## Render-quality guards
+
+- **`scripts/zfight_check.py`** reports visible coplanar, overlapping faces between different objects (the cause of the black / flickering patches).
+- **`lobbylib.save_blend`** resolves these automatically: it nudges the smaller part 0.012 studs forward, repeating until none remain. Every asset currently reports 0.
+- **Wood:** every wooden part uses one tileable grain texture (`textures/wood_grain.png`), with grain aligned to each plank's long axis. Only the tint varies by material.
+- **X braces** are single merged solids, flush with their frames.

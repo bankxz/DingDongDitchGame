@@ -772,7 +772,7 @@
    "unit": "Lobby_ArchSpan",
    "zone": "Arches",
    "target": [
-    -8.95,
+    -8.944,
     22.9,
     0.0
    ],
@@ -788,7 +788,7 @@
    "unit": "Lobby_ArchSpanMirrored",
    "zone": "Arches",
    "target": [
-    8.95,
+    8.944,
     22.9,
     0.0
    ],
@@ -804,7 +804,7 @@
    "unit": "Lobby_ArchSpan",
    "zone": "Arches",
    "target": [
-    -8.95,
+    -8.944,
     38.9,
     0.0
    ],
@@ -820,7 +820,7 @@
    "unit": "Lobby_ArchSpanMirrored",
    "zone": "Arches",
    "target": [
-    8.95,
+    8.944,
     38.9,
     0.0
    ],
@@ -836,7 +836,7 @@
    "unit": "Lobby_ArchSpan",
    "zone": "Arches",
    "target": [
-    -8.95,
+    -8.944,
     54.9,
     0.0
    ],
@@ -852,7 +852,7 @@
    "unit": "Lobby_ArchSpanMirrored",
    "zone": "Arches",
    "target": [
-    8.95,
+    8.944,
     54.9,
     0.0
    ],
@@ -868,7 +868,7 @@
    "unit": "Lobby_ArchSpan",
    "zone": "Arches",
    "target": [
-    -8.95,
+    -8.944,
     70.9,
     0.0
    ],
@@ -884,7 +884,7 @@
    "unit": "Lobby_ArchSpanMirrored",
    "zone": "Arches",
    "target": [
-    8.95,
+    8.944,
     70.9,
     0.0
    ],
@@ -900,7 +900,7 @@
    "unit": "Lobby_ArchSpan",
    "zone": "Arches",
    "target": [
-    -8.95,
+    -8.944,
     86.9,
     0.0
    ],
@@ -916,7 +916,7 @@
    "unit": "Lobby_ArchSpanMirrored",
    "zone": "Arches",
    "target": [
-    8.95,
+    8.944,
     86.9,
     0.0
    ],
