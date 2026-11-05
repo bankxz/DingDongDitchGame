@@ -52,16 +52,16 @@ def mats():
     M["signtext"] = L.flat("MAT_SignText", (1.0, 0.84, 0.48), rough=0.35, metal=0.3)
     M["iron"] = L.flat("MAT_LanternIron", (0.25, 0.17, 0.10), rough=0.5, metal=0.6)
     M["lampglow"] = L.emissive("MAT_LanternGlow", (1.0, 0.70, 0.25), 6.0, base=(1.0, 0.85, 0.5))
-    M["crystal"] = L.glass_emissive("MAT_CrystalPurple", (0.45, 0.10, 1.0), 2.6, 1.0)
+    M["crystal"] = L.glass_emissive("MAT_CrystalPurple", (0.30, 0.06, 1.0), 0.8, 1.0)
     M["paper"] = L.flat("MAT_Parchment", (0.93, 0.84, 0.64), rough=0.7)
     M["cork"] = L.flat("MAT_Cork", (0.62, 0.42, 0.24), rough=0.8)
     M["pages"] = L.flat("MAT_BookPages", (0.95, 0.90, 0.78), rough=0.8)
     for k, c in {"bookNavy": (0.07, 0.13, 0.42), "bookTeal": (0.08, 0.26, 0.34), "bookRed": (0.55, 0.06, 0.08),
                  "bookBlue": (0.12, 0.25, 0.55)}.items():
         M[k] = L.flat("MAT_" + k, c, rough=0.6)
-    for k, c in {"pPurple": (0.55, 0.08, 1.0), "pBlue": (0.05, 0.35, 1.0), "pPink": (1.0, 0.10, 0.65),
+    for k, c in {"pPurple": (0.40, 0.04, 1.0), "pBlue": (0.03, 0.18, 1.0), "pPink": (1.0, 0.10, 0.65),
                  "pCyan": (0.02, 0.85, 1.0), "pGreen": (0.20, 1.0, 0.08)}.items():
-        M[k] = L.glass_emissive("MAT_Potion_" + k[1:], c, 2.4, 1.0)
+        M[k] = L.glass_emissive("MAT_Potion_" + k[1:], c, 0.9, 1.0)
     return M
 
 
