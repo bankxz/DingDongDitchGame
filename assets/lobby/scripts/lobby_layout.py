@@ -43,10 +43,14 @@ ARCH_Y = [22.0 + 16.0 * k for k in range(5)]
 PED_X = 10.5
 ISLAND_HALF = 31.0              # balustrade line of the main deck
 TERRACE_OUT = 43.0
-TERRACE_Y0, TERRACE_Y1 = 42.0, 84.0
+TERRACE_Y0, TERRACE_Y1 = 32.0, 74.0   # (31,0)->(31,32)=12+20, terrace 42=12+30, (31,74)->(31,116)=12+30
 NORTH_Y = 116.0             # (31,84)->(31,116) = 32 = 12 + 2*10
 EDGE_OVERHANG = 1.2             # deck extends past the balustrade line
-MODE_PORTAL_Y = (53.0, 73.0)    # DUELS / PRACTICE portal centres on the west terrace
+# DUELS / PRACTICE portals sit exactly behind the openings between arch columns (bays 1 and 2),
+# so each portal is reached through a clear arched passage from the road
+BAY_CENTRES = [22.0 + 16.0 * k + 0.9 + 8.0 for k in range(4)]     # 30.9, 46.9, 62.9, 78.9
+MODE_PORTAL_Y = (BAY_CENTRES[1], BAY_CENTRES[2])
+PATH_W = 6.0                    # marble path from the road edge to each portal
 PORTAL_BACK_TO_PLANE = 3.5      # mode portal: bbox back (plinth back) -> portal plane (asset 07 local y=0)
 PORTAL_TRIGGER_CZ = 6.0
 # background castle islands: (x, y, z bottom, yaw, scale) - far enough to read as sky dressing
@@ -264,12 +268,14 @@ def build_layout():
     place_T("Lobby_PROP_EventsBanner", "Arches", (0, arch0, 14.1))
 
     # ---------------- ability pedestals between the arch columns, glyphs angled toward the spawn
-    west = ["Wind", "Crystal", "Lightning", "Shield", "Flame"]
-    east = ["Emerald", "Sun", "Orb", "Wings"]
-    slots = [ARCH_Y[k] + ARCH_LOCAL_Y + off for k in range(3) for off in (5.5, 10.5)]
-    for name, y in zip(west, slots):
+    # west bays 1-2 stay clear: they are the openings to the DUELS / PRACTICE portals
+    def bay_slots(k):
+        return [ARCH_Y[k] + ARCH_LOCAL_Y + off for off in (5.5, 10.5)]
+    west = list(zip(["Wind", "Crystal", "Lightning", "Shield"], bay_slots(0) + bay_slots(3)))
+    east = list(zip(["Emerald", "Sun", "Orb", "Wings", "Flame"], bay_slots(0) + bay_slots(1) + bay_slots(2)[:1]))
+    for name, y in west:
         place_B(f"Lobby_PED_{name}", "Abilities", (-PED_X, y, DECK_TOP), 45)
-    for name, y in zip(east, slots):
+    for name, y in east:
         place_B(f"Lobby_PED_{name}", "Abilities", (PED_X, y, DECK_TOP), -45)
 
     # ---------------- east terrace: shops facing the road
@@ -292,7 +298,18 @@ def build_layout():
         TRIGGERS.append({"name": f"{mode}TeleportZone", "mode": mode,
                          "center": [round(px + 0.4, 3), yc, round(PORTAL_TRIGGER_CZ, 3)],
                          "size": [2.4, 7.0, 5.6]})
-    place_B("Lobby_PROP_LanternPost", "ModePortals", (back + 3.5, sum(MODE_PORTAL_Y) / 2, DECK_TOP))
+    place_B("Lobby_PROP_LanternPost", "ModePortals", (back + 3.5, TERRACE_Y0 + 3.4, DECK_TOP))
+    # paths: road edge -> through the arch opening -> portal steps (gold edging, mode-coloured neon)
+    neon_col = {"Duels": (1.0, 0.05, 0.05), "Practice": (1.0, 0.82, 0.0)}
+    x_road, x_end = -7.2, back + 10.4
+    for mode, yc in (("Duels", MODE_PORTAL_Y[0]), ("Practice", MODE_PORTAL_Y[1])):
+        cx, ln = (x_road + x_end) / 2, x_road - x_end
+        part(f"Path_{mode}", "ModePortals", (cx, yc, 0.02), (ln, PATH_W, 0.1), "Marble", (0.97, 0.95, 1.0))
+        for sy in (-1, 1):
+            part(f"Path_{mode}_Gold_{'S' if sy < 0 else 'N'}", "ModePortals",
+                 (cx, yc + sy * (PATH_W / 2 + 0.2), 0.04), (ln, 0.3, 0.14), "SmoothPlastic", GOLD)
+            part(f"Path_{mode}_Neon_{'S' if sy < 0 else 'N'}", "ModePortals",
+                 (cx, yc + sy * (PATH_W / 2 - 0.35), 0.075), (ln, 0.25, 0.05), "Neon", neon_col[mode])
 
     # ---------------- background floating castle islands (asset 08), if built
     if "Lobby_FloatingCastle" in _SRC:
@@ -307,7 +324,7 @@ def build_layout():
 
 
 SPAWN = (0.0, 0.0, PLAZA_LIFT + 0.25)
-RIGS = [(0.0, 3.0), (-PED_X - 3.0, 31.0), (ISLAND_HALF + 1.5, 56.0), (0.0, ROAD_Y1 - 2.0)]
+RIGS = [(0.0, 3.0), (-PED_X - 3.0, 26.0), (-22.0, 52.5), (ISLAND_HALF + 1.5, 46.0), (0.0, ROAD_Y1 - 2.0)]
 
 
 # ------------------------------------------------------------------ preview geometry for Parts
@@ -319,6 +336,8 @@ def build_parts_preview():
         col = tuple(p["color"])
         if p["material"] == "Marble":
             m = deck
+        elif p["material"] == "Neon":
+            m = L.emissive(f"MAT_PartNeon_{col}", col, 1.4, base=tuple(0.75 * v for v in col))
         else:
             m = L.flat(f"MAT_Part_{p['material']}_{col}", col, rough=0.8 if p["material"] == "Slate" else 0.35,
                        metal=0.7 if p["material"] == "SmoothPlastic" else 0.0)
@@ -414,8 +433,8 @@ def render_previews():
     views = [
         ("lobby_spawn_view", L.camera("CAM_spawn", (0, -11.0, 9.0), (0, 60, 7.0), lens=20), (1600, 900)),
         ("lobby_abilities_view", L.camera("CAM_abil", (-2.0, 17.0, 6.0), (-13.0, 48.0, 2.5), lens=24), (1600, 900)),
-        ("lobby_modes_view", L.camera("CAM_modes", (-6.0, 63.0, 8.0), (-38.0, 63.0, 6.5), lens=22), (1600, 900)),
-        ("lobby_shops_view", L.camera("CAM_shops", (24.0, 30.0, 8.0), (37.0, 64.0, 4.0), lens=24), (1600, 900)),
+        ("lobby_modes_view", L.camera("CAM_modes", (3.0, 36.0, 9.0), (-36.0, 57.0, 5.5), lens=22), (1600, 900)),
+        ("lobby_shops_view", L.camera("CAM_shops", (24.0, 20.0, 8.0), (37.0, 54.0, 4.0), lens=24), (1600, 900)),
         ("lobby_plaza_view", L.camera("CAM_plaza", (-13.0, -12.0, 10.0), (12.0, 55.0, 4.0), lens=18), (1600, 900)),
         ("lobby_aerial_view", L.camera("CAM_aerial", (-95.0, -45.0, 85.0), (6.0, 70.0, 0.0), lens=26), (1600, 900)),
         ("lobby_rear_view", L.camera("CAM_rear", (0.0, 178.0, 70.0), (0.0, 40.0, 0.0), lens=24), (1600, 900)),

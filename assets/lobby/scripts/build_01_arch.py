@@ -158,7 +158,7 @@ def build(P, root):
     # ---------------- banner
     face_y = COL_Y - SHAFT_W / 2
     by = face_y - 0.42
-    bx = COL_X + 1.7
+    bx = COL_X                     # centred on the column (user direction; the sheet showed an offset)
     rod_z = 13.9
     w, h1, pd = 2.8, 6.3, 1.15
     outline = [(-w / 2, 0), (w / 2, 0), (w / 2, -h1), (0, -h1 - pd), (-w / 2, -h1)]
@@ -193,7 +193,7 @@ def build(P, root):
         for p in f.data.polygons: p.use_smooth = True
         objs.append(f)
     # wall bracket from column face to rod (two small arms)
-    for xo in (-0.9, 0.0):
+    for xo in (-0.9, 0.9):
         objs.append(L.box(f"ARCH_BannerBracket_{xo}", (0.18, face_y - by + 0.05, 0.18),
                           (bx + xo, (face_y + by) / 2, rod_z), P["gold"], 0.03, c=C["Banner"]))
 

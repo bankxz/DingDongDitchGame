@@ -165,7 +165,7 @@
    "zone": "Balustrade",
    "target": [
     33.325,
-    39.675,
+    29.675,
     0.0
    ],
    "yaw": 270,
@@ -181,7 +181,7 @@
    "zone": "Balustrade",
    "target": [
     40.675,
-    44.325,
+    34.325,
     0.0
    ],
    "yaw": 90,
@@ -197,7 +197,7 @@
    "zone": "Balustrade",
    "target": [
     40.675,
-    81.675,
+    71.675,
     0.0
    ],
    "yaw": 180,
@@ -213,7 +213,7 @@
    "zone": "Balustrade",
    "target": [
     33.325,
-    86.325,
+    76.325,
     0.0
    ],
    "yaw": 0,
@@ -276,8 +276,8 @@
    "unit": "Lobby_PROP_BalustradeStraight",
    "zone": "Balustrade",
    "target": [
-    31.0,
-    30.9,
+    43.0,
+    42.9,
     0.0
    ],
    "yaw": 90.0,
@@ -324,8 +324,8 @@
    "unit": "Lobby_PROP_BalustradeStraight",
    "zone": "Balustrade",
    "target": [
-    43.0,
-    72.9,
+    31.0,
+    84.9,
     0.0
    ],
    "yaw": 90.0,
@@ -389,7 +389,7 @@
    "zone": "Balustrade",
    "target": [
     -33.325,
-    39.675,
+    29.675,
     0.0
    ],
    "yaw": 180,
@@ -405,7 +405,7 @@
    "zone": "Balustrade",
    "target": [
     -40.675,
-    44.325,
+    34.325,
     0.0
    ],
    "yaw": 0,
@@ -421,7 +421,7 @@
    "zone": "Balustrade",
    "target": [
     -40.675,
-    81.675,
+    71.675,
     0.0
    ],
    "yaw": 270,
@@ -437,7 +437,7 @@
    "zone": "Balustrade",
    "target": [
     -33.325,
-    86.325,
+    76.325,
     0.0
    ],
    "yaw": 90,
@@ -500,8 +500,8 @@
    "unit": "Lobby_PROP_BalustradeStraight",
    "zone": "Balustrade",
    "target": [
-    -31.0,
-    30.9,
+    -43.0,
+    42.9,
     0.0
    ],
    "yaw": 90.0,
@@ -548,8 +548,8 @@
    "unit": "Lobby_PROP_BalustradeStraight",
    "zone": "Balustrade",
    "target": [
-    -43.0,
-    72.9,
+    -31.0,
+    84.9,
     0.0
    ],
    "yaw": 90.0,
@@ -981,7 +981,7 @@
    "zone": "Abilities",
    "target": [
     -10.5,
-    44.4,
+    76.4,
     0.0
    ],
    "yaw": 45,
@@ -997,23 +997,7 @@
    "zone": "Abilities",
    "target": [
     -10.5,
-    49.4,
-    0.0
-   ],
-   "yaw": 45,
-   "scale": 1.0,
-   "stretch": [
-    1,
-    1,
-    1
-   ]
-  },
-  {
-   "unit": "Lobby_PED_Flame",
-   "zone": "Abilities",
-   "target": [
-    -10.5,
-    60.4,
+    81.4,
     0.0
    ],
    "yaw": 45,
@@ -1089,11 +1073,27 @@
    ]
   },
   {
+   "unit": "Lobby_PED_Flame",
+   "zone": "Abilities",
+   "target": [
+    10.5,
+    60.4,
+    0.0
+   ],
+   "yaw": -45,
+   "scale": 1.0,
+   "stretch": [
+    1,
+    1,
+    1
+   ]
+  },
+  {
    "unit": "Lobby_MarketShop",
    "zone": "Shops",
    "target": [
     37.8298,
-    52.22,
+    42.22,
     0.0
    ],
    "yaw": -90,
@@ -1109,7 +1109,7 @@
    "zone": "Shops",
    "target": [
     36.585,
-    74.05,
+    64.05,
     0.0
    ],
    "yaw": -90,
@@ -1125,7 +1125,7 @@
    "zone": "Shops",
    "target": [
     33.5,
-    62.5,
+    52.5,
     0.0
    ],
    "yaw": 0.0,
@@ -1141,7 +1141,7 @@
    "zone": "ModePortals",
    "target": [
     -36.265,
-    53.0,
+    46.9,
     0.0
    ],
    "yaw": 90,
@@ -1157,7 +1157,7 @@
    "zone": "ModePortals",
    "target": [
     -36.265,
-    73.0,
+    62.9,
     0.0
    ],
    "yaw": 90,
@@ -1173,7 +1173,7 @@
    "zone": "ModePortals",
    "target": [
     -38.1,
-    63.0,
+    35.4,
     0.0
    ],
    "yaw": 0.0,
@@ -1468,7 +1468,7 @@
    "shape": "Block",
    "center": [
     -38.2,
-    63.0,
+    53.0,
     -1.25
    ],
    "size": [
@@ -1489,7 +1489,7 @@
    "shape": "Block",
    "center": [
     -38.32,
-    63.0,
+    53.0,
     -0.9
    ],
    "size": [
@@ -1510,7 +1510,7 @@
    "shape": "Block",
    "center": [
     -36.2,
-    63.0,
+    53.0,
     -5.0
    ],
    "size": [
@@ -1531,7 +1531,7 @@
    "shape": "Block",
    "center": [
     38.2,
-    63.0,
+    53.0,
     -1.25
    ],
    "size": [
@@ -1552,7 +1552,7 @@
    "shape": "Block",
    "center": [
     38.32,
-    63.0,
+    53.0,
     -0.9
    ],
    "size": [
@@ -1573,7 +1573,7 @@
    "shape": "Block",
    "center": [
     36.2,
-    63.0,
+    53.0,
     -5.0
    ],
    "size": [
@@ -1734,6 +1734,216 @@
     0.43,
     0.6
    ]
+  },
+  {
+   "name": "Path_Duels",
+   "zone": "ModePortals",
+   "shape": "Block",
+   "center": [
+    -19.2,
+    46.9,
+    0.02
+   ],
+   "size": [
+    24.0,
+    6.0,
+    0.1
+   ],
+   "material": "Marble",
+   "color": [
+    0.97,
+    0.95,
+    1.0
+   ]
+  },
+  {
+   "name": "Path_Duels_Gold_S",
+   "zone": "ModePortals",
+   "shape": "Block",
+   "center": [
+    -19.2,
+    43.7,
+    0.04
+   ],
+   "size": [
+    24.0,
+    0.3,
+    0.14
+   ],
+   "material": "SmoothPlastic",
+   "color": [
+    1.0,
+    0.78,
+    0.3
+   ]
+  },
+  {
+   "name": "Path_Duels_Neon_S",
+   "zone": "ModePortals",
+   "shape": "Block",
+   "center": [
+    -19.2,
+    44.25,
+    0.075
+   ],
+   "size": [
+    24.0,
+    0.25,
+    0.05
+   ],
+   "material": "Neon",
+   "color": [
+    1.0,
+    0.05,
+    0.05
+   ]
+  },
+  {
+   "name": "Path_Duels_Gold_N",
+   "zone": "ModePortals",
+   "shape": "Block",
+   "center": [
+    -19.2,
+    50.1,
+    0.04
+   ],
+   "size": [
+    24.0,
+    0.3,
+    0.14
+   ],
+   "material": "SmoothPlastic",
+   "color": [
+    1.0,
+    0.78,
+    0.3
+   ]
+  },
+  {
+   "name": "Path_Duels_Neon_N",
+   "zone": "ModePortals",
+   "shape": "Block",
+   "center": [
+    -19.2,
+    49.55,
+    0.075
+   ],
+   "size": [
+    24.0,
+    0.25,
+    0.05
+   ],
+   "material": "Neon",
+   "color": [
+    1.0,
+    0.05,
+    0.05
+   ]
+  },
+  {
+   "name": "Path_Practice",
+   "zone": "ModePortals",
+   "shape": "Block",
+   "center": [
+    -19.2,
+    62.9,
+    0.02
+   ],
+   "size": [
+    24.0,
+    6.0,
+    0.1
+   ],
+   "material": "Marble",
+   "color": [
+    0.97,
+    0.95,
+    1.0
+   ]
+  },
+  {
+   "name": "Path_Practice_Gold_S",
+   "zone": "ModePortals",
+   "shape": "Block",
+   "center": [
+    -19.2,
+    59.7,
+    0.04
+   ],
+   "size": [
+    24.0,
+    0.3,
+    0.14
+   ],
+   "material": "SmoothPlastic",
+   "color": [
+    1.0,
+    0.78,
+    0.3
+   ]
+  },
+  {
+   "name": "Path_Practice_Neon_S",
+   "zone": "ModePortals",
+   "shape": "Block",
+   "center": [
+    -19.2,
+    60.25,
+    0.075
+   ],
+   "size": [
+    24.0,
+    0.25,
+    0.05
+   ],
+   "material": "Neon",
+   "color": [
+    1.0,
+    0.82,
+    0.0
+   ]
+  },
+  {
+   "name": "Path_Practice_Gold_N",
+   "zone": "ModePortals",
+   "shape": "Block",
+   "center": [
+    -19.2,
+    66.1,
+    0.04
+   ],
+   "size": [
+    24.0,
+    0.3,
+    0.14
+   ],
+   "material": "SmoothPlastic",
+   "color": [
+    1.0,
+    0.78,
+    0.3
+   ]
+  },
+  {
+   "name": "Path_Practice_Neon_N",
+   "zone": "ModePortals",
+   "shape": "Block",
+   "center": [
+    -19.2,
+    65.55,
+    0.075
+   ],
+   "size": [
+    24.0,
+    0.25,
+    0.05
+   ],
+   "material": "Neon",
+   "color": [
+    1.0,
+    0.82,
+    0.0
+   ]
   }
  ],
  "spawn": [
@@ -1748,11 +1958,15 @@
   ],
   [
    -13.5,
-   31.0
+   26.0
+  ],
+  [
+   -22.0,
+   52.5
   ],
   [
    32.5,
-   56.0
+   46.0
   ],
   [
    0.0,
@@ -1765,7 +1979,7 @@
    "mode": "Duels",
    "center": [
     -37.7,
-    53.0,
+    46.9,
     6.0
    ],
    "size": [
@@ -1779,7 +1993,7 @@
    "mode": "Practice",
    "center": [
     -37.7,
-    73.0,
+    62.9,
     6.0
    ],
    "size": [
