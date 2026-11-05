@@ -301,53 +301,14 @@ def glass_emissive(name, color, strength=2.5, alpha=0.75):
     return m
 
 
-def marble(name="MAT_Marble", base=(0.86, 0.83, 0.90), tint=(0.76, 0.71, 0.84),
-           vein=(0.58, 0.53, 0.66), scale=0.22, vein_width=0.016):
-    """Stylised white/lavender marble: soft two-tone cloud + thin dark veins."""
+def marble(name="MAT_Marble", base=(0.86, 0.83, 0.90), tint=None, vein=None, scale=None, vein_width=None):
+    """Plain white/lavender stone colour - NO procedural texture (user direction: surface texture comes
+    from Roblox materials in Studio).  The colour is exported; the styler maps it to Roblox Marble.
+    tint / vein / scale / vein_width are accepted for compatibility and ignored."""
     if name in _MATS:
         return _MATS[name]
-    m, n, l, b = _new_mat(name)
-    tc = n.new("ShaderNodeTexCoord")
-    mp = n.new("ShaderNodeMapping")
-    mp.inputs["Scale"].default_value = (scale, scale, scale)
-    l.new(tc.outputs["Object"], mp.inputs["Vector"])
-    # cloudy tint
-    cloud = n.new("ShaderNodeTexNoise")
-    cloud.inputs["Scale"].default_value = 1.6
-    cloud.inputs["Detail"].default_value = 3
-    l.new(mp.outputs["Vector"], cloud.inputs["Vector"])
-    cr = n.new("ShaderNodeValToRGB")
-    cr.color_ramp.elements[0].position = 0.35
-    cr.color_ramp.elements[0].color = (*base, 1)
-    cr.color_ramp.elements[1].position = 0.75
-    cr.color_ramp.elements[1].color = (*tint, 1)
-    l.new(cloud.outputs["Fac"], cr.inputs["Fac"])
-    # veins: distorted noise, take |v-0.5| narrow band
-    vn = n.new("ShaderNodeTexNoise")
-    vn.inputs["Scale"].default_value = 1.4
-    vn.inputs["Detail"].default_value = 3
-    vn.inputs["Distortion"].default_value = 0.4
-    l.new(mp.outputs["Vector"], vn.inputs["Vector"])
-    sub = n.new("ShaderNodeMath"); sub.operation = "SUBTRACT"; sub.inputs[1].default_value = 0.5
-    l.new(vn.outputs["Fac"], sub.inputs[0])
-    ab = n.new("ShaderNodeMath"); ab.operation = "ABSOLUTE"
-    l.new(sub.outputs[0], ab.inputs[0])
-    vr = n.new("ShaderNodeValToRGB")
-    vr.color_ramp.elements[0].position = 0.0
-    vr.color_ramp.elements[0].color = (1, 1, 1, 1)
-    vr.color_ramp.elements[1].position = vein_width
-    vr.color_ramp.elements[1].color = (0, 0, 0, 1)
-    l.new(ab.outputs[0], vr.inputs["Fac"])
-    mix = n.new("ShaderNodeMix"); mix.data_type = "RGBA"
-    mix.inputs["B"].default_value = (*vein, 1)
-    l.new(vr.outputs["Color"], mix.inputs["Factor"])
-    l.new(cr.outputs["Color"], mix.inputs["A"])
-    l.new(mix.outputs["Result"], b.inputs["Base Color"])
-    b.inputs["Roughness"].default_value = 0.32
-    b.inputs["Coat Weight"].default_value = 0.25
-    m.diffuse_color = (*base, 1)
+    m = flat(name, base, rough=0.38, coat=0.15)
     m["roblox_material"] = "Marble"
-    _MATS[name] = m
     return m
 
 

@@ -65,7 +65,8 @@ def mats():
     M["iron"] = L.flat("MAT_LanternIron", (0.13, 0.15, 0.22), rough=0.45, metal=0.6)
     M["mortar"] = L.flat("MAT_CastleMortar", (0.66, 0.62, 0.76), rough=0.9)
     # walls are flat surfaces with a tiling ashlar TEXTURE (user direction: bricks are not modelled)
-    M["brick"] = L.tex_material("castle_brick", fallback=(0.86, 0.84, 0.92))
+    # plain wall colour, no brick/marble texture (user direction: Roblox materials are applied in Studio)
+    M["brick"] = L.marble("MAT_MarbleCastleWall", base=(0.86, 0.84, 0.92))
 
 
 BRICK_TILE = 12.0          # studs per texture repeat (make_textures.CASTLE_BRICK_TILE_STUDS)
