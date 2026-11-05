@@ -314,7 +314,7 @@ def prop_road(c):
         o.append(L.box(f"PROP_Road_GoldInner_{s}", (0.22, Lg, 0.3), (s * (W / 2 + 0.05), 0, -0.13), G, 0.04, c=c))
     chevs = []
     for k, yc in enumerate((-4.0, 3.5)):
-        cw, th, hh = 6.4, 1.15, 2.6   # width, arm thickness, height of the V
+        cw, th, hh = 7.0, 1.7, 3.0    # width, arm thickness, height of the V (bold, as in the lobby shots)
         poly = [(-cw / 2, yc - hh / 2), (0, yc + hh / 2), (cw / 2, yc - hh / 2), (cw / 2 - th, yc - hh / 2),
                 (0, yc + hh / 2 - th * 1.35), (-cw / 2 + th, yc - hh / 2)]
         chevs.append(poly)
