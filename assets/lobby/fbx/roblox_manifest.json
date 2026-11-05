@@ -2877,55 +2877,42 @@
  "Lobby_FloatingCastle": {
   "fbx": "fbx/Lobby_FloatingCastle.fbx",
   "size_studs": [
-   64.02,
-   44.02,
-   60.595
+   167.494,
+   164.458,
+   147.68
   ],
   "parts": [
    {
-    "part": "Lobby_FloatingCastle__CrystalCyan",
-    "material": "MAT_CrystalCyan",
-    "tris": 144,
+    "part": "Lobby_FloatingCastle__CastleCrystal",
+    "material": "MAT_CastleCrystal",
+    "tris": 168,
     "roblox": {
      "Material": "Glass",
      "Transparency": 0.15,
      "Color": [
-      0.4236,
+      0.3492,
       0.9309,
       1.0
      ]
     }
    },
    {
-    "part": "Lobby_FloatingCastle__DoorWarm",
-    "material": "MAT_DoorWarm",
-    "tris": 128,
+    "part": "Lobby_FloatingCastle__CastleMortar",
+    "material": "MAT_CastleMortar",
+    "tris": 180,
     "roblox": {
-     "Material": "Neon",
+     "Material": "SmoothPlastic",
      "Color": [
-      1.0,
-      0.8434,
-      0.5838
-     ]
-    }
-   },
-   {
-    "part": "Lobby_FloatingCastle__FlagRed",
-    "material": "MAT_FlagRed",
-    "tris": 64,
-    "roblox": {
-     "Material": "Fabric",
-     "Color": [
-      0.9063,
-      0.2478,
-      0.3133
+      0.8323,
+      0.8095,
+      0.886
      ]
     }
    },
    {
     "part": "Lobby_FloatingCastle__Gold",
     "material": "MAT_Gold",
-    "tris": 1600,
+    "tris": 1140,
     "roblox": {
      "Material": "SmoothPlastic",
      "Reflectance": 0.2,
@@ -2937,101 +2924,48 @@
     }
    },
    {
-    "part": "Lobby_FloatingCastle__GrassTop",
-    "material": "MAT_GrassTop",
-    "tris": 3036,
+    "part": "Lobby_FloatingCastle__GroundGreen",
+    "material": "MAT_GroundGreen",
+    "tris": 3394,
     "roblox": {
      "Material": "SmoothPlastic",
      "Color": [
-      0.5838,
-      0.8095,
-      0.4366
+      0.4845,
+      0.7858,
+      0.3133
      ]
     }
    },
    {
-    "part": "Lobby_FloatingCastle__GrassTopLight",
-    "material": "MAT_GrassTopLight",
-    "tris": 2332,
+    "part": "Lobby_FloatingCastle__GroundGreenLight",
+    "material": "MAT_GroundGreenLight",
+    "tris": 1662,
+    "roblox": {
+     "Material": "SmoothPlastic",
+     "Color": [
+      0.6012,
+      0.8543,
+      0.3811
+     ]
+    }
+   },
+   {
+    "part": "Lobby_FloatingCastle__IslandRock",
+    "material": "MAT_IslandRock",
+    "tris": 5532,
     "roblox": {
      "Material": "SmoothPlastic",
      "Color": [
       0.6652,
-      0.865,
-      0.5064
-     ]
-    }
-   },
-   {
-    "part": "Lobby_FloatingCastle__IslandStone0",
-    "material": "MAT_IslandStone0",
-    "tris": 868,
-    "roblox": {
-     "Material": "Slate",
-     "Color": [
-      0.8095,
-      0.7858,
-      0.865
-     ]
-    }
-   },
-   {
-    "part": "Lobby_FloatingCastle__IslandStone1",
-    "material": "MAT_IslandStone1",
-    "tris": 604,
-    "roblox": {
-     "Material": "Slate",
-     "Color": [
-      0.7674,
-      0.7419,
-      0.8323
-     ]
-    }
-   },
-   {
-    "part": "Lobby_FloatingCastle__IslandStone2",
-    "material": "MAT_IslandStone2",
-    "tris": 1352,
-    "roblox": {
-     "Material": "Slate",
-     "Color": [
-      0.8434,
-      0.821,
-      0.8962
-     ]
-    }
-   },
-   {
-    "part": "Lobby_FloatingCastle__IslandStone3",
-    "material": "MAT_IslandStone3",
-    "tris": 224,
-    "roblox": {
-     "Material": "Slate",
-     "Color": [
-      0.722,
-      0.7014,
-      0.7977
-     ]
-    }
-   },
-   {
-    "part": "Lobby_FloatingCastle__LanternGlassCyan",
-    "material": "MAT_LanternGlassCyan",
-    "tris": 176,
-    "roblox": {
-     "Material": "Glass",
-     "Transparency": 0.15,
-     "Color": [
-      0.6262,
-      0.9547,
-      1.0
+      0.6343,
+      0.7674
      ]
     }
    },
    {
     "part": "Lobby_FloatingCastle__LanternIron",
     "material": "MAT_LanternIron",
-    "tris": 352,
+    "tris": 336,
     "roblox": {
      "Material": "Metal",
      "Color": [
@@ -3044,7 +2978,7 @@
    {
     "part": "Lobby_FloatingCastle__Marble",
     "material": "MAT_Marble",
-    "tris": 7204,
+    "tris": 15000,
     "roblox": {
      "Material": "Marble",
      "Color": [
@@ -3057,7 +2991,7 @@
    {
     "part": "Lobby_FloatingCastle__MarbleShade",
     "material": "MAT_MarbleShade",
-    "tris": 276,
+    "tris": 148,
     "roblox": {
      "Material": "Marble",
      "Color": [
@@ -3070,7 +3004,7 @@
    {
     "part": "Lobby_FloatingCastle__NavyCloth",
     "material": "MAT_NavyCloth",
-    "tris": 80,
+    "tris": 112,
     "roblox": {
      "Material": "Fabric",
      "Color": [
@@ -3081,66 +3015,79 @@
     }
    },
    {
-    "part": "Lobby_FloatingCastle__RockGrey",
-    "material": "MAT_RockGrey",
-    "tris": 308,
+    "part": "Lobby_FloatingCastle__NeonCyan",
+    "material": "MAT_NeonCyan",
+    "tris": 156,
     "roblox": {
-     "Material": "SmoothPlastic",
+     "Material": "Neon",
      "Color": [
-      0.7354,
-      0.7354,
-      0.7736
+      0.2478,
+      0.8808,
+      1.0
+     ]
+    }
+   },
+   {
+    "part": "Lobby_FloatingCastle__PennantRed",
+    "material": "MAT_PennantRed",
+    "tris": 112,
+    "roblox": {
+     "Material": "Fabric",
+     "Color": [
+      0.9309,
+      0.2209,
+      0.2478
      ]
     }
    },
    {
     "part": "Lobby_FloatingCastle__RoofBlue",
     "material": "MAT_RoofBlue",
-    "tris": 792,
-    "roblox": {
-     "Material": "SmoothPlastic",
-     "Color": [
-      0.2478,
-      0.3811,
-      0.7858
-     ]
-    }
-   },
-   {
-    "part": "Lobby_FloatingCastle__RoofBlueLight",
-    "material": "MAT_RoofBlueLight",
-    "tris": 836,
-    "roblox": {
-     "Material": "SmoothPlastic",
-     "Color": [
-      0.3133,
-      0.4845,
-      0.8962
-     ]
-    }
-   },
-   {
-    "part": "Lobby_FloatingCastle__WaterFoam",
-    "material": "MAT_WaterFoam",
-    "tris": 440,
-    "roblox": {
-     "Material": "Neon",
-     "Color": [
-      0.8808,
-      0.9777,
-      1.0
-     ]
-    }
-   },
-   {
-    "part": "Lobby_FloatingCastle__Waterfall",
-    "material": "MAT_Waterfall",
     "tris": 264,
     "roblox": {
+     "Material": "SmoothPlastic",
+     "Color": [
+      0.1897,
+      0.3492,
+      0.8095
+     ]
+    }
+   },
+   {
+    "part": "Lobby_FloatingCastle__RoofBlueDark",
+    "material": "MAT_RoofBlueDark",
+    "tris": 228,
+    "roblox": {
+     "Material": "SmoothPlastic",
+     "Color": [
+      0.1517,
+      0.2717,
+      0.7014
+     ]
+    }
+   },
+   {
+    "part": "Lobby_FloatingCastle__WarmInterior",
+    "material": "MAT_WarmInterior",
+    "tris": 12,
+    "roblox": {
      "Material": "Neon",
      "Color": [
-      0.5838,
-      0.9163,
+      1.0,
+      0.7674,
+      0.4614
+     ]
+    }
+   },
+   {
+    "part": "Lobby_FloatingCastle__WaterfallCyan",
+    "material": "MAT_WaterfallCyan",
+    "tris": 60,
+    "roblox": {
+     "Material": "Neon",
+     "Color": [
+      0.5371,
+      0.9309,
       1.0
      ]
     }
@@ -3148,7 +3095,7 @@
    {
     "part": "Lobby_FloatingCastle__WhiteEmblem",
     "material": "MAT_WhiteEmblem",
-    "tris": 300,
+    "tris": 1980,
     "roblox": {
      "Material": "SmoothPlastic",
      "Color": [
@@ -3161,17 +3108,17 @@
    {
     "part": "Lobby_FloatingCastle__WindowCyan",
     "material": "MAT_WindowCyan",
-    "tris": 588,
+    "tris": 2128,
     "roblox": {
      "Material": "Neon",
      "Color": [
-      0.3811,
-      0.8808,
+      0.4236,
+      0.9063,
       1.0
      ]
     }
    }
   ],
-  "tris_total": 21968
+  "tris_total": 32612
  }
 }
