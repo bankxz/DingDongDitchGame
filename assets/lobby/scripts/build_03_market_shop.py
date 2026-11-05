@@ -289,11 +289,22 @@ def build(M, root):
     # rolled eave (one cylinder segment per stripe)
     bm = bmesh.new()
     roll = []
-    for i in range(n):
+    RR = 0.42                     # roll radius; the end segments stop RR short and get a rounded cap,
+    for i in range(n):            # so the roll ends flush with the canopy corner (no flat stub disc)
         x0 = -EAVE_HALF + STRIPE * i
-        seg = L.cyl(f"MKT_EaveRoll_{i}", 0.42, STRIPE, (x0 + STRIPE / 2, EAVE_Y - 0.1, EAVE_Z - 0.2),
-                    M["red"] if i % 2 == 0 else M["cream"], 16, 0.0, c=C["Canopy"], rot=(0, math.pi / 2, 0))
+        x1 = x0 + STRIPE
+        if i == 0:
+            x0 += RR
+        if i == n - 1:
+            x1 -= RR
+        col = M["red"] if i % 2 == 0 else M["cream"]
+        seg = L.cyl(f"MKT_EaveRoll_{i}", RR, x1 - x0, ((x0 + x1) / 2, EAVE_Y - 0.1, EAVE_Z - 0.2),
+                    col, 16, 0.0, c=C["Canopy"], rot=(0, math.pi / 2, 0))
         roll.append(seg)
+    for sx, col in ((-1, M["red"]), (1, M["red"] if (n - 1) % 2 == 0 else M["cream"])):
+        cap = sphere(f"MKT_EaveRollCap_{sx}", RR, (sx * (EAVE_HALF - RR), EAVE_Y - 0.1, EAVE_Z - 0.2), col,
+                     C["Canopy"], segs=16, rings=8)
+        roll.append(cap)
     objs += roll
     # scalloped valance tabs
     vpieces = []
@@ -314,20 +325,8 @@ def build(M, root):
         tab.rotation_euler = (math.radians(-8), 0, 0)
         vpieces.append(tab)
     objs += vpieces
-    # side valance (short scallops along the hip eave, front half)
-    for sx in (-1, 1):
-        for i in range(2):
-            y0 = EAVE_Y + STRIPE * i
-            outline = [(y0, vt), (y0 + STRIPE, vt), (y0 + STRIPE, VAL_BOTTOM + 0.9)]
-            ym = y0 + STRIPE / 2
-            for k in range(1, 8):
-                a = -k * math.pi / 8
-                outline.append((ym + rad * math.cos(a), VAL_BOTTOM + 0.9 + rad * 0.7 * math.sin(a)))
-            outline.append((y0, VAL_BOTTOM + 0.9))
-            tab = L.extrude_polygon(f"MKT_SideTab_{sx}_{i}", outline if sx < 0 else outline[::-1], 0.2,
-                                    M["red"] if i % 2 == 1 else M["cream"], C["Canopy"], plane="YZ", bevel=0.05)
-            tab.location = (sx * (EAVE_HALF + 0.12), 0, 0)
-            objs.append(tab)
+    # (no side valance: the market sheet's side view and awning close-up show scallops on the FRONT
+    #  edge only; the earlier side tabs were an invented detail that looked like loose discs at the corner)
 
     # ---- sign: gold notched frame, maroon panel, 3D text, laurel sprigs
     outer = notched_rect(SIGN_W, SIGN_H, 0.38)
