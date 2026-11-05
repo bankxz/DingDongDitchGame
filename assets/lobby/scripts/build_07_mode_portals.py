@@ -37,12 +37,12 @@ N_STEPS, STEP_H, STEP_D, STEP_W = 3, PLINTH_Z[1] / 3, 1.2, 8.0
 MODES = {
     # DUELS = red
     "Duels": dict(neon=(1.0, 0.03, 0.03), crystal=(1.0, 0.06, 0.06), cloth=(0.30, 0.01, 0.02),
-                  swirl=[(0.0, (0.30, 0.0, 0.0)), (0.55, (1.0, 0.05, 0.03)), (0.8, (1.0, 0.55, 0.5)),
-                         (0.9, (0.85, 0.02, 0.02))], core=(1.0, 0.45, 0.4), text="DUELS", emblem="swords"),
+                  swirl=[(0.0, (0.30, 0.0, 0.0)), (0.55, (1.0, 0.05, 0.03)), (0.8, (1.0, 0.32, 0.25)),
+                         (0.9, (0.85, 0.02, 0.02))], core=(1.0, 0.22, 0.15), text="DUELS", emblem="swords"),
     # PRACTICE = yellow (brighter / more saturated than the gold trim so the two stay distinct)
-    "Practice": dict(neon=(1.0, 0.80, 0.0), crystal=(1.0, 0.85, 0.05), cloth=(0.42, 0.24, 0.0),
-                     swirl=[(0.0, (0.40, 0.22, 0.0)), (0.55, (1.0, 0.78, 0.0)), (0.8, (1.0, 0.97, 0.6)),
-                            (0.9, (0.95, 0.65, 0.0))], core=(1.0, 0.95, 0.55), text="PRACTICE", emblem="target"),
+    "Practice": dict(neon=(1.0, 0.80, 0.0), crystal=(1.0, 0.85, 0.05), cloth=(0.62, 0.40, 0.0),
+                     swirl=[(0.0, (0.40, 0.22, 0.0)), (0.55, (1.0, 0.78, 0.0)), (0.8, (1.0, 0.92, 0.35)),
+                            (0.9, (0.95, 0.65, 0.0))], core=(1.0, 0.86, 0.25), text="PRACTICE", emblem="target"),
 }
 
 
@@ -57,6 +57,7 @@ def swirl_material(mode, spec):
     mix = next(n for n in nodes if n.type == "MIX")
     mix.inputs["B"].default_value = (*spec["core"], 1)
     m.diffuse_color = (*spec["swirl"][1][1], 1)
+    nodes["Principled BSDF"].inputs["Emission Strength"].default_value = 0.75
     return m
 
 
@@ -71,8 +72,9 @@ def build_portal(mode, spec, P, root, x_off=0.0):
     tag = mode.upper()
     C = {k: L.coll(f"MP_{mode}_{k}", root) for k in ("Plinth", "Portal", "Pillars", "Sign", "Steps", "Decor")}
     M, MD, G_ = P["marble"], P["marble_dark"], P["gold"]
-    neon = L.emissive(f"MAT_Neon{mode}", spec["neon"], 3.0, base=tuple(min(1, 0.4 + 0.6 * c) for c in spec["neon"]))
-    cryst = L.emissive(f"MAT_Crystal{mode}", spec["crystal"], 1.1, base=spec["crystal"])
+    # moderate emission: stronger values clip the red/yellow channels to pink/white (seen in v1)
+    neon = L.emissive(f"MAT_Neon{mode}", spec["neon"], 1.4, base=tuple(0.75 * c for c in spec["neon"]))
+    cryst = L.emissive(f"MAT_Crystal{mode}", spec["crystal"], 0.55, base=tuple(0.8 * c for c in spec["crystal"]))
     cloth = L.flat(f"MAT_{mode}BannerCloth", spec["cloth"], rough=0.7)
     swirl = swirl_material(mode, spec)
     objs = []
@@ -144,9 +146,10 @@ def build_portal(mode, spec, P, root, x_off=0.0):
         add(G.crystal(f"MP_{tag}_Crystal_{sx}", 0.55, 1.9, 0.35, (px, 0, PILLAR_TOP + 1.2), cryst, C["Pillars"]))
 
     # ---------------- lintel + sign (gold chamfered frame, navy panel, white 3D text)
-    add(G.blocks(f"MP_{tag}_Lintel", -PILLAR_X - PILLAR_W / 2, PILLAR_X + PILLAR_W / 2, LINTEL_Z[0], LINTEL_Z[1],
+    # lintel ends inside the pillars (ending flush with their outer faces z-fought in v1)
+    add(G.blocks(f"MP_{tag}_Lintel", -PILLAR_X, PILLAR_X, LINTEL_Z[0], LINTEL_Z[1],
                  -1.0, 1.0, M, C["Sign"], bw=2.4, bh=LINTEL_Z[1] - LINTEL_Z[0], seed=11))
-    add(L.box(f"MP_{tag}_LintelGold", (2 * PILLAR_X + PILLAR_W + 0.1, 2.1, 0.14), (0, 0, LINTEL_Z[0] + 0.07), G_, 0.02,
+    add(L.box(f"MP_{tag}_LintelGold", (2 * PILLAR_X - PILLAR_W + 0.2, 2.1, 0.14), (0, 0, LINTEL_Z[0] + 0.07), G_, 0.02,
               c=C["Sign"]))
     sy = -1.25
     frame = L.extrude_polygon(f"MP_{tag}_SignFrame", G.rect(SIGN_W, SIGN_H, 0.45), 0.3, G_, C["Sign"], bevel=0.05)
