@@ -38,11 +38,11 @@ KEEP = (0.0, 3.5, 11.0, 10.0, 19.0)          # cx, cy, w, d, height above platfo
 TOWERS = {                                   # cx, cy, w, height above platform
     "OuterL": (-18.6, 0.5, 6.6, 12.5),
     "InnerL": (-8.2, -3.0, 7.0, 14.0),
-    "InnerR": (10.8, 2.0, 5.6, 15.5),
+    "InnerR": (10.8, 3.2, 5.6, 15.5),
     "OuterR": (19.6, 0.5, 6.6, 12.5),
     "Back": (13.5, 9.5, 5.0, 18.0),
 }
-STEP_N, STEP_H, STEP_D, STAIR_W = 5, PLAT_TOP / 5, 1.1, 6.4
+STEP_N, STEP_H, STEP_D, STAIR_W = 5, PLAT_TOP / 6, 1.1, 6.4   # lowest tread stays above the grass
 
 P = None
 M = {}
@@ -112,18 +112,19 @@ def build_island(C):
         lift = 0.0 if in_plat(x, y) or rn > 0.85 else random.choice((0.0, 0.0, 0.0, 0.35))
         grass.append(((x, y, -GRASS_T / 2 + lift), (CELL + 0.02, CELL + 0.02, GRASS_T + 2 * lift),
                       0 if random.random() < 0.6 else 1))
-        depth = 4.0 + 30.0 * (1.0 - rn) ** 1.5 * random.uniform(0.8, 1.2)
+        # reference: underside ~16-20 studs deep vs a ~25-stud castle (grass at ~600 px, tips at ~940 px)
+        depth = 3.0 + 13.0 * (1.0 - rn) ** 1.1 * random.uniform(0.8, 1.2)
         if k in tips and rn < 0.6:
-            depth += random.uniform(8, 14)
+            depth += random.uniform(3, 6)
         z = -GRASS_T
         # solid full-width upper mass (reads as one block body, as in the reference)
-        h0 = min(depth, 7.0 + 7.0 * (1.0 - rn))
+        h0 = min(depth, 4.0 + 4.0 * (1.0 - rn))
         under.append(((x, y, z - h0 / 2), (CELL + 0.02, CELL + 0.02, h0), random.choice((0, 2))))
         z -= h0
         depth -= h0
         seg = 1
         while depth > 0.4:
-            h = min(SEG_H, depth)
+            h = min(SEG_H * 0.75, depth)
             inset = min(0.4 * seg, CELL * 0.35)
             w = CELL - 2 * inset
             mi = (seg + random.randint(0, 1)) % 4
@@ -138,7 +139,7 @@ def build_island(C):
     for k in range(6):
         s = random.uniform(1.2, 2.8)
         objs.append(bx(f"FC_FloatCube_{k}", (s, s, s),
-                       (random.uniform(-22, 22), random.uniform(-14, 10), random.uniform(-38, -24)),
+                       (random.uniform(-22, 22), random.uniform(-14, 10), random.uniform(-25, -18)),
                        stone[k % 4], C["Island"], 0.12,
                        rot=(random.uniform(-0.4, 0.4), random.uniform(-0.4, 0.4), random.uniform(0, 1.5))))
     return objs, cells
@@ -152,7 +153,7 @@ def build_waterfall(C, cells):
     # stream channel across the grass to the lip
     objs.append(bx("FC_StreamBed", (3.4, 9.0, 0.3), (xw, edge + 4.4, 0.05), M["water"], C["Waterfall"], 0.05))
     # falling sheet: front + back layers of stepped translucent blocks (real thickness)
-    zs = [0.2, -6, -13, -20, -28, -36]
+    zs = [0.2, -5, -10, -15, -20, -24]
     for k in range(len(zs) - 1):
         z0, z1 = zs[k], zs[k + 1]
         w = 3.2 + 0.25 * k
@@ -335,7 +336,9 @@ def build_castle(C):
     neon = frame_prism("FC_Door_Neon", a_mid, a_in, wy0 - 0.35, wy0 + 0.3, M["window"], C["Castle"], 0.0,
                        cx=DOOR_X, cz=z0)
     inner = L.extrude_polygon("FC_Door_Interior", arch_poly(DOOR_W, DOOR_H), 0.4, M["door"], C["Castle"])
-    inner.location = (DOOR_X, wy1 + 0.2, z0)
+    inner.location = (DOOR_X, wy1 + 0.1, z0)
+    objs.append(bx("FC_Door_Backing", (DOOR_W + 0.6, 0.6, DOOR_H + 0.6), (DOOR_X, wy1 + 0.6, z0 + (DOOR_H + 0.6) / 2),
+                   M["marble"], C["Castle"], 0.05))
     objs += [fr, neon, inner]
     for k, dx in enumerate((-1.0, 1.0)):
         objs += banner(f"FC_Door_InnerBanner{k}", DOOR_X + dx, wy1 + 0.05, z0 + 4.8, 0.8, 1.8, 0.4, C["Castle"])
@@ -420,9 +423,9 @@ def main(do_render=True):
             bpy.data.objects.remove(ob)
     L.beauty_lights()
     L.setup_render((900, 506), 28)
-    cam = L.camera("CAM_refmatch", (-60.0, -138.0, 36.0), (1.0, 0.0, -4.0), lens=40)
+    cam = L.camera("CAM_refmatch", (-44.0, -98.0, 26.0), (1.0, 0.0, 4.0), lens=42)
     items.append(("refmatch_3q (sky)", L.render(cam, os.path.join(L.RENDERS, "castle_refmatch.png"))))
-    cam = L.camera("CAM_beauty", (70.0, -120.0, 6.0), (0.0, 0.0, -4.0), lens=38)
+    cam = L.camera("CAM_beauty", (60.0, -100.0, 4.0), (0.0, 0.0, 3.0), lens=40)
     items.append(("beauty_low_right (sky)", L.render(cam, os.path.join(L.RENDERS, "castle_beauty.png"))))
     L.contact_sheet(items, os.path.join(L.RENDERS, "castle_inspection_sheet.png"), cols=3, tile=560,
                     title="ASSET 08 - FLOATING CASTLE ISLAND (Blender Cycles renders)")
