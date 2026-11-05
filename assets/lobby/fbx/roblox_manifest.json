@@ -10538,6 +10538,21 @@
     }
    },
    {
+    "part": "MarbleCastleWall__Keep",
+    "material": "MAT_MarbleCastleWall",
+    "tris": 12,
+    "group": "Castle",
+    "item": "Castle_Keep",
+    "roblox": {
+     "Material": "Marble",
+     "Color": [
+      0.9357,
+      0.9261,
+      0.964
+     ]
+    }
+   },
+   {
     "part": "MarbleShade__Keep",
     "material": "MAT_MarbleShade",
     "tris": 12,
@@ -10565,22 +10580,6 @@
       0.2478,
       0.5657
      ]
-    }
-   },
-   {
-    "part": "Tex_castle_brick__Keep",
-    "material": "MAT_Tex_castle_brick",
-    "tris": 12,
-    "group": "Castle",
-    "item": "Castle_Keep",
-    "roblox": {
-     "Material": "SmoothPlastic",
-     "Color": [
-      1.0,
-      1.0,
-      1.0
-     ],
-     "Texture": "castle_brick"
     }
    },
    {
@@ -11842,6 +11841,21 @@
     }
    },
    {
+    "part": "MarbleCastleWall__Castle",
+    "material": "MAT_MarbleCastleWall",
+    "tris": 184,
+    "group": "Castle",
+    "item": "Castle_Main",
+    "roblox": {
+     "Material": "Marble",
+     "Color": [
+      0.9357,
+      0.9261,
+      0.964
+     ]
+    }
+   },
+   {
     "part": "MarbleShade__Castle",
     "material": "MAT_MarbleShade",
     "tris": 124,
@@ -11914,22 +11928,6 @@
       0.2717,
       0.7014
      ]
-    }
-   },
-   {
-    "part": "Tex_castle_brick__Castle",
-    "material": "MAT_Tex_castle_brick",
-    "tris": 184,
-    "group": "Castle",
-    "item": "Castle_Main",
-    "roblox": {
-     "Material": "SmoothPlastic",
-     "Color": [
-      1.0,
-      1.0,
-      1.0
-     ],
-     "Texture": "castle_brick"
     }
    },
    {
@@ -12285,6 +12283,21 @@
     }
    },
    {
+    "part": "MarbleCastleWall__Platform",
+    "material": "MAT_MarbleCastleWall",
+    "tris": 48,
+    "group": "Platform",
+    "item": "Platform",
+    "roblox": {
+     "Material": "Marble",
+     "Color": [
+      0.9357,
+      0.9261,
+      0.964
+     ]
+    }
+   },
+   {
     "part": "MarbleShade__Platform",
     "material": "MAT_MarbleShade",
     "tris": 12,
@@ -12297,22 +12310,6 @@
       0.8911,
       0.9453
      ]
-    }
-   },
-   {
-    "part": "Tex_castle_brick__Platform",
-    "material": "MAT_Tex_castle_brick",
-    "tris": 48,
-    "group": "Platform",
-    "item": "Platform",
-    "roblox": {
-     "Material": "SmoothPlastic",
-     "Color": [
-      1.0,
-      1.0,
-      1.0
-     ],
-     "Texture": "castle_brick"
     }
    },
    {

@@ -12,7 +12,6 @@ type PartSpec = { Material: string, Color: { number }, Reflectance: number?, Tra
 -- Upload textures/<name>_albedo.png and _normal.png and paste the rbxassetid:// ids here.
 -- While empty, textured parts fall back to a plain Slate material.
 local TEXTURES: { [string]: { ColorMap: string, NormalMap: string } } = {
-	castle_brick = { ColorMap = "", NormalMap = "" },
 	cobblestone = { ColorMap = "", NormalMap = "" },
 }
 local TEXTURE_FALLBACK_COLOR = Color3.fromRGB(110, 112, 140)
@@ -111,6 +110,7 @@ local MATERIALS: { [string]: PartSpec } = {
 	["LanternGlow"] = { Material = "Neon", Color = { 1.0, 0.7674, 0.3811 } },
 	["LanternIron"] = { Material = "Metal", Color = { 0.3959, 0.4236, 0.5064 } },
 	["Marble"] = { Material = "Marble", Color = { 0.9357, 0.9212, 0.9547 } },
+	["MarbleCastleWall"] = { Material = "Marble", Color = { 0.9357, 0.9261, 0.964 } },
 	["MarbleLavender"] = { Material = "Marble", Color = { 0.8962, 0.865, 0.9547 } },
 	["MarbleShade"] = { Material = "Marble", Color = { 0.9063, 0.8911, 0.9453 } },
 	["MarbleStarFill"] = { Material = "Marble", Color = { 0.9163, 0.9357, 0.9912 } },
@@ -190,7 +190,6 @@ local MATERIALS: { [string]: PartSpec } = {
 	["SignText"] = { Material = "SmoothPlastic", Color = { 1.0, 0.9261, 0.722 } },
 	["Silver"] = { Material = "SmoothPlastic", Color = { 0.9163, 0.9261, 0.9547 } },
 	["Soil"] = { Material = "SmoothPlastic", Color = { 0.5064, 0.41, 0.3318 } },
-	["Tex_castle_brick"] = { Material = "SmoothPlastic", Color = { 1.0, 1.0, 1.0 }, Texture = "castle_brick" },
 	["WarmInterior"] = { Material = "Neon", Color = { 1.0, 0.7674, 0.4614 } },
 	["WaterfallCyan"] = { Material = "Neon", Color = { 0.5371, 0.9309, 1.0 } },
 	["WhiteEmblem"] = { Material = "SmoothPlastic", Color = { 0.9777, 0.9822, 1.0 } },
