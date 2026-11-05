@@ -363,7 +363,7 @@ def build(M, root):
     objs.append(L.box("MKT_CounterRailTop", (cx1 - cx0, frame_d, 0.4), (0, fy, COUNTER_TOP - 0.6), M["woodH"], 0.06, c=C["Counter"]))
     objs.append(L.box("MKT_CounterRailBot", (cx1 - cx0, frame_d, 0.45), (0, fy, 0.25), M["woodH"], 0.06, c=C["Counter"]))
     for x in (cx0 + 0.2, 0.0, cx1 - 0.2):
-        objs.append(L.box(f"MKT_CounterStile_{x:.1f}", (0.42, frame_d, COUNTER_TOP - 0.4), (x, fy, (COUNTER_TOP - 0.4) / 2),
+        objs.append(L.box(f"MKT_CounterStile_{x:.1f}", (0.42, frame_d + 0.08, COUNTER_TOP - 0.4), (x, fy, (COUNTER_TOP - 0.4) / 2),
                           M["woodV"], 0.06, c=C["Counter"]))
     # vertical planks + X braces in each panel
     for (px0, px1) in ((cx0 + 0.41, -0.21), (0.21, cx1 - 0.41)):
@@ -489,7 +489,7 @@ def build(M, root):
             o.append(L.box(name + f"_RimY_{zz:.1f}b", (e, sy_, e), (x + sx_ / 2 - e / 2, y, zz), M["crate"], 0.04, c=C["Crates"]))
         for cx in (-1, 1):
             for cy in (-1, 1):
-                o.append(L.box(name + f"_Corner_{cx}{cy}", (e, e, sz_), (x + cx * (sx_ / 2 - e / 2), y + cy * (sy_ / 2 - e / 2), sz_ / 2),
+                o.append(L.box(name + f"_Corner_{cx}{cy}", (e + 0.05, e + 0.05, sz_ + 0.02), (x + cx * (sx_ / 2 - e / 2), y + cy * (sy_ / 2 - e / 2), sz_ / 2),
                                M["crateV"], 0.04, c=C["Crates"]))
         # X braces on the four faces
         for face in ("-y", "+y", "-x", "+x"):
