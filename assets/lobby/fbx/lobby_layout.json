@@ -965,7 +965,7 @@
    "zone": "Abilities",
    "target": [
     -10.0,
-    22.7,
+    22.2,
     0.0
    ],
    "yaw": 45,
@@ -981,7 +981,7 @@
    "zone": "Abilities",
    "target": [
     -10.0,
-    27.9,
+    26.9,
     0.0
    ],
    "yaw": 45,
@@ -997,7 +997,7 @@
    "zone": "Abilities",
    "target": [
     -10.0,
-    33.1,
+    31.6,
     0.0
    ],
    "yaw": 45,
@@ -1013,7 +1013,7 @@
    "zone": "Abilities",
    "target": [
     -10.0,
-    38.3,
+    36.3,
     0.0
    ],
    "yaw": 45,
@@ -1029,7 +1029,7 @@
    "zone": "Abilities",
    "target": [
     -10.0,
-    53.9,
+    41.0,
     0.0
    ],
    "yaw": 45,
@@ -1045,7 +1045,7 @@
    "zone": "Abilities",
    "target": [
     -10.0,
-    69.5,
+    55.1,
     0.0
    ],
    "yaw": 45,
@@ -1061,7 +1061,7 @@
    "zone": "Abilities",
    "target": [
     -10.0,
-    74.7,
+    69.2,
     0.0
    ],
    "yaw": 45,
@@ -1077,7 +1077,7 @@
    "zone": "Abilities",
    "target": [
     -10.0,
-    79.9,
+    73.9,
     0.0
    ],
    "yaw": 45,
@@ -1093,7 +1093,39 @@
    "zone": "Abilities",
    "target": [
     -10.0,
-    85.1,
+    78.6,
+    0.0
+   ],
+   "yaw": 45,
+   "scale": 1.0,
+   "stretch": [
+    1,
+    1,
+    1
+   ]
+  },
+  {
+   "unit": "Lobby_PED_Vine",
+   "zone": "Abilities",
+   "target": [
+    -10.0,
+    83.3,
+    0.0
+   ],
+   "yaw": 45,
+   "scale": 1.0,
+   "stretch": [
+    1,
+    1,
+    1
+   ]
+  },
+  {
+   "unit": "Lobby_PED_Sound",
+   "zone": "Abilities",
+   "target": [
+    -10.0,
+    88.0,
     0.0
    ],
    "yaw": 45,
@@ -1125,7 +1157,7 @@
    "zone": "Abilities",
    "target": [
     10.0,
-    22.7,
+    22.2,
     0.0
    ],
    "yaw": -45,
@@ -1141,7 +1173,7 @@
    "zone": "Abilities",
    "target": [
     10.0,
-    27.9,
+    26.9,
     0.0
    ],
    "yaw": -45,
@@ -1157,7 +1189,7 @@
    "zone": "Abilities",
    "target": [
     10.0,
-    33.1,
+    31.6,
     0.0
    ],
    "yaw": -45,
@@ -1173,7 +1205,7 @@
    "zone": "Abilities",
    "target": [
     10.0,
-    38.3,
+    36.3,
     0.0
    ],
    "yaw": -45,
@@ -1189,7 +1221,7 @@
    "zone": "Abilities",
    "target": [
     10.0,
-    43.5,
+    41.0,
     0.0
    ],
    "yaw": -45,
@@ -1205,7 +1237,7 @@
    "zone": "Abilities",
    "target": [
     10.0,
-    48.7,
+    55.1,
     0.0
    ],
    "yaw": -45,
@@ -1221,7 +1253,7 @@
    "zone": "Abilities",
    "target": [
     10.0,
-    53.9,
+    69.2,
     0.0
    ],
    "yaw": -45,
@@ -1237,7 +1269,7 @@
    "zone": "Abilities",
    "target": [
     10.0,
-    59.1,
+    73.9,
     0.0
    ],
    "yaw": -45,
@@ -1253,7 +1285,7 @@
    "zone": "Abilities",
    "target": [
     10.0,
-    64.3,
+    78.6,
     0.0
    ],
    "yaw": -45,
@@ -1269,39 +1301,7 @@
    "zone": "Abilities",
    "target": [
     10.0,
-    69.5,
-    0.0
-   ],
-   "yaw": -45,
-   "scale": 1.0,
-   "stretch": [
-    1,
-    1,
-    1
-   ]
-  },
-  {
-   "unit": "Lobby_PED_Vine",
-   "zone": "Abilities",
-   "target": [
-    10.0,
-    74.7,
-    0.0
-   ],
-   "yaw": -45,
-   "scale": 1.0,
-   "stretch": [
-    1,
-    1,
-    1
-   ]
-  },
-  {
-   "unit": "Lobby_PED_Sound",
-   "zone": "Abilities",
-   "target": [
-    10.0,
-    79.9,
+    83.3,
     0.0
    ],
    "yaw": -45,
@@ -1317,7 +1317,7 @@
    "zone": "Abilities",
    "target": [
     10.0,
-    85.1,
+    88.0,
     0.0
    ],
    "yaw": -45,
@@ -1333,7 +1333,7 @@
    "zone": "Shops",
    "target": [
     37.8298,
-    42.22,
+    46.9,
     0.0
    ],
    "yaw": -90,
@@ -1349,26 +1349,10 @@
    "zone": "Shops",
    "target": [
     36.585,
-    64.05,
+    62.9,
     0.0
    ],
    "yaw": -90,
-   "scale": 1.0,
-   "stretch": [
-    1,
-    1,
-    1
-   ]
-  },
-  {
-   "unit": "Lobby_PROP_LanternPost",
-   "zone": "Shops",
-   "target": [
-    33.5,
-    52.5,
-    0.0
-   ],
-   "yaw": 0.0,
    "scale": 1.0,
    "stretch": [
     1,
@@ -1541,7 +1525,7 @@
    "zone": "Road",
    "target": [
     -10.0,
-    91.0,
+    93.0,
     0.0
    ],
    "yaw": 0.0,
@@ -1589,7 +1573,7 @@
    "zone": "Road",
    "target": [
     10.0,
-    91.0,
+    93.0,
     0.0
    ],
    "yaw": 0.0,
@@ -1973,6 +1957,216 @@
     0.46,
     0.43,
     0.6
+   ]
+  },
+  {
+   "name": "Path_Market",
+   "zone": "Shops",
+   "shape": "Block",
+   "center": [
+    19.25,
+    46.9,
+    0.02
+   ],
+   "size": [
+    24.1,
+    6.0,
+    0.1
+   ],
+   "material": "Marble",
+   "color": [
+    0.97,
+    0.95,
+    1.0
+   ]
+  },
+  {
+   "name": "Path_Market_Gold_S",
+   "zone": "Shops",
+   "shape": "Block",
+   "center": [
+    19.25,
+    43.7,
+    0.04
+   ],
+   "size": [
+    24.1,
+    0.3,
+    0.14
+   ],
+   "material": "SmoothPlastic",
+   "color": [
+    1.0,
+    0.78,
+    0.3
+   ]
+  },
+  {
+   "name": "Path_Market_Neon_S",
+   "zone": "Shops",
+   "shape": "Block",
+   "center": [
+    19.25,
+    44.25,
+    0.075
+   ],
+   "size": [
+    24.1,
+    0.25,
+    0.05
+   ],
+   "material": "Neon",
+   "color": [
+    0.05,
+    0.75,
+    1.0
+   ]
+  },
+  {
+   "name": "Path_Market_Gold_N",
+   "zone": "Shops",
+   "shape": "Block",
+   "center": [
+    19.25,
+    50.1,
+    0.04
+   ],
+   "size": [
+    24.1,
+    0.3,
+    0.14
+   ],
+   "material": "SmoothPlastic",
+   "color": [
+    1.0,
+    0.78,
+    0.3
+   ]
+  },
+  {
+   "name": "Path_Market_Neon_N",
+   "zone": "Shops",
+   "shape": "Block",
+   "center": [
+    19.25,
+    49.55,
+    0.075
+   ],
+   "size": [
+    24.1,
+    0.25,
+    0.05
+   ],
+   "material": "Neon",
+   "color": [
+    0.05,
+    0.75,
+    1.0
+   ]
+  },
+  {
+   "name": "Path_Craft",
+   "zone": "Shops",
+   "shape": "Block",
+   "center": [
+    19.25,
+    62.9,
+    0.02
+   ],
+   "size": [
+    24.1,
+    6.0,
+    0.1
+   ],
+   "material": "Marble",
+   "color": [
+    0.97,
+    0.95,
+    1.0
+   ]
+  },
+  {
+   "name": "Path_Craft_Gold_S",
+   "zone": "Shops",
+   "shape": "Block",
+   "center": [
+    19.25,
+    59.7,
+    0.04
+   ],
+   "size": [
+    24.1,
+    0.3,
+    0.14
+   ],
+   "material": "SmoothPlastic",
+   "color": [
+    1.0,
+    0.78,
+    0.3
+   ]
+  },
+  {
+   "name": "Path_Craft_Neon_S",
+   "zone": "Shops",
+   "shape": "Block",
+   "center": [
+    19.25,
+    60.25,
+    0.075
+   ],
+   "size": [
+    24.1,
+    0.25,
+    0.05
+   ],
+   "material": "Neon",
+   "color": [
+    0.05,
+    0.75,
+    1.0
+   ]
+  },
+  {
+   "name": "Path_Craft_Gold_N",
+   "zone": "Shops",
+   "shape": "Block",
+   "center": [
+    19.25,
+    66.1,
+    0.04
+   ],
+   "size": [
+    24.1,
+    0.3,
+    0.14
+   ],
+   "material": "SmoothPlastic",
+   "color": [
+    1.0,
+    0.78,
+    0.3
+   ]
+  },
+  {
+   "name": "Path_Craft_Neon_N",
+   "zone": "Shops",
+   "shape": "Block",
+   "center": [
+    19.25,
+    65.55,
+    0.075
+   ],
+   "size": [
+    24.1,
+    0.25,
+    0.05
+   ],
+   "material": "Neon",
+   "color": [
+    0.05,
+    0.75,
+    1.0
    ]
   },
   {
