@@ -32,6 +32,12 @@ def region_palette(r0, r1):
     sub = rgbi[r0:r1, FX0:FX1]; lum = sub.sum(2) / 3
     m = (lum < 42) & (lum > 10) & (sub[..., 0] < 1.45 * sub[..., 1] + 6)
     return np.median(sub[m], axis=0) if m.sum() > 20 else np.array([26., 22., 30.])
+def hl_palette(r0, r1):
+    sub = rgbi[r0:r1, FX0:FX1]; lum = sub.sum(2) / 3
+    m = (lum > 55) & (lum < 135) & (sub[..., 0] < 1.5 * sub[..., 1] + 14) & (sub[..., 2] > 0.55 * sub[..., 0])
+    return np.median(sub[m], axis=0) if m.sum() > 20 else np.array([88., 72., 100.])
+HLPAL = {'blade': hl_palette(11, 452), 'guard': hl_palette(452, 560), 'grip': hl_palette(557, 625), 'cap': hl_palette(622, 657)}
+print('HL PALETTE', {k: v.round(0).tolist() for k, v in HLPAL.items()})
 PAL = {'blade': region_palette(11, 452), 'guard': region_palette(452, 560), 'grip': region_palette(557, 625), 'cap': region_palette(622, 657)}
 print('PALETTE', {k: v.round(1).tolist() for k, v in PAL.items()})
 SHADOW = np.array([76., 80., 108.])           # shared cool shadow tint #4C506C
@@ -146,9 +152,8 @@ light = np.array([0.35, -0.55, 0.75]); light /= np.linalg.norm(light)
 zt = np.clip((P[..., 2] + 0.55) / 1.25, 0, 1)
 lam0 = np.clip((N * light).sum(-1), 0, 1)
 # 1) value structure: top-down gradient + facet light, soft 3-step banding (painted, not CG-smooth)
-lam = 0.30 + 0.70 * lam0
-lam = 0.6 * lam + 0.4 * (np.round(lam * 3) / 3.0)
-lam = lam * (0.80 + 0.32 * zt)
+lam = 0.22 + 0.80 * lam0
+lam = lam * (0.78 + 0.34 * zt)
 # 2) flat base per part, value-first
 pal_img = np.zeros(P.shape, np.float32)
 for k, name in enumerate(pid_names): pal_img[PART == k] = PAL[name]
@@ -156,7 +161,11 @@ for k, name in enumerate(pid_names): pal_img[PART == k] = PAL[name]
 drift = noise3(P, 38.0)
 base = pal_img * (1.0 + 0.10 * drift[..., None]) * (1 + 0.06 * np.array([0.6, -0.2, 0.8]) * noise3(P, 21.0)[..., None])
 # 4) warm lit / cool shared shadow, coloured AO (multiply ~50%, tinted not black)
-warm = base * np.array([1.10, 1.0, 0.96]) * (0.55 + 1.05 * lam)[..., None]
+hl_img = np.zeros(P.shape, np.float32)
+for k, name in enumerate(pid_names): hl_img[PART == k] = HLPAL[name]
+sweep = smooth(lam0 * 1.25 - 0.30) * (0.45 + 0.55 * np.clip(0.5 + 0.5 * noise3(P, 17.0), 0, 1))   # painted gloss sweep on lit facets
+warm = base * np.array([1.10, 1.0, 0.96]) * (0.45 + 1.15 * lam)[..., None]
+warm = warm * (1 - 0.22 * sweep[..., None]) + hl_img * (0.22 * sweep[..., None]) * (0.40 + 0.5 * lam)[..., None]
 shade = np.clip((1 - lam) * 0.9 + (1 - ao) * 0.9, 0, 1)[..., None]
 col = warm * (1 - 0.55 * shade) + SHADOW * 0.30 * shade
 aoc = 0.50 + 0.50 * ao[..., None]                      # AO multiply at ~50%
@@ -178,14 +187,15 @@ for fi, edges in tri_edges.items():
         d = q - p; L = max(np.linalg.norm(d), 1e-9); dn = d / L
         t = np.clip(((pts - p) @ dn), 0, L); proj = p + t[:, None] * dn
         dist = np.linalg.norm(pts - proj, axis=1)
-        if kind > 0: hl_f[idx] = np.maximum(hl_f[idx], np.clip(1 - dist / 0.0032, 0, 1))
+        if kind > 0: hl_f[idx] = np.maximum(hl_f[idx], np.clip(1 - dist / 0.0030, 0, 1))
         else: cr_f[idx] = np.maximum(cr_f[idx], np.clip(1 - dist / 0.0055, 0, 1))
 hl = hl_f.reshape(AT, AT); cr = cr_f.reshape(AT, AT)
 brk = np.clip(0.60 + 0.8 * noise3(P, 80.0), 0, 1)                      # broken up, hand-placed feel
 up = np.clip(N[..., 2], 0, 1)
-hl = hl * brk * (0.50 + 0.9 * up + 0.3 * lam0)
+rim = (lam0 < 0.35).astype(np.float32) * np.clip(1 - np.abs(N[..., 1]) * 1.1, 0, 1)
+hl = hl * brk * (0.55 + 0.9 * up + 0.45 * lam0)
 col = col * (1 - 0.45 * cr[..., None]) + SHADOW * 0.22 * cr[..., None]  # concave crease: cool shadow
-col = col + hl[..., None] * np.array([84., 66., 94.])                  # convex edge: lighter, slightly warm-violet
+col = col + hl[..., None] * np.array([44., 34., 62.]) + (hl * rim)[..., None] * np.array([16., 30., 78.])                  # convex edge: lighter, slightly warm-violet
 
 # 6) logical wear: tiny chips only on convex edges, sparse
 chip = np.clip(noise3(P, 260.0) - 0.55, 0, 1) * 4.0 * (hl > 0.35)
@@ -206,7 +216,8 @@ def red_stencils(crop):
     c = crop.astype(int)
     core = ((c[..., 0] > 150) & (c[..., 1] < 95) & (c[..., 2] < 110)).astype(np.float32)
     mid = ((c[..., 0] > 85) & (c[..., 0] > 1.6 * c[..., 1]) & (c[..., 1] < 70)).astype(np.float32)
-    return cv2.GaussianBlur(core, (0, 0), 0.7), cv2.GaussianBlur(mid, (0, 0), 1.0), cv2.GaussianBlur(core, (0, 0), 2.6)
+    hot = ((c[..., 0] > 205) & (c[..., 1] > 55) & (c[..., 0] > 1.35 * c[..., 1])).astype(np.float32)
+    return cv2.GaussianBlur(core, (0, 0), 0.6), cv2.GaussianBlur(mid, (0, 0), 1.0), cv2.GaussianBlur(core, (0, 0), 3.4), cv2.GaussianBlur(hot, (0, 0), 0.7)
 def fix_bg(crop):
     fg = (crop.astype(int).sum(2) < 3 * 232); fg = cv2.erode(fg.astype(np.uint8), np.ones((3, 3), np.uint8)) > 0
     idx = ndi.distance_transform_edt(~fg, return_distances=False, return_indices=True); return crop[idx[0], idx[1]]
@@ -217,13 +228,16 @@ def samp(img): return cv2.remap(img, cols.astype(np.float32), rows.astype(np.flo
 corm = np.where(back, samp(RB[0]), samp(RF[0])) * facing
 midm = np.where(back, samp(RB[1]), samp(RF[1])) * facing
 halo = np.where(back, samp(RB[2]), samp(RF[2])) * facing
+hotm = np.where(back, samp(RB[3]), samp(RF[3])) * facing
 blade_m = (PART == 0)
 # seams / bands on guard, grip, cap are painted red; on the blade the glow ribbon owns the crack, we only paint a soft red bloom on the metal
-paint_red = np.clip(midm + corm * (~blade_m), 0, 1)
+paint_red = np.clip(midm + corm, 0, 1)
 col = col * (1 - 0.55 * paint_red[..., None]) + RED_MID * 0.55 * paint_red[..., None]
-col = col * (1 - 0.7 * (corm * (~blade_m))[..., None]) + np.array([214., 40., 40.]) * 0.7 * (corm * (~blade_m))[..., None]
-bloom = np.clip(halo * 1.0, 0, 1)
-col = col * (1 - 0.62 * bloom[..., None]) + RED_DEEP * 0.62 * bloom[..., None]
+col = col * (1 - 0.9 * corm[..., None]) + np.array([226., 38., 38.]) * 0.9 * corm[..., None]
+col = col * (1 - hotm[..., None]) + np.array([255., 150., 112.]) * hotm[..., None]
+bloom = np.clip(halo * 1.15, 0, 1)
+col = col * (1 - 0.70 * bloom[..., None]) + RED_DEEP * 0.70 * bloom[..., None]
+EMIS = np.clip(corm[..., None] * np.array([226., 38., 38.]) + hotm[..., None] * np.array([255., 150., 112.]) * 0.9 + midm[..., None] * np.array([150., 18., 28.]) * 0.6 + bloom[..., None] * np.array([120., 14., 30.]) * 0.3, 0, 255)
 
 # ------------------------------------------------------------------ dilate gutters (no seam bleed) and save
 col = np.clip(col, 0, 255)
@@ -232,8 +246,8 @@ col = col[idx[0], idx[1]]
 atlas = col.astype(np.uint8)
 atlas = np.where(cover[..., None], atlas, atlas)         # all texels valid after dilation
 Image.fromarray(atlas).save(f'{TEXDIR}/sword_basecolor.png')
-Image.fromarray(np.where(cover, 255, 0).astype(np.uint8)).save(f'{TEXDIR}/_uv_coverage.png')
-if os.path.exists(f'{TEXDIR}/sword_emissive.png'): os.remove(f'{TEXDIR}/sword_emissive.png')
+EMIS = EMIS[idx[0], idx[1]] * cover[..., None]
+Image.fromarray(EMIS.astype(np.uint8)).save(f'{TEXDIR}/sword_emissive.png')
 if os.path.exists(f'{TEXDIR}/sword_roughness.png'): os.remove(f'{TEXDIR}/sword_roughness.png')
 
 # ------------------------------------------------------------------ glow mesh: ribbons traced from the reference crack skeleton + gems
@@ -276,9 +290,9 @@ c_f = ((rgbi[R0:R1, FX0:FX1, 0] > 115) & (rgbi[R0:R1, FX0:FX1, 0] > 2.0 * rgbi[R
 c_b = ((rgbi[R0:R1, BX0:BX1, 0] > 115) & (rgbi[R0:R1, BX0:BX1, 0] > 2.0 * rgbi[R0:R1, BX0:BX1, 1]) & (rgbi[R0:R1, BX0:BX1, 2] < 120)).astype(np.uint8)[:, ::-1].copy()
 gem_tris = sum(len(p.vertices) - 2 for p in gems.data.polygons) if gems else 0
 body_tris = sum(len(p.vertices) - 2 for p in me.polygons)
-budget = TRI_LIMIT - 20 - body_tris - gem_tris
+budget = 0 if os.environ.get('RIBBONS', '0') != '1' else TRI_LIMIT - 20 - body_tris - gem_tris
 print('glow ribbon budget tris', budget)
-gm_bm = bmesh.new(); W_PX = 2.6
+gm_bm = bmesh.new(); W_PX = 1.5
 bvh2 = BVHTree.FromBMesh(bm)
 def surf_y(x, z, back_view):
     # nearest-to-viewer surface within ~2.5px so the ribbon rides on the groove opening and is never buried
@@ -292,7 +306,7 @@ def surf_y(x, z, back_view):
     return best
 used_total = 0
 for back_view, core in ((False, c_f), (True, c_b)):
-    chosen, used = ribbons_for(core, back_view, budget // 2); used_total += used
+    chosen, used = (ribbons_for(core, back_view, budget // 2) if budget > 0 else ([], 0)); used_total += used
     for li, l in enumerate(chosen):
         pts = [((c + FX0 - CX) * SCALE, -((r + R0) - ZERO) * SCALE) for c, r in l]       # (x, z) in metres
         n = len(pts); left = []; right = []
@@ -336,6 +350,7 @@ def build_mats(gain, glow_strength):
     nt = mat.node_tree; bs = nt.nodes['Principled BSDF']
     tb = nt.nodes.new('ShaderNodeTexImage'); tb.image = img(f'{TEXDIR}/sword_basecolor_cal.png', 'sRGB'); tb.interpolation = 'Linear'
     nt.links.new(tb.outputs['Color'], bs.inputs['Base Color'])
+    te = nt.nodes.new('ShaderNodeTexImage'); te.image = img(f'{TEXDIR}/sword_emissive.png', 'sRGB'); nt.links.new(te.outputs['Color'], bs.inputs['Emission Color']); bs.inputs['Emission Strength'].default_value = 1.6
     bs.inputs['Metallic'].default_value = 0.0; bs.inputs['Roughness'].default_value = 0.7
     bs.inputs['Specular IOR Level'].default_value = 0.1
     gmat = bpy.data.materials.new('MAT-sword_glow'); gmat.use_nodes = True
@@ -379,7 +394,7 @@ gain, gl = 1.0, 3.0; history = []
 for it in range(6):
     build_mats(gain, gl); st = render_stats(f'it{it}'); history.append(dict(it=it, gain=gain, glow=gl, **st))
     print('CAL', it, 'gain', round(gain, 3), 'glow', round(gl, 2), '->', st)
-    gain = float(np.clip(gain * REFSTAT['lum_mean'] / max(st['lum_mean'], 1), 0.5, 2.5))
+    gain = float(np.clip(gain * REFSTAT['lum_mean'] / max(st['lum_mean'], 1), 0.2, 2.5))
     gl = float(np.clip(gl * (REFSTAT['lum_p95'] / max(st['lum_p95'], 1)) ** 1.5, 0.5, 12.0))
 build_mats(gain, gl)
 os.replace(f'{TEXDIR}/sword_basecolor_cal.png', f'{TEXDIR}/sword_basecolor.png') if False else None
