@@ -233,6 +233,8 @@ blade_m = (PART == 0)
 # seams / bands on guard, grip, cap are painted red; on the blade the glow ribbon owns the crack, we only paint a soft red bloom on the metal
 paint_red = np.clip(midm + corm, 0, 1)
 col = col * (1 - 0.55 * paint_red[..., None]) + RED_MID * 0.55 * paint_red[..., None]
+nb = (~blade_m).astype(np.float32)
+corm = corm * nb; hotm = hotm * nb
 col = col * (1 - 0.9 * corm[..., None]) + np.array([226., 38., 38.]) * 0.9 * corm[..., None]
 col = col * (1 - hotm[..., None]) + np.array([255., 150., 112.]) * hotm[..., None]
 bloom = np.clip(halo * 1.15, 0, 1)
@@ -269,11 +271,26 @@ def trace_polylines(mask):
             lines.append(path)
     return [np.array([(c, r) for r, c in l], float) for l in lines if len(l) >= 6]
 
+def chaikin(l, it=2):
+    for _ in range(it):
+        if len(l) < 3: break
+        q = [l[0]]
+        for a, b in zip(l[:-1], l[1:]):
+            q += [0.75 * a + 0.25 * b, 0.25 * a + 0.75 * b]
+        q.append(l[-1]); l = np.array(q)
+    return l
+
+def resample(l, step):
+    seg = np.linalg.norm(np.diff(l, axis=0), axis=1); cum = np.concatenate([[0], np.cumsum(seg)])
+    if cum[-1] < step: return l[[0, -1]]
+    t = np.linspace(0, cum[-1], max(2, int(round(cum[-1] / step)) + 1))
+    return np.stack([np.interp(t, cum, l[:, 0]), np.interp(t, cum, l[:, 1])], 1)
+
 def ribbons_for(core_crop, back_view, budget_tris):
     m = core_crop.copy(); m[(452 - R0):] = 0                       # blade rows only (guard seams stay painted)
-    m = cv2.morphologyEx((m > 0).astype(np.uint8), cv2.MORPH_CLOSE, np.ones((5, 5), np.uint8))
+    m = cv2.morphologyEx((m > 0).astype(np.uint8), cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (9, 9)))
     lines = trace_polylines(m)
-    lines = [cv2.approxPolyDP(l.astype(np.float32).reshape(-1, 1, 2), 3.0, False)[:, 0, :] for l in lines]
+    lines = [resample(chaikin(cv2.approxPolyDP(l.astype(np.float32).reshape(-1, 1, 2), 1.8, False)[:, 0, :].astype(float), 2), RIB_STEP) for l in lines]
     lines = [l for l in lines if len(l) >= 2]
     lines.sort(key=lambda l: -np.linalg.norm(np.diff(l, axis=0), axis=1).sum())
     chosen = []; used = 0
@@ -286,13 +303,13 @@ def ribbons_for(core_crop, back_view, budget_tris):
         chosen.append(l); used += cost
     return chosen, used
 
-c_f = ((rgbi[R0:R1, FX0:FX1, 0] > 115) & (rgbi[R0:R1, FX0:FX1, 0] > 2.0 * rgbi[R0:R1, FX0:FX1, 1]) & (rgbi[R0:R1, FX0:FX1, 2] < 120)).astype(np.uint8)
-c_b = ((rgbi[R0:R1, BX0:BX1, 0] > 115) & (rgbi[R0:R1, BX0:BX1, 0] > 2.0 * rgbi[R0:R1, BX0:BX1, 1]) & (rgbi[R0:R1, BX0:BX1, 2] < 120)).astype(np.uint8)[:, ::-1].copy()
+c_f = ((rgbi[R0:R1, FX0:FX1, 0] > 82) & (rgbi[R0:R1, FX0:FX1, 0] > 1.7 * rgbi[R0:R1, FX0:FX1, 1]) & (rgbi[R0:R1, FX0:FX1, 2] < 130)).astype(np.uint8)
+c_b = ((rgbi[R0:R1, BX0:BX1, 0] > 82) & (rgbi[R0:R1, BX0:BX1, 0] > 1.7 * rgbi[R0:R1, BX0:BX1, 1]) & (rgbi[R0:R1, BX0:BX1, 2] < 130)).astype(np.uint8)[:, ::-1].copy()
 gem_tris = sum(len(p.vertices) - 2 for p in gems.data.polygons) if gems else 0
 body_tris = sum(len(p.vertices) - 2 for p in me.polygons)
-budget = 0 if os.environ.get('RIBBONS', '0') != '1' else TRI_LIMIT - 20 - body_tris - gem_tris
+budget = TRI_LIMIT - 20 - body_tris - gem_tris
 print('glow ribbon budget tris', budget)
-gm_bm = bmesh.new(); W_PX = 1.5
+gm_bm = bmesh.new(); W_PX = 2.1; RIB_STEP = 5.0
 bvh2 = BVHTree.FromBMesh(bm)
 def surf_y(x, z, back_view):
     # nearest-to-viewer surface within ~2.5px so the ribbon rides on the groove opening and is never buried
@@ -313,7 +330,7 @@ for back_view, core in ((False, c_f), (True, c_b)):
         for i, (x, z) in enumerate(pts):
             a = np.array(pts[max(i - 1, 0)]); b = np.array(pts[min(i + 1, n - 1)]); t = b - a
             t = t / (np.linalg.norm(t) + 1e-12); nrm = np.array([-t[1], t[0]])
-            taper = 0.55 + 0.45 * math.sin(math.pi * (i + 0.5) / n)
+            taper = 0.82 + 0.18 * math.sin(math.pi * (i + 0.5) / n)
             hw = 0.5 * W_PX * SCALE * taper
             for sgn, store in ((1, left), (-1, right)):
                 px, pz = x + nrm[0] * hw * sgn, z + nrm[1] * hw * sgn

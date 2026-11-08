@@ -337,8 +337,8 @@ bpy.ops.wm.read_factory_settings(use_empty=True)
 
 # BLADE: slab with wide crisp edge bevel + raised central spine plate
 _xs = np.where(mask[451, FX0:FX1])[0] + FX0
-blade = layered_part('blade', Y0, 484, [(0, 0.62, 4.0, True), (10, 1.0, 2.4, True)], 1.5, oeps=8.0, clip=(452, int(_xs.min()), int(_xs.max())))
-reduce(blade, 1240)
+blade = layered_part('blade', Y0, 484, [(0, 0.62, 4.0, True), (10, 1.0, 2.4, True)], 1.5, oeps=8.0, clip=(452, int(_xs.min()), int(_xs.max())), kgroove=0)
+reduce(blade, 900)
 finish(blade, 0.0, 'GEO-sword_blade')
 
 # GUARD: base slab + stacked bevelled armour plates, tapering toward claw tips
