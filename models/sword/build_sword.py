@@ -222,7 +222,7 @@ def layered_part(name, ya, yb, layers, groove_depth, taper=None, osig=3.0, oeps=
 def grip():
     ya, yb = 557, 625; segs = 8
     verts = []; faces = []
-    rows = np.arange(ya, yb + 0.01, 68 / 15.0)
+    rows = np.arange(ya, yb + 0.01, 68 / 12.0)
     for y in rows:
         rx = fhalf(int(y)) * 0.97; ry = max(shalf(int(y)), 6) * 0.99
         collar = 2.2 * smooth((7 - (y - ya)) / 7) + 1.8 * smooth((y - (yb - 9)) / 9)
@@ -338,13 +338,13 @@ bpy.ops.wm.read_factory_settings(use_empty=True)
 # BLADE: slab with wide crisp edge bevel + raised central spine plate
 _xs = np.where(mask[451, FX0:FX1])[0] + FX0
 blade = layered_part('blade', Y0, 484, [(0, 0.62, 4.0, True), (10, 1.0, 2.4, True)], 1.5, oeps=8.0, clip=(452, int(_xs.min()), int(_xs.max())))
-reduce(blade, 1320)
+reduce(blade, 1240)
 finish(blade, 0.0, 'GEO-sword_blade')
 
 # GUARD: base slab + stacked bevelled armour plates, tapering toward claw tips
 def gtaper(x): return max(1 - 0.70 * min(abs(x - CX) / 92.0, 1) ** 1.2, 0.2)
 guard = layered_part('guard', 452, 560, [(0, 0.45, 1.8, False), (6.0, 0.80, 2.2, False), (16.0, 1.0, 2.2, False)], 1.3, osig=5.0, oeps=7.5, use_body=True, kgroove=0)
-reduce(guard, 880)
+reduce(guard, 800)
 finish(guard, 0.0, 'GEO-sword_guard')
 
 gr = grip()
