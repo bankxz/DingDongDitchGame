@@ -131,24 +131,50 @@ for _ in range(14):
 D, PLACE = best
 print('TEXEL DENSITY px/unit', round(D, 1), '(reference ~', round(850 / 1.2, 1), 'px/unit)')
 
-# ---- fill ----
+# ---- HAND-PAINTED fill ----
 atlas = np.zeros((AT, AT, 3), np.uint8); atlas[:] = (30, 26, 32)
-rng = np.random.default_rng(3)
+emis_atlas = np.zeros((AT, AT, 3), np.uint8)
 light = Vector((0.35, -0.55, 0.75)).normalized()
+SHADOW = np.array([76, 80, 108.])            # shared cool shadow tint (#4C506C)
 
-def fbm(shape, seed):
-    r = np.random.default_rng(seed); out = np.zeros(shape, np.float32); amp = 1.0; tot = 0
-    for o in range(4):
-        s = max(2, int(max(shape) / (2 ** (3 - o) * 3)))
-        small = r.random((max(2, shape[0] // s + 2), max(2, shape[1] // s + 2))).astype(np.float32)
-        out += amp * cv2.resize(small, (shape[1], shape[0]), interpolation=cv2.INTER_CUBIC); tot += amp; amp *= 0.5
-    return out / tot
+# per-vertex ambient occlusion (24 cosine rays, short range => creases only)
+vn = {}
+for t in tris:
+    for vi, v in zip(t['vidx'], t['v']): vn.setdefault(vi, [v, Vector((0, 0, 0))])[1] += t['n']
+rngao = np.random.default_rng(11)
+AO = {}
+for vi, (p, nsum) in vn.items():
+    n = nsum.normalized() if nsum.length > 1e-9 else Vector((0, 0, 1))
+    tng = n.cross(Vector((0.3, 0.8, 0.5))).normalized(); bit = n.cross(tng)
+    occ = 0
+    for _ in range(24):
+        u1, u2 = rngao.random(), rngao.random(); r = math.sqrt(u1); ph = 2 * math.pi * u2
+        d = tng * (r * math.cos(ph)) + bit * (r * math.sin(ph)) + n * math.sqrt(max(0, 1 - u1))
+        if bvh.ray_cast(p + n * 0.0006, d, 0.045)[0] is not None: occ += 1
+    AO[vi] = 1 - occ / 24.0
+print('AO mean', round(float(np.mean(list(AO.values()))), 3))
+
+# reference red -> brush stencils (the crack/seam drawing is traced from the reference)
+def red_masks(crop_rgb, fgm):
+    c = crop_rgb.astype(int)
+    core = ((c[..., 0] > 150) & (c[..., 1] < 95) & (c[..., 2] < 110)).astype(np.float32)
+    hot = ((c[..., 0] > 215) & (c[..., 1] > 60) & (c[..., 2] > 55) & (c[..., 0] > 1.4 * c[..., 1])).astype(np.float32)
+    core = cv2.GaussianBlur(core, (0, 0), 0.7)
+    halo = cv2.GaussianBlur(core, (0, 0), 3.2)
+    mid = ((c[..., 0] > 85) & (c[..., 0] > 1.6 * c[..., 1]) & (c[..., 1] < 70)).astype(np.float32)
+    mid = cv2.GaussianBlur(mid, (0, 0), 1.0)
+    return np.clip(core * 1.15 - 0.1, 0, 1), np.clip(halo * 1.0, 0, 1), cv2.GaussianBlur(hot, (0, 0), 0.8), mid
+RF = red_masks(rgb[R0:R1, FX0:FX1], FG_F)
+RB = red_masks(rgb[R0:R1, BX0:BX1][:, ::-1].copy(), FG_B)
+
+def noise3(P, f):
+    return (np.sin(P[..., 0] * f * 1.3 + np.sin(P[..., 1] * f * 0.7)) + np.sin(P[..., 2] * f * 1.1 + P[..., 0] * f * 0.4)
+            + np.sin((P[..., 1] + P[..., 2]) * f * 0.9 + P[..., 0] * f * 0.3)) / 3.0
 
 def sample_ref(img, cols, rows):
-    return cv2.remap(img, cols.astype(np.float32), rows.astype(np.float32), cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE)
+    return cv2.remap(img, cols.astype(np.float32), rows.astype(np.float32), cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT, borderValue=0)
 
-stats = dict(B=0, A=0, occluded=0, bgleak=0, mismatch=0, glow=0, side=0)
-glow_ids = set(); isB = np.zeros(NT, bool)
+stats = dict(painted=0, red_tris=0); glow_ids = set(); isB = np.zeros(NT, bool)
 UV = [None] * NT
 for i, t in enumerate(tris):
     x0, y0, w, h = PLACE[i]
@@ -161,79 +187,62 @@ for i, t in enumerate(tris):
     l1 = ((by_ - cy_) * (lx - cx_) + (cx_ - bx_) * (ly - cy_)) / den
     l2 = ((cy_ - ay_) * (lx - cx_) + (ax_ - cx_) * (ly - cy_)) / den
     l3 = 1 - l1 - l2
-    # clamp to triangle (dilation without seams)
     l1c, l2c, l3c = np.clip(l1, 0, None), np.clip(l2, 0, None), np.clip(l3, 0, None)
-    s = np.maximum(l1c + l2c + l3c, 1e-9); l1c, l2c, l3c = l1c / s, l2c / s, l3c / s
+    s_ = np.maximum(l1c + l2c + l3c, 1e-9); l1c, l2c, l3c = l1c / s_, l2c / s_, l3c / s_
     va, vb, vc = t['v']
     P = np.stack([l1c * va[k] + l2c * vb[k] + l3c * vc[k] for k in range(3)], -1)
-    n = t['n']; part = pid_names[t['part']]
-    # ---- A: painted ----
-    pal = PAL[part]
-    nz = fbm((h, w), i)
-    base = pal[None, None, :] * (0.93 + 0.14 * nz[..., None])
-    lam = 0.80 + 0.32 * max(n.dot(light), 0.0)
-    A = base * lam
-    # hard-edge highlight: distance to hard edges in 2D frame
+    n = t['n']; part = pid_names[t['part']]; pal = PAL[part]
+    ao = l1c * AO[t['vidx'][0]] + l2c * AO[t['vidx'][1]] + l3c * AO[t['vidx'][2]]
+    # --- value structure: top-down gradient + facet light (soft 3-step banding = painted look)
+    zt = np.clip((P[..., 2] + 0.55) / 1.25, 0, 1)
+    lam0 = max(n.dot(light), 0.0)
+    lam = 0.30 + 0.70 * lam0
+    lam = 0.55 * lam + 0.45 * (np.round(lam * 3) / 3.0)
+    lam = lam * (0.82 + 0.30 * zt)
+    # --- colour: dark purple-black base, warm in light, cool shared shadow tint in shade/creases
+    nz = noise3(P, 55.0)
+    base = pal[None, None, :] * (1.0 + 0.10 * nz[..., None])
+    warm = base * np.array([1.10, 1.0, 0.96]) * (0.55 + 1.05 * lam)[..., None]
+    shade_k = np.clip((1 - lam) * 0.9 + (1 - ao) * 0.9, 0, 1)[..., None]
+    col = warm * (1 - 0.55 * shade_k) + SHADOW[None, None, :] * 0.30 * shade_k
+    # --- broken edge highlights on real hard edges (lighter, hand-placed, noisy mask), strongest on up-facing
     vids = t['vidx']; P2 = t['pts']
     hl = np.zeros((h, w), np.float32)
     for (ia, ib) in ((0, 1), (1, 2), (2, 0)):
         if t['hard'].get(frozenset((vids[ia], vids[ib])), False):
             p, q = np.array(P2[ia]), np.array(P2[ib]); d = q - p; L = max(np.hypot(*d), 1e-9)
             dist = np.abs((lx - p[0]) * d[1] - (ly - p[1]) * d[0]) / L
-            hl = np.maximum(hl, np.clip(1 - dist / 0.0035, 0, 1))
-    A = A * (1 + 0.55 * hl[..., None]) + 14 * hl[..., None]
-    A = np.clip(A, 0, 255)
-    colour = A; used = 'A'
-    # ---- B: baked from the reference ----
-    facing = abs(n.y) >= 0.35
-    if facing:
+            hl = np.maximum(hl, np.clip(1 - dist / 0.0032, 0, 1))
+    brk = np.clip(0.6 + 0.8 * noise3(P, 80.0), 0, 1)
+    hl = hl * brk * (0.55 + 0.9 * max(n.z, 0) + 0.3 * lam0)
+    col = col + hl[..., None] * np.array([86., 68., 96.])[None, None, :]
+    # --- specular glints: sparse, on up/light-facing facets
+    # --- red glow painted on (front/back-facing only), traced from the reference stencil
+    emis = np.zeros_like(col)
+    if abs(n.y) >= 0.30:
         back = n.y > 0
-        cam = Vector((0, 1, 0)) if back else Vector((0, -1, 0))
-        # occlusion test (centroid + 3 shrunk vertex points)
-        cen = (va + vb + vc) / 3
-        free = 0
-        for q in (cen, cen * 0.5 + va * 0.5, cen * 0.5 + vb * 0.5, cen * 0.5 + vc * 0.5):
-            hit = bvh.ray_cast(q + n * 0.0004, cam)
-            if hit[0] is None: free += 1
-        if free < 3:
-            stats['occluded'] += 1
-        else:
-            cols = (P[..., 0] / SCALE + CX - FX0); rows = (ZERO - P[..., 2] / SCALE - R0)
-            src = BACK if back else FRONT
-            Bc = sample_ref(src, cols, rows).astype(np.float32)
-            mx = Bc.max(2); mn = Bc.min(2)
-            leak = ((mx > 150) & (mx - mn < 32)).mean()
-            fgm = (FG_B if back else FG_F)
-            inside = sample_ref(fgm.astype(np.uint8) * 255, cols, rows) > 128
-            if leak > 0.04 or inside.mean() < 0.85:
-                stats['bgleak'] += 1
-            else:
-                dd = np.abs(Bc.mean((0, 1)) - A.mean((0, 1))).max()
-                nonred = ~((Bc[..., 0] > 105) & (Bc[..., 0] > 1.7 * Bc[..., 1]))
-                if nonred.any() and np.abs(Bc[nonred].mean(0) - A[nonred].mean(0)).max() > 70:
-                    stats['mismatch'] += 1
-                else:
-                    colour = Bc; used = 'B'
-                    redfrac = (~nonred).mean()
-                    pass  # crack glow stays in the emissive map (thin lines); only gems are a separate Glow mesh
-    if used == 'B': stats['B'] += 1; isB[i] = True
-    else:
-        stats['A'] += 1
-        if not facing: stats['side'] += 1
-    atlas[y0:y0 + h, x0:x0 + w] = np.clip(colour, 0, 255).astype(np.uint8)
-    # uv of the 3 corners (v up)
+        cols = (P[..., 0] / SCALE + CX - FX0); rows = (ZERO - P[..., 2] / SCALE - R0)
+        core, halo, hot, mid = (RB if back else RF)
+        c_ = sample_ref(core, cols, rows)[..., None]; h_ = sample_ref(halo, cols, rows)[..., None]
+        ht = sample_ref(hot, cols, rows)[..., None]; md = sample_ref(mid, cols, rows)[..., None]
+        if (c_.max() > 0.2) or (h_.max() > 0.25): stats['red_tris'] += 1
+        col = col * (1 - 0.55 * h_) + np.array([120., 14., 30.])[None, None, :] * 0.55 * h_     # soft red bloom on the metal
+        col = col * (1 - 0.5 * md) + np.array([150., 18., 28.])[None, None, :] * 0.5 * md        # dim red seams
+        col = col * (1 - c_) + np.array([236., 44., 40.])[None, None, :] * c_                    # bright crack core
+        col = col * (1 - ht) + np.array([255., 150., 115.])[None, None, :] * ht                  # hot centre
+        emis = np.array([236., 44., 40.])[None, None, :] * c_ + np.array([255., 150., 115.])[None, None, :] * ht * 0.8 + np.array([150., 18., 28.])[None, None, :] * md * 0.6 + np.array([120., 14., 30.])[None, None, :] * h_ * 0.25
+    stats['painted'] += 1
+    atlas[y0:y0 + h, x0:x0 + w] = np.clip(col, 0, 255).astype(np.uint8)
+    emis_atlas[y0:y0 + h, x0:x0 + w] = np.clip(emis, 0, 255).astype(np.uint8)
     uvs = []
     for (px_, py_) in t['pts']:
         u = (x0 + PAD + (px_ - ox) * D) / AT; v = 1 - (y0 + PAD + (py_ - oy) * D) / AT
         uvs.append((u, v))
     UV[i] = uvs
-print('STATS', stats, 'glow tris', len(glow_ids))
+print('STATS', stats)
 
 Image.fromarray(atlas).save(f'{TEXDIR}/sword_basecolor.png')
-a_ = atlas.astype(int)
-redm = ((a_[..., 0] > 105) & (a_[..., 1] < 90) & (a_[..., 2] < 90) & (a_[..., 0] > 1.7 * a_[..., 1])).astype(np.float32)
-redm = cv2.GaussianBlur(redm, (0, 0), 0.8)
-Image.fromarray((atlas * redm[..., None]).astype(np.uint8)).save(f'{TEXDIR}/sword_emissive.png')
+Image.fromarray(emis_atlas).save(f'{TEXDIR}/sword_emissive.png')
 
 # ---- write per-triangle UVs; split glow triangles ----
 uvl = bm.loops.layers.uv.new('UVMap')
@@ -356,7 +365,7 @@ for it in range(6):
     print('CAL', it, 'gain', round(gain, 3), 'emis', round(emis, 2), 'glow', round(gl, 2), '->', st)
     # brightness: match mean luminance of non-red body; red: match red fraction / peak
     kb = REFSTAT['lum_mean'] / max(st['lum_mean'], 1)
-    gain = float(np.clip(gain * kb, 0.3, 2.5))
+    gain = float(np.clip(gain * kb, 0.5, 2.5))
     kr = (REFSTAT['lum_p95'] / max(st['lum_p95'], 1)) ** 1.5
     emis = float(np.clip(emis * kr, 0.3, 8.0)); gl = float(np.clip(gl * kr, 0.5, 8.0))
 mat, gmat = build_mats(gain, emis, gl)
