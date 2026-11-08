@@ -363,7 +363,7 @@ for sy in (-1, 1):
     horns.append(tube(f'GEO-prong_{sy}', (CX, 511, Cz(511) + sy * 5), (CX, 511, Cz(511) + sy * 16),
                       (CX, 511, Cz(511) + sy * 29), 6.5, 0.3))
 horn = join(horns, 'GEO-sword_guard_horns')
-g1 = gem('gem_guard', 139.7, 478.8, 8, 12, 5.5, 20)
+g1 = gem('gem_guard', 140.1, 501.7, 5.8, 9.0, 4.5, Tb(501.7) * 0.5 - 0.5)
 g2 = gem('gem_cap', 139.4, 641.4, 4.5, 6.5, 3.2, 21)
 gems = join([g1, g2], 'GEO-sword_gems')
 
