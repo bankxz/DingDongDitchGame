@@ -1,271 +1,246 @@
-"""Untextured detailed 1:1 sword. Front silhouette locked to the reference sheet,
-thickness from side view, plus carved cracks, blade ridge/bevels, gems,
-spiral-wrapped grip, real chain links, spiked cap and pommel.
-Run: python3 build_sword_v2.py
+"""Clean, angular, untextured sword built from smoothed vector outlines.
+Blade/guard = stepped layered solids (boolean union) + clean boolean crack/seam grooves + crisp bevel.
+Front silhouette from reference sheet, thickness from the edge-on view.
+Run: python3 build_sword.py
 """
 import bpy, bmesh, cv2, numpy as np, math
-from mathutils import Vector
 from PIL import Image
 
 REF = 'reference_sheet.png'
-OUT = '/home/user/DingDongDitchGame/models/sword/sword_model'
+OUT = 'sword_model'
 rgb = np.array(Image.open(REF).convert('RGB')).astype(int)
 mask = (rgb.sum(2) < 3 * 235).astype(np.uint8)
 R, G, B = rgb[..., 0], rgb[..., 1], rgb[..., 2]
 red = (((R > 90) & (G < 80) & (B < 80) & (R > 1.8 * G))).astype(np.uint8)
 
-FX0, FX1 = 40, 239      # front view columns
-BX0, BX1 = 317, 516     # back view columns
-SX0, SX1 = 951, 1033     # side view columns
+FX0, FX1 = 40, 239
+BX0, BX1 = 317, 516
+SX0, SX1 = 951, 1033
 Y0, Y1 = 11, 861
 SCALE = 1.2 / 850
 CX = 139.5
 ZERO = 500
+UP = 4
 
-side_t = np.ones(mask.shape[0]); side_c = np.zeros(mask.shape[0])
-cs = []
-for y in range(Y0, Y1 + 1):
+# ---- clean side profile (edge-on view) ----
+ys = np.arange(Y0, Y1 + 1)
+tw, tc = [], []
+for y in ys:
     xs = np.where(mask[y, SX0:SX1])[0]
-    if len(xs): side_t[y] = xs.max() - xs.min() + 1; cs.append((xs.max() + xs.min()) / 2 + SX0)
-    else: cs.append(np.nan)
-cs = np.array(cs); ref_c = np.nanmedian(cs)
-side_c[Y0:Y1 + 1] = np.where(np.isnan(cs), ref_c, cs) - ref_c
-k = np.ones(7) / 7
-side_t = np.convolve(side_t, k, mode='same'); side_c = np.convolve(side_c, k, mode='same')
+    tw.append(xs.max() - xs.min() + 1 if len(xs) else 1)
+    tc.append((xs.max() + xs.min()) / 2 + SX0 if len(xs) else np.nan)
+tw = np.array(tw, float); tc = np.array(tc)
+tc = np.where(np.isnan(tc), np.nanmedian(tc), tc) - np.nanmedian(tc)
+def sm(a, n): return np.convolve(np.pad(a, n, mode='edge'), np.ones(2 * n + 1) / (2 * n + 1), mode='valid')
+tw = sm(tw, 9); tc = sm(tc, 15)
+def Tz(row): return float(np.interp(row, ys, tw))
+def Cz(row): return float(np.interp(row, ys, tc))
 
 
-def W(x, y, yoff=0.0):
-    return (((x - CX) * SCALE), yoff * SCALE, -(y - ZERO) * SCALE)
+def W(x, row, d=0.0):
+    return ((x - CX) * SCALE, d * SCALE, -(row - ZERO) * SCALE)
 
 
 def smooth(t): t = np.clip(t, 0, 1); return t * t * (3 - 2 * t)
 
 
-def make_obj(name, verts, faces, smooth_shade=True):
+def make_obj(name, verts, faces, flat=False):
     me = bpy.data.meshes.new(name + 'M')
     me.from_pydata(verts, [], faces); me.update()
     bm = bmesh.new(); bm.from_mesh(me)
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
     bm.to_mesh(me); bm.free()
     ob = bpy.data.objects.new(name, me); bpy.context.collection.objects.link(ob)
-    if smooth_shade:
-        for p in me.polygons: p.use_smooth = True
+    for p in me.polygons: p.use_smooth = not flat
     return ob
 
 
-GRAY = cv2.cvtColor(np.array(Image.open(REF).convert('RGB')).astype(np.uint8), cv2.COLOR_RGB2GRAY).astype(np.float32)
-
-
-def relief_field(g, redm, shape, up, sigma):
-    g = g.copy()
-    rd = cv2.dilate(redm.astype(np.uint8), np.ones((3, 3), np.uint8)) > 0
-    bl = cv2.GaussianBlur(g, (0, 0), sigma)
-    g[rd] = bl[rd]
-    hp = g - cv2.GaussianBlur(g, (0, 0), sigma)
-    hp = cv2.GaussianBlur(hp, (0, 0), 0.8)
-    hp = np.clip(hp / (hp.std() + 1e-6), -2, 2) / 2
-    return cv2.resize(hp, (shape[1], shape[0]), interpolation=cv2.INTER_LINEAR)
-
-
-def heightfield(name, ya, yb, prof, up=1, groove=1.8, xa=FX0, xb=FX1, wanted=None, relief=0.0):
-    """Dense surface over the part's silhouette. prof(ctx)->half-thickness px."""
-    sub = np.zeros(mask.shape, np.uint8)
-    sub[ya:yb, xa:xb] = mask[ya:yb, xa:xb]
-    roi = sub[ya:yb, xa:xb].astype(np.float32)
-    big = cv2.resize(roi, None, fx=up, fy=up, interpolation=cv2.INTER_CUBIC)
+# ---- smoothed vector outlines ----
+def outlines(binary_roi, xa, ya, sigma=2.6, eps=1.5, min_area=40):
+    """binary ROI (orig px) -> list of (outer_polygon, [hole_polygons]); smoothed + simplified."""
+    big = cv2.resize(binary_roi.astype(np.float32), None, fx=UP, fy=UP, interpolation=cv2.INTER_CUBIC)
+    big = cv2.GaussianBlur(big, (0, 0), sigma)
     m = (big > 0.5).astype(np.uint8)
-    if up > 1:
-        m = cv2.morphologyEx(m, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3)))
-    # drop specks
-    n, lab, st, _ = cv2.connectedComponentsWithStats(m, connectivity=4)
-    for i in range(1, n):
-        if st[i, cv2.CC_STAT_AREA] < 8 * up * up: m[lab == i] = 0
-    if wanted is not None:
-        pass
-    dt = cv2.distanceTransform(m, cv2.DIST_L2, 5) / up
-    # groove fields (front from front view, back from flipped back view)
-    rf = red[ya:yb, xa:xb].astype(np.float32)
-    rb = red[ya:yb, BX0:BX1][:, ::-1].astype(np.float32)
-    def gfield(rr):
-        rr = cv2.dilate(rr, np.ones((2, 2), np.uint8))
-        rr = cv2.resize(rr, (m.shape[1], m.shape[0]), interpolation=cv2.INTER_LINEAR)
-        return cv2.GaussianBlur(rr, (0, 0), 0.6 * up)
-    gf, gb = gfield(rf), gfield(rb)
-    hh, ww = m.shape
-    jj, ii = np.mgrid[0:hh, 0:ww]
-    px = xa + (ii + 0.5) / up
-    py = ya + (jj + 0.5) / up
-    # per-row extents for normalised cross-section coordinate
-    rows = np.where(m.any(1), 1, 0)
-    xmin = np.full(hh, 0.0); xmax = np.full(hh, 1.0)
-    for j in range(hh):
-        xs = np.where(m[j])[0]
-        if len(xs): xmin[j], xmax[j] = xs.min(), xs.max()
-    rc = (xmin + xmax) / 2; rh = np.maximum((xmax - xmin) / 2, 1)
-    u = (ii - rc[:, None]) / rh[:, None]
-    yi = np.clip(np.round(py).astype(int), Y0, Y1)
-    ctx = dict(dt=dt, u=u, px=px, py=py, Tz=side_t[yi], c=side_c[yi], rh=rh[:, None] / up,
-               rowhalf=rh[:, None] / up, up=up)
-    H = prof(ctx)
-    Rf = Rb = 0
-    if relief:
-        Rf = relief * relief_field(GRAY[ya:yb, xa:xb], red[ya:yb, xa:xb], m.shape, up, 5.0) * smooth(dt / 3.0)
-        Rb = relief * relief_field(GRAY[ya:yb, BX0:BX1][:, ::-1], red[ya:yb, BX0:BX1][:, ::-1], m.shape, up, 5.0) * smooth(dt / 3.0)
-    H_f, H_b = H + Rf, H + Rb
-    Hf = np.maximum(H_f - groove * smooth(gf * 1.2), 0.35)
-    Hb = np.maximum(H_b - groove * smooth(gb * 1.2), 0.35)
-    idx = -np.ones(m.shape, np.int64); inside = m > 0
-    cnt = int(inside.sum()); idx[inside] = np.arange(cnt)
-    X = px[inside]; Yp = py[inside]; C = ctx['c'][inside]
-    vf = np.stack([(X - CX) * SCALE, (C - Hf[inside]) * SCALE, -(Yp - ZERO) * SCALE], 1)
-    vb = np.stack([(X - CX) * SCALE, (C + Hb[inside]) * SCALE, -(Yp - ZERO) * SCALE], 1)
-    verts = np.concatenate([vf, vb]); faces = []
-    a, b, c, d = idx[:-1, :-1], idx[:-1, 1:], idx[1:, 1:], idx[1:, :-1]
-    q = (a >= 0) & (b >= 0) & (c >= 0) & (d >= 0)
-    qa, qb, qc, qd = a[q], b[q], c[q], d[q]
-    faces += [tuple(r) for r in np.stack([qa, qb, qc, qd], 1)]
-    faces += [tuple(r) for r in np.stack([qd + cnt, qc + cnt, qb + cnt, qa + cnt], 1)]
-    # boundary walls
-    Q = np.zeros((hh + 1, ww + 1), bool); Q[1:-1, 1:-1] = False
-    Qv = np.zeros((hh - 1, ww - 1), bool); Qv[:] = q
-    P = np.pad(Qv, 1)
-    # horizontal edges (i,j)-(i+1,j) between row j-1 quad and row j quad
-    for j in range(hh):
-        for i in range(ww - 1):
-            if idx[j, i] < 0 or idx[j, i + 1] < 0: continue
-            up_q = P[j, i + 1]   # quad above (row j-1) -> padded index j
-            dn_q = P[j + 1, i + 1]
-            if up_q != dn_q:
-                p0, p1 = idx[j, i], idx[j, i + 1]
-                faces.append((p0, p1, p1 + cnt, p0 + cnt) if dn_q else (p1, p0, p0 + cnt, p1 + cnt))
-    for j in range(hh - 1):
-        for i in range(ww):
-            if idx[j, i] < 0 or idx[j + 1, i] < 0: continue
-            l_q = P[j + 1, i]; r_q = P[j + 1, i + 1]
-            if l_q != r_q:
-                p0, p1 = idx[j, i], idx[j + 1, i]
-                faces.append((p1, p0, p0 + cnt, p1 + cnt) if r_q else (p0, p1, p1 + cnt, p0 + cnt))
-    return make_obj('GEO-' + name, verts.tolist(), faces), ctx
+    cs, h = cv2.findContours(m, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_NONE)
+    polys = {}
+    for i, c in enumerate(cs):
+        if cv2.contourArea(c) < min_area: continue
+        a = cv2.approxPolyDP(c, eps, True)[:, 0, :].astype(float)
+        if len(a) < 3: continue
+        polys[i] = np.stack([xa + (a[:, 0] + 0.5) / UP, ya + (a[:, 1] + 0.5) / UP], 1)
+    groups = []
+    for i, p in polys.items():
+        if h[0][i][3] == -1:
+            groups.append((p, [polys[j] for j in polys if h[0][j][3] == i]))
+    return groups
 
 
-# ---------- profiles ----------
-def prof_blade(c):
-    bev = 6.0
-    edge = smooth(c['dt'] / bev) * 0.8 + 0.2
-    ridge = 1 - 0.22 * np.minimum(np.abs(c['u'] + 0.25), 1.0)
-    return np.maximum(c['Tz'] * 0.5 * edge * ridge * 1.0, 0.4)
-
-def prof_guard(c):
-    edge = smooth(c['dt'] / 4.0) * 0.85 + 0.15
-    tx = 1 - 0.72 * np.minimum(np.abs(c['px'] - CX) / 92.0, 1) ** 1.2
-    plate = 1 + 0.10 * np.exp(-((c['px'] - CX) / 16) ** 2)
-    return np.maximum(c['Tz'] * 0.5 * edge * np.maximum(tx, 0.2) * plate * 0.95, 0.4)
-
-def prof_round(c):
-    t = np.clip(1 - c['u'] ** 2, 0, 1)
-    return np.maximum(np.sqrt(t) * c['rh'] * 1.0, 0.4)
-
-def prof_pommel(c):
-    edge = smooth(c['dt'] / 3.5) * 0.8 + 0.2
-    tx = 1 - 0.6 * np.minimum(np.abs(c['px'] - CX) / 22.0, 1)
-    return np.maximum(c['Tz'] * 0.5 * edge * np.maximum(tx, 0.25), 0.4)
+def layer_mask(sub_roi, erode_px):
+    if erode_px <= 0: return sub_roi
+    big = cv2.resize(sub_roi.astype(np.float32), None, fx=UP, fy=UP, interpolation=cv2.INTER_CUBIC)
+    big = (cv2.GaussianBlur(big, (0, 0), 2.6) > 0.5).astype(np.uint8)
+    dt = cv2.distanceTransform(big, cv2.DIST_L2, 5)
+    m = (dt >= erode_px * UP).astype(np.uint8)
+    return cv2.resize(m, (sub_roi.shape[1], sub_roi.shape[0]), interpolation=cv2.INTER_AREA) > 0.5
 
 
-def surface_h(ctx_prof, ob_ctx, x, y):
-    return None
+def prism(name, groups, tfun):
+    """Solid from [(outer, [holes])] polygons. tfun(x,row)->(front_y, back_y) px."""
+    from mathutils import Vector
+    import mathutils.geometry as mg
+    bm = bmesh.new()
+    for outer, holes in groups:
+        loops = [outer] + list(holes)
+        allv_t = []; allv_b = []
+        for poly in loops:
+            tv = []; bv = []
+            for x, r in poly:
+                f, b = tfun(x, r)
+                tv.append(bm.verts.new(W(x, r, f))); bv.append(bm.verts.new(W(x, r, b)))
+            n = len(poly)
+            for i in range(n):
+                try: bm.faces.new((tv[i], tv[(i + 1) % n], bv[(i + 1) % n], bv[i]))
+                except ValueError: pass
+            allv_t += tv; allv_b += bv
+        tess = mg.tessellate_polygon([[Vector((float(x), float(r), 0.0)) for x, r in poly] for poly in loops])
+        for (i, j, k) in tess:
+            try: bm.faces.new((allv_t[i], allv_t[j], allv_t[k]))
+            except ValueError: pass
+            try: bm.faces.new((allv_b[k], allv_b[j], allv_b[i]))
+            except ValueError: pass
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
+    me = bpy.data.meshes.new(name + 'M'); bm.to_mesh(me); bm.free()
+    ob = bpy.data.objects.new(name, me); bpy.context.collection.objects.link(ob)
+    return ob
 
 
-# ---------- gems ----------
-def gem(name, cx, cy, hw, hh, depth, ybase):
-    """Octahedron-like faceted diamond protruding on both faces. ybase=half thickness px."""
-    verts = []; faces = []
-    for sgn in (-1, 1):  # -1 front (towards -Y), +1 back
-        base = len(verts)
-        verts += [W(cx, cy - hh, sgn * (ybase - 0.5)), W(cx + hw, cy, sgn * (ybase - 0.5)),
-                  W(cx, cy + hh, sgn * (ybase - 0.5)), W(cx - hw, cy, sgn * (ybase - 0.5)),
-                  W(cx, cy, sgn * (ybase + depth))]
-        for i in range(4):
-            faces.append((base + i, base + (i + 1) % 4, base + 4))
-        faces.append((base + 3, base + 2, base + 1, base + 0))
-    return make_obj('GEO-' + name, verts, faces, smooth_shade=False)
+def boolean(a, b, op, exact=True):
+    md = a.modifiers.new('b', 'BOOLEAN'); md.object = b; md.operation = op
+    md.solver = 'EXACT'
+    try: md.use_self = True
+    except Exception: pass
+    bpy.context.view_layer.objects.active = a
+    bpy.ops.object.modifier_apply(modifier=md.name)
+    bpy.data.objects.remove(b)
 
 
-# ---------- grip: lathe with spiral wrap ----------
+def finish(ob, bevel=0.0005, name=None):
+    bpy.context.view_layer.objects.active = ob
+    try: bpy.ops.object.shade_auto_smooth(angle=math.radians(32))
+    except Exception:
+        for p in ob.data.polygons: p.use_smooth = False
+    if name: ob.name = name
+    return ob
+
+
+def bevel_obj(ob, px, segs=2, angle=30):
+    bpy.context.view_layer.objects.active = ob
+    bv = ob.modifiers.new('bev', 'BEVEL'); bv.width = px * SCALE; bv.segments = segs
+    bv.limit_method = 'ANGLE'; bv.angle_limit = math.radians(angle); bv.use_clamp_overlap = True
+    bpy.ops.object.modifier_apply(modifier=bv.name)
+
+
+def layered_part(name, ya, yb, layers, groove_depth, taper=None, osig=3.0, oeps=1.8, const_t=None):
+    """layers: [(erode_px, thickness_scale, bevel_px, groove)] each a beveled slab; crisp grooves cut after bevel."""
+    xa, xb = FX0, FX1
+    sub = np.zeros(mask.shape, np.uint8); sub[ya:yb, xa:xb] = mask[ya:yb, xa:xb]
+    roi = sub[ya:yb, xa:xb]
+
+    def tf_for(sc):
+        def f(x, r):
+            t = (const_t if const_t else Tz(r) * 0.5) * sc
+            if taper: t *= taper(x)
+            t = max(t, 0.6); c = Cz(r)
+            return (c - t, c + t)
+        return f
+
+    # groove polygons (front from front view, back from flipped back view)
+    groove = {}
+    for side, red_roi in (('f', red[ya:yb, xa:xb]), ('b', red[ya:yb, BX0:BX1][:, ::-1])):
+        gm = (red_roi.astype(np.uint8) * (mask[ya:yb, xa:xb] > 0))
+        gm = cv2.dilate(gm, np.ones((2, 2), np.uint8))
+        groove[side] = outlines(gm, xa, ya, sigma=4.0, eps=2.4, min_area=140)
+
+    parts = []
+    for (er, sc, bev, do_groove) in layers:
+        lm = layer_mask(roi, er)
+        loops = outlines(lm, xa, ya, sigma=osig, eps=oeps)
+        if not loops: continue
+        tf = tf_for(sc)
+        o = prism(f'{name}_L{er}', loops, tf)
+        bevel_obj(o, bev, 2)
+        if do_groove:
+            for side in ('f', 'b'):
+                cut = []
+                for poly in groove[side]:
+                    def tfun(x, r, side=side, tf=tf):
+                        f, b = tf(x, r)
+                        return (f - 6.0, f + groove_depth) if side == 'f' else (b - groove_depth, b + 6.0)
+                    cut.append(prism(f'{name}_cut', [(poly[0], [])], tfun))
+                if cut:
+                    bpy.ops.object.select_all(action='DESELECT')
+                    for c in cut: c.select_set(True)
+                    bpy.context.view_layer.objects.active = cut[0]
+                    if len(cut) > 1: bpy.ops.object.join()
+                    boolean(o, bpy.context.active_object, 'DIFFERENCE')
+        parts.append(o)
+    return join(parts, name)
+
+
+# ---- grip: smooth lathe, spiral wrap ----
 def grip():
-    ya, yb = 557, 625
-    segs = 28
+    ya, yb = 557, 625; segs = 32
     verts = []; faces = []
-    ys = np.arange(ya, yb + 0.01, 1.0)
-    for j, y in enumerate(ys):
+    rows = np.arange(ya, yb + 0.01, 0.75)
+    for y in rows:
         xs = np.where(mask[int(y), FX0:FX1])[0]
         r0 = (xs.max() - xs.min() + 1) / 2 * 0.86
-        t = (y - ya) / (yb - ya)
-        collar = 2.2 * smooth((7 - (y - ya)) / 7) + 1.6 * smooth((y - (yb - 9)) / 9)
+        collar = 2.4 * smooth((7 - (y - ya)) / 7) + 1.8 * smooth((y - (yb - 9)) / 9)
         for s in range(segs):
             a = 2 * math.pi * s / segs
-            phase = a / (2 * math.pi) * 1.0 + (y - ya) / 11.0
-            band = (abs(math.sin(math.pi * phase))) ** 0.55
-            groove = 1.0 - 0.0
-            r = r0 * (0.90 + 0.14 * band) + collar
-            verts.append(W(CX + r * math.cos(a), y, r * math.sin(a) + side_c[int(y)] * 0.0))
-    for j in range(len(ys) - 1):
+            phase = a / (2 * math.pi) + (y - ya) / 11.0
+            band = (0.5 + 0.5 * math.cos(2 * math.pi * phase))
+            r = r0 * (0.90 + 0.13 * band) + collar
+            verts.append(W(CX + r * math.cos(a), y, r * math.sin(a)))
+    for j in range(len(rows) - 1):
         for s in range(segs):
             a = j * segs + s; b = j * segs + (s + 1) % segs
             faces.append((a, b, b + segs, a + segs))
-    # end caps
-    for j in (0, len(ys) - 1):
-        c = len(verts); verts.append(W(CX, ys[j], 0))
+    for j in (0, len(rows) - 1):
+        c = len(verts); verts.append(W(CX, rows[j], 0))
         for s in range(segs):
             a = j * segs + s; b = j * segs + (s + 1) % segs
             faces.append((c, b, a) if j == 0 else (c, a, b))
     return make_obj('GEO-sword_grip', verts, faces)
 
 
-# ---------- chain ----------
-def link(name, cz, phi, w=18.0, h=26.0, r=4.0, nseg=40, nring=10):
-    a = (w - 2 * r) / 2; b = (h - 2 * r) / 2; st = b - a
-    path = []
-    n = nseg // 2
-    for i in range(n + 1):           # top arc
-        t = math.pi * i / n
-        path.append((a * math.cos(t), st + a * math.sin(t)))
-    for i in range(n + 1):           # bottom arc
-        t = math.pi + math.pi * i / n
-        path.append((a * math.cos(t), -st + a * math.sin(t)))
-    # remove duplicate joins
-    pts = []
-    for p in path:
-        if not pts or (abs(p[0] - pts[-1][0]) + abs(p[1] - pts[-1][1])) > 1e-6: pts.append(p)
-    if (abs(pts[0][0] - pts[-1][0]) + abs(pts[0][1] - pts[-1][1])) < 1e-6: pts.pop()
-    N = len(pts); verts = []; faces = []
-    for i in range(N):
-        p = np.array(pts[i]); q = np.array(pts[(i + 1) % N]); pr = np.array(pts[i - 1])
-        tan = q - pr; tan /= np.linalg.norm(tan)
-        nrm = np.array([tan[1], -tan[0]])   # outward in-plane normal
-        for k in range(nring):
-            t = 2 * math.pi * k / nring
-            off_in = math.cos(t) * r; off_perp = math.sin(t) * r
-            lp = p + nrm * off_in
-            c_, s_ = math.cos(phi), math.sin(phi)
-            hx = lp[0] * c_ - off_perp * s_
-            hy = lp[0] * s_ + off_perp * c_
-            verts.append(W(CX + hx, cz - lp[1], hy))
-    for i in range(N):
-        for k in range(nring):
-            a = i * nring + k; b = i * nring + (k + 1) % nring
-            c = ((i + 1) % N) * nring + (k + 1) % nring; d = ((i + 1) % N) * nring + k
-            faces.append((a, b, c, d))
-    return make_obj(name, verts, faces)
+def lathe_prof(name, prof, segs, flat=True, fin=None):
+    """prof: list of (row, radius). Faceted lathe with `segs` sides (angular)."""
+    verts = []; faces = []
+    for (row, r) in prof:
+        for s in range(segs):
+            a = 2 * math.pi * (s + 0.5) / segs
+            rr = r * (fin(a) if fin else 1.0)
+            verts.append(W(CX + rr * math.cos(a), row, rr * math.sin(a)))
+    for j in range(len(prof) - 1):
+        for s in range(segs):
+            a = j * segs + s; b = j * segs + (s + 1) % segs
+            faces.append((a, b, b + segs, a + segs))
+    for j in (0, len(prof) - 1):
+        c = len(verts); verts.append(W(CX, prof[j][0], 0))
+        for s in range(segs):
+            a = j * segs + s; b = j * segs + (s + 1) % segs
+            faces.append((c, b, a) if j == 0 else (c, a, b))
+    return make_obj(name, verts, faces, flat=flat)
 
 
-def tube(name, p0, p1, p2, r0, r1, n=18, ring=8):
-    """Tapered curved horn along a quadratic path; points are (x_px,row_px,depth_px)."""
+def tube(name, p0, p1, p2, r0, r1, n=16, ring=6):
     P = [np.array(p, float) for p in (p0, p1, p2)]
     pts = [(1 - t) ** 2 * P[0] + 2 * (1 - t) * t * P[1] + t * t * P[2] for t in np.linspace(0, 1, n)]
     verts = []; faces = []
     for i, p in enumerate(pts):
         tan = (pts[min(i + 1, n - 1)] - pts[max(i - 1, 0)]); tan /= np.linalg.norm(tan)
-        a = np.cross(tan, [1, 0, 0]);
+        a = np.cross(tan, [1, 0, 0])
         if np.linalg.norm(a) < 1e-3: a = np.cross(tan, [0, 1, 0])
         a /= np.linalg.norm(a); b = np.cross(tan, a)
         r = r0 + (r1 - r0) * (i / (n - 1)) ** 0.8
@@ -278,53 +253,25 @@ def tube(name, p0, p1, p2, r0, r1, n=18, ring=8):
             a_ = i * ring + k; b_ = i * ring + (k + 1) % ring
             faces.append((a_, b_, b_ + ring, a_ + ring))
     tip = len(verts); verts.append(W(*pts[-1]))
-    for k in range(ring):
-        faces.append(((n - 1) * ring + k, (n - 1) * ring + (k + 1) % ring, tip))
+    for k in range(ring): faces.append(((n - 1) * ring + k, (n - 1) * ring + (k + 1) % ring, tip))
     base = len(verts); verts.append(W(*pts[0]))
-    for k in range(ring):
-        faces.append((base, (k + 1) % ring, k))
-    return make_obj(name, verts, faces)
+    for k in range(ring): faces.append((base, (k + 1) % ring, k))
+    return make_obj(name, verts, faces, flat=True)
 
 
-def spike(name, ya, yb, r0, segs=24):
-    """Faceted downward pommel spike (lathe) with a flared collar."""
-    verts = []; faces = []; ys = np.linspace(ya, yb, 16)
-    for j, y in enumerate(ys):
-        t = (y - ya) / (yb - ya)
-        r = r0 * (1 - t) ** 0.9 * (1 + 0.25 * math.sin(math.pi * min(t * 2.5, 1)))
-        for sgm in range(segs):
-            a = 2 * math.pi * sgm / segs
-            rr = r * (1 + 0.08 * math.cos(4 * a))
-            verts.append(W(CX + rr * math.cos(a), y, rr * math.sin(a)))
-    for j in range(len(ys) - 1):
-        for sgm in range(segs):
-            a = j * segs + sgm; b = j * segs + (sgm + 1) % segs
-            faces.append((a, b, b + segs, a + segs))
-    tip = len(verts); verts.append(W(CX, ys[-1], 0))
-    for sgm in range(segs):
-        a = (len(ys) - 1) * segs + sgm; b = (len(ys) - 1) * segs + (sgm + 1) % segs
-        faces.append((a, b, tip))
-    return make_obj(name, verts, faces)
+def gem(name, cx, cy, hw, hh, depth, ybase):
+    verts = []; faces = []
+    for sgn in (-1, 1):
+        base = len(verts)
+        verts += [W(cx, cy - hh, sgn * (ybase - 0.5)), W(cx + hw, cy, sgn * (ybase - 0.5)),
+                  W(cx, cy + hh, sgn * (ybase - 0.5)), W(cx - hw, cy, sgn * (ybase - 0.5)),
+                  W(cx, cy, sgn * (ybase + depth))]
+        for i in range(4): faces.append((base + i, base + (i + 1) % 4, base + 4))
+        faces.append((base + 3, base + 2, base + 1, base + 0))
+    return make_obj('GEO-' + name, verts, faces, flat=True)
 
 
-def drop_islands(ob, min_verts=150):
-    bm = bmesh.new(); bm.from_mesh(ob.data)
-    seen = set(); kill = []
-    for v in bm.verts:
-        if v.index in seen: continue
-        stack = [v]; comp = []; seen.add(v.index)
-        while stack:
-            x = stack.pop(); comp.append(x)
-            for e in x.link_edges:
-                o = e.other_vert(x)
-                if o.index not in seen: seen.add(o.index); stack.append(o)
-        if len(comp) < min_verts: kill += comp
-    if kill:
-        bmesh.ops.delete(bm, geom=kill, context='VERTS'); print('DROPPED', ob.name, len(kill))
-    bm.to_mesh(ob.data); bm.free()
-
-
-def join(objs, name, bevel=None):
+def join(objs, name):
     objs = [o for o in objs if o]
     bpy.ops.object.select_all(action='DESELECT')
     for o in objs: o.select_set(True)
@@ -335,11 +282,22 @@ def join(objs, name, bevel=None):
 
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
-blade, _ = heightfield('blade', Y0, 452, prof_blade, up=2, groove=2.4, relief=1.6)
-guard, _ = heightfield('guard', 452, 560, prof_guard, up=2, groove=2.0, relief=3.0)
-cap, _ = heightfield('cap', 624, 656, prof_round, up=2, groove=1.0)
+
+# BLADE: slab with wide crisp edge bevel + raised central spine plate
+blade = layered_part('blade', Y0, 452, [(0, 1.0, 5.5, True), (10, 1.28, 2.6, True)], 1.5)
+finish(blade, 0.0, 'GEO-sword_blade')
+
+# GUARD: base slab + stacked bevelled armour plates, tapering toward claw tips
+def gtaper(x): return max(1 - 0.70 * min(abs(x - CX) / 92.0, 1) ** 1.2, 0.2)
+guard = layered_part('guard', 452, 560, [(0, 0.20, 1.8, False), (6.0, 0.55, 2.4, False), (16.0, 0.92, 2.4, False)], 1.3, osig=5.0, oeps=2.6, const_t=25.0)
+finish(guard, 0.0, 'GEO-sword_guard')
+
 gr = grip()
-spk = spike('GEO-sword_pommel_spike', 638, 700, 13.0)
+# cap: octagonal flared pommel body
+cap_prof = [(622, 12.5), (626, 17), (632, 21), (640, 22), (647, 17), (653, 10), (656, 7)]
+cap = lathe_prof('GEO-sword_cap', cap_prof, 12, fin=lambda a: 1 + 0.16 * math.cos(4 * a) ** 2)
+spike_prof = [(650, 10), (662, 8), (676, 5.5), (692, 2.5), (704, 0.0)]
+spk = lathe_prof('GEO-sword_pommel_spike', spike_prof, 12)
 horns = []
 for sx in (-1, 1):
     for sy in (-1, 1):
@@ -347,11 +305,8 @@ for sx in (-1, 1):
                           (CX + sx * 11, 466, sy * 26), 4.2, 0.6))
 horn = join(horns, 'GEO-sword_guard_horns')
 g1 = gem('gem_guard', 139.7, 478.8, 8, 12, 5.5, 20)
-g2 = gem('gem_cap', 139.4, 641.4, 4.5, 6.5, 3.2, 10)
+g2 = gem('gem_cap', 139.4, 641.4, 4.5, 6.5, 3.2, 21)
 gems = join([g1, g2], 'GEO-sword_gems')
-for _o in (blade, guard, cap): drop_islands(_o)
-blade.name = 'GEO-sword_blade'; guard.name = 'GEO-sword_guard'; gr.name = 'GEO-sword_grip'
-cap.name = 'GEO-sword_cap'
 
 mat = bpy.data.materials.new('MAT-clay_untextured'); mat.use_nodes = True
 bs = mat.node_tree.nodes['Principled BSDF']
