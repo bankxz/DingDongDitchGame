@@ -16,7 +16,7 @@ red = (((R > 90) & (G < 80) & (B < 80) & (R > 1.8 * G))).astype(np.uint8)
 
 FX0, FX1 = 40, 239      # front view columns
 BX0, BX1 = 317, 516     # back view columns
-SX0, SX1 = 582, 639     # side view columns
+SX0, SX1 = 951, 1033     # side view columns
 Y0, Y1 = 11, 861
 SCALE = 1.2 / 850
 CX = 139.5
@@ -53,7 +53,21 @@ def make_obj(name, verts, faces, smooth_shade=True):
     return ob
 
 
-def heightfield(name, ya, yb, prof, up=1, groove=1.8, xa=FX0, xb=FX1, wanted=None):
+GRAY = cv2.cvtColor(np.array(Image.open(REF).convert('RGB')).astype(np.uint8), cv2.COLOR_RGB2GRAY).astype(np.float32)
+
+
+def relief_field(g, redm, shape, up, sigma):
+    g = g.copy()
+    rd = cv2.dilate(redm.astype(np.uint8), np.ones((3, 3), np.uint8)) > 0
+    bl = cv2.GaussianBlur(g, (0, 0), sigma)
+    g[rd] = bl[rd]
+    hp = g - cv2.GaussianBlur(g, (0, 0), sigma)
+    hp = cv2.GaussianBlur(hp, (0, 0), 0.8)
+    hp = np.clip(hp / (hp.std() + 1e-6), -2, 2) / 2
+    return cv2.resize(hp, (shape[1], shape[0]), interpolation=cv2.INTER_LINEAR)
+
+
+def heightfield(name, ya, yb, prof, up=1, groove=1.8, xa=FX0, xb=FX1, wanted=None, relief=0.0):
     """Dense surface over the part's silhouette. prof(ctx)->half-thickness px."""
     sub = np.zeros(mask.shape, np.uint8)
     sub[ya:yb, xa:xb] = mask[ya:yb, xa:xb]
@@ -93,8 +107,13 @@ def heightfield(name, ya, yb, prof, up=1, groove=1.8, xa=FX0, xb=FX1, wanted=Non
     ctx = dict(dt=dt, u=u, px=px, py=py, Tz=side_t[yi], c=side_c[yi], rh=rh[:, None] / up,
                rowhalf=rh[:, None] / up, up=up)
     H = prof(ctx)
-    Hf = np.maximum(H - groove * smooth(gf * 1.2), 0.35)
-    Hb = np.maximum(H - groove * smooth(gb * 1.2), 0.35)
+    Rf = Rb = 0
+    if relief:
+        Rf = relief * relief_field(GRAY[ya:yb, xa:xb], red[ya:yb, xa:xb], m.shape, up, 5.0) * smooth(dt / 3.0)
+        Rb = relief * relief_field(GRAY[ya:yb, BX0:BX1][:, ::-1], red[ya:yb, BX0:BX1][:, ::-1], m.shape, up, 5.0) * smooth(dt / 3.0)
+    H_f, H_b = H + Rf, H + Rb
+    Hf = np.maximum(H_f - groove * smooth(gf * 1.2), 0.35)
+    Hb = np.maximum(H_b - groove * smooth(gb * 1.2), 0.35)
     idx = -np.ones(m.shape, np.int64); inside = m > 0
     cnt = int(inside.sum()); idx[inside] = np.arange(cnt)
     X = px[inside]; Yp = py[inside]; C = ctx['c'][inside]
@@ -139,8 +158,8 @@ def prof_blade(c):
 def prof_guard(c):
     edge = smooth(c['dt'] / 4.0) * 0.85 + 0.15
     tx = 1 - 0.72 * np.minimum(np.abs(c['px'] - CX) / 92.0, 1) ** 1.2
-    plate = 1 + 0.18 * np.exp(-((c['px'] - CX) / 16) ** 2)
-    return np.maximum(c['Tz'] * 0.5 * edge * np.maximum(tx, 0.2) * plate * 1.05, 0.4)
+    plate = 1 + 0.10 * np.exp(-((c['px'] - CX) / 16) ** 2)
+    return np.maximum(c['Tz'] * 0.5 * edge * np.maximum(tx, 0.2) * plate * 0.95, 0.4)
 
 def prof_round(c):
     t = np.clip(1 - c['u'] ** 2, 0, 1)
@@ -203,7 +222,7 @@ def grip():
 
 
 # ---------- chain ----------
-def link(name, cz, face_on, w=18.0, h=34.0, r=3.6, nseg=40, nring=10):
+def link(name, cz, phi, w=18.0, h=26.0, r=4.0, nseg=40, nring=10):
     a = (w - 2 * r) / 2; b = (h - 2 * r) / 2; st = b - a
     path = []
     n = nseg // 2
@@ -227,16 +246,33 @@ def link(name, cz, face_on, w=18.0, h=34.0, r=3.6, nseg=40, nring=10):
             t = 2 * math.pi * k / nring
             off_in = math.cos(t) * r; off_perp = math.sin(t) * r
             lp = p + nrm * off_in
-            if face_on:   # plane XZ, tube thickness along Y
-                verts.append(W(CX + lp[0], cz - lp[1], off_perp))
-            else:         # plane YZ
-                verts.append(W(CX + off_perp, cz - lp[1], lp[0]))
+            c_, s_ = math.cos(phi), math.sin(phi)
+            hx = lp[0] * c_ - off_perp * s_
+            hy = lp[0] * s_ + off_perp * c_
+            verts.append(W(CX + hx, cz - lp[1], hy))
     for i in range(N):
         for k in range(nring):
             a = i * nring + k; b = i * nring + (k + 1) % nring
             c = ((i + 1) % N) * nring + (k + 1) % nring; d = ((i + 1) % N) * nring + k
             faces.append((a, b, c, d))
     return make_obj(name, verts, faces)
+
+
+def drop_islands(ob, min_verts=150):
+    bm = bmesh.new(); bm.from_mesh(ob.data)
+    seen = set(); kill = []
+    for v in bm.verts:
+        if v.index in seen: continue
+        stack = [v]; comp = []; seen.add(v.index)
+        while stack:
+            x = stack.pop(); comp.append(x)
+            for e in x.link_edges:
+                o = e.other_vert(x)
+                if o.index not in seen: seen.add(o.index); stack.append(o)
+        if len(comp) < min_verts: kill += comp
+    if kill:
+        bmesh.ops.delete(bm, geom=kill, context='VERTS'); print('DROPPED', ob.name, len(kill))
+    bm.to_mesh(ob.data); bm.free()
 
 
 def join(objs, name, bevel=None):
@@ -250,21 +286,22 @@ def join(objs, name, bevel=None):
 
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
-blade, _ = heightfield('blade', Y0, 452, prof_blade, up=2, groove=2.4)
-guard, _ = heightfield('guard', 448, 560, prof_guard, up=2, groove=2.0)
+blade, _ = heightfield('blade', Y0, 452, prof_blade, up=2, groove=2.4, relief=1.6)
+guard, _ = heightfield('guard', 452, 560, prof_guard, up=2, groove=2.0, relief=3.0)
 cap, _ = heightfield('cap', 624, 656, prof_round, up=2, groove=1.0)
-pommel, _ = heightfield('pommel', 792, Y1 + 1, prof_pommel, up=2, groove=1.6)
+pommel, _ = heightfield('pommel', 792, Y1 + 1, prof_pommel, up=2, groove=1.6, relief=1.5)
 gr = grip()
 links = []
-for i, cz in enumerate([688, 731, 773]):
-    links.append(link(f'GEO-chain_face_{i}', cz, True))
-for i, cz in enumerate([666, 709, 752, 793]):
-    links.append(link(f'GEO-chain_edge_{i}', cz, False, w=18.0, h=32.0))
+for i, cz in enumerate([689.5, 730.5, 772.5]):
+    links.append(link(f'GEO-chain_big_{i}', cz, math.radians(45), w=22.0, h=26.0, r=3.6))
+for i, cz in enumerate([667, 710.5, 751.5, 791.5]):
+    links.append(link(f'GEO-chain_small_{i}', cz, math.radians(135), w=9.0, h=20.0, r=2.4))
 chain = join(links, 'GEO-sword_chain')
 g1 = gem('gem_guard', 139.7, 478.8, 8, 12, 5.5, 20)
 g2 = gem('gem_cap', 139.4, 641.4, 3.5, 5, 2.5, 8)
 g3 = gem('gem_pommel', 139.8, 823.4, 6, 8, 4, 9)
 gems = join([g1, g2, g3], 'GEO-sword_gems')
+for _o in (blade, guard, cap, pommel): drop_islands(_o)
 blade.name = 'GEO-sword_blade'; guard.name = 'GEO-sword_guard'; gr.name = 'GEO-sword_grip'
 cap.name = 'GEO-sword_cap'; pommel.name = 'GEO-sword_pommel'
 
