@@ -166,11 +166,14 @@ def bevel_obj(ob, px, segs=2, angle=30):
     bpy.ops.object.modifier_apply(modifier=bv.name)
 
 
-def layered_part(name, ya, yb, layers, groove_depth, taper=None, osig=3.0, oeps=1.8, const_t=None, use_body=False, kgroove=9):
+def layered_part(name, ya, yb, layers, groove_depth, taper=None, osig=3.0, oeps=1.8, const_t=None, use_body=False, kgroove=9, clip=None):
     """layers: [(erode_px, thickness_scale, bevel_px, groove)] each a beveled slab; crisp grooves cut after bevel."""
     xa, xb = FX0, FX1
     sub = np.zeros(mask.shape, np.uint8); sub[ya:yb, xa:xb] = mask[ya:yb, xa:xb]
-    roi = sub[ya:yb, xa:xb]
+    roi = sub[ya:yb, xa:xb].copy()
+    if clip:   # (row0, xl, xr): below row0 keep only the blade-width column band (shaft entering the guard)
+        r0, xl, xr = clip
+        roi[r0 - ya:, :xl - xa] = 0; roi[r0 - ya:, xr - xa + 1:] = 0
 
     def tf_for(sc):
         def f(x, r):
@@ -333,7 +336,8 @@ def join(objs, name):
 bpy.ops.wm.read_factory_settings(use_empty=True)
 
 # BLADE: slab with wide crisp edge bevel + raised central spine plate
-blade = layered_part('blade', Y0, 452, [(0, 0.62, 4.0, True), (10, 1.0, 2.4, True)], 1.5, oeps=8.0)
+_xs = np.where(mask[451, FX0:FX1])[0] + FX0
+blade = layered_part('blade', Y0, 484, [(0, 0.62, 4.0, True), (10, 1.0, 2.4, True)], 1.5, oeps=8.0, clip=(452, int(_xs.min()), int(_xs.max())))
 reduce(blade, 1320)
 finish(blade, 0.0, 'GEO-sword_blade')
 
