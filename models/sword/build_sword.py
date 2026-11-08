@@ -21,6 +21,7 @@ SCALE = 1.2 / 850
 CX = 139.5
 ZERO = 500
 UP = 4
+GEPS, GMIN = 5.5, 300
 
 # ---- clean side profile (edge-on view) ----
 ys = np.arange(Y0, Y1 + 1)
@@ -132,6 +133,23 @@ def boolean(a, b, op, exact=True):
     bpy.data.objects.remove(b)
 
 
+def tris(ob): return sum(len(p.vertices) - 2 for p in ob.data.polygons)
+
+
+def reduce(ob, budget):
+    """Shape-preserving: planar dissolve first, then (only if still over budget) edge-collapse."""
+    bpy.context.view_layer.objects.active = ob
+    d = ob.modifiers.new('dis', 'DECIMATE'); d.decimate_type = 'DISSOLVE'; d.angle_limit = math.radians(3.0)
+    bpy.ops.object.modifier_apply(modifier=d.name)
+    t = tris(ob); print('REDUCE', ob.name, 'after dissolve', t)
+    if t > budget:
+        tm = ob.modifiers.new('tri', 'TRIANGULATE'); bpy.ops.object.modifier_apply(modifier=tm.name)
+        c = ob.modifiers.new('col', 'DECIMATE'); c.decimate_type = 'COLLAPSE'; c.ratio = budget / tris(ob)
+        c.use_collapse_triangulate = True
+        bpy.ops.object.modifier_apply(modifier=c.name)
+        print('REDUCE', ob.name, 'after collapse', tris(ob))
+
+
 def finish(ob, bevel=0.0005, name=None):
     bpy.context.view_layer.objects.active = ob
     try: bpy.ops.object.shade_auto_smooth(angle=math.radians(32))
@@ -148,7 +166,7 @@ def bevel_obj(ob, px, segs=2, angle=30):
     bpy.ops.object.modifier_apply(modifier=bv.name)
 
 
-def layered_part(name, ya, yb, layers, groove_depth, taper=None, osig=3.0, oeps=1.8, const_t=None, use_body=False):
+def layered_part(name, ya, yb, layers, groove_depth, taper=None, osig=3.0, oeps=1.8, const_t=None, use_body=False, kgroove=9):
     """layers: [(erode_px, thickness_scale, bevel_px, groove)] each a beveled slab; crisp grooves cut after bevel."""
     xa, xb = FX0, FX1
     sub = np.zeros(mask.shape, np.uint8); sub[ya:yb, xa:xb] = mask[ya:yb, xa:xb]
@@ -167,7 +185,9 @@ def layered_part(name, ya, yb, layers, groove_depth, taper=None, osig=3.0, oeps=
     for side, red_roi in (('f', red[ya:yb, xa:xb]), ('b', red[ya:yb, BX0:BX1][:, ::-1])):
         gm = (red_roi.astype(np.uint8) * (mask[ya:yb, xa:xb] > 0))
         gm = cv2.dilate(gm, np.ones((2, 2), np.uint8))
-        groove[side] = outlines(gm, xa, ya, sigma=4.0, eps=2.4, min_area=140)
+        gg = outlines(gm, xa, ya, sigma=4.0, eps=GEPS, min_area=GMIN)
+        gg.sort(key=lambda g: -cv2.contourArea(g[0].astype(np.float32)))
+        groove[side] = gg[:kgroove]
 
     parts = []
     for (er, sc, bev, do_groove) in layers:
@@ -176,7 +196,7 @@ def layered_part(name, ya, yb, layers, groove_depth, taper=None, osig=3.0, oeps=
         if not loops: continue
         tf = tf_for(sc)
         o = prism(f'{name}_L{er}', loops, tf)
-        bevel_obj(o, bev, 2)
+        bevel_obj(o, bev, 1)
         if do_groove:
             for side in ('f', 'b'):
                 cut = []
@@ -197,18 +217,18 @@ def layered_part(name, ya, yb, layers, groove_depth, taper=None, osig=3.0, oeps=
 
 # ---- grip: smooth lathe, spiral wrap ----
 def grip():
-    ya, yb = 557, 625; segs = 32
+    ya, yb = 557, 625; segs = 8
     verts = []; faces = []
-    rows = np.arange(ya, yb + 0.01, 0.75)
+    rows = np.arange(ya, yb + 0.01, 68 / 15.0)
     for y in rows:
         rx = fhalf(int(y)) * 0.97; ry = max(shalf(int(y)), 6) * 0.99
         collar = 2.2 * smooth((7 - (y - ya)) / 7) + 1.8 * smooth((y - (yb - 9)) / 9)
         cz = Cz(int(y))
         for sg in range(segs):
             a = 2 * math.pi * sg / segs
-            phase = a / (2 * math.pi) + (y - ya) / 11.0
+            phase = a / (2 * math.pi) + (y - ya) / 14.0
             band = 0.5 + 0.5 * math.cos(2 * math.pi * phase)
-            k = 0.92 + 0.08 * band
+            k = 0.88 + 0.14 * band
             verts.append(W(CX + (rx * k + collar) * math.cos(a), y, cz + (ry * k + collar) * math.sin(a)))
     for j in range(len(rows) - 1):
         for sg in range(segs):
@@ -224,8 +244,8 @@ def grip():
 
 def cap_body():
     """Faceted pommel body: rx from the front view, ry from the edge-on view, centred on side centre line."""
-    rows = [622, 626, 630, 634, 638, 642, 646, 650, 654, 657]
-    segs = 12; verts = []; faces = []
+    rows = [622, 630, 638, 646, 652, 657]
+    segs = 8; verts = []; faces = []
     for r in rows:
         rx = max(fhalf(r), 6) * 0.98; ry = max(shalf(r), 6) * 0.98; cz = Cz(r)
         for sg in range(segs):
@@ -263,7 +283,7 @@ def lathe_prof(name, prof, segs, flat=True, fin=None):
     return make_obj(name, verts, faces, flat=flat)
 
 
-def tube(name, p0, p1, p2, r0, r1, n=16, ring=6):
+def tube(name, p0, p1, p2, r0, r1, n=5, ring=4):
     P = [np.array(p, float) for p in (p0, p1, p2)]
     pts = [(1 - t) ** 2 * P[0] + 2 * (1 - t) * t * P[1] + t * t * P[2] for t in np.linspace(0, 1, n)]
     verts = []; faces = []
@@ -313,19 +333,21 @@ def join(objs, name):
 bpy.ops.wm.read_factory_settings(use_empty=True)
 
 # BLADE: slab with wide crisp edge bevel + raised central spine plate
-blade = layered_part('blade', Y0, 452, [(0, 0.62, 4.0, True), (10, 1.0, 2.4, True)], 1.5)
+blade = layered_part('blade', Y0, 452, [(0, 0.62, 4.0, True), (10, 1.0, 2.4, True)], 1.5, oeps=8.0)
+reduce(blade, 1320)
 finish(blade, 0.0, 'GEO-sword_blade')
 
 # GUARD: base slab + stacked bevelled armour plates, tapering toward claw tips
 def gtaper(x): return max(1 - 0.70 * min(abs(x - CX) / 92.0, 1) ** 1.2, 0.2)
-guard = layered_part('guard', 452, 560, [(0, 0.45, 1.8, False), (6.0, 0.80, 2.2, False), (16.0, 1.0, 2.2, False)], 1.3, osig=5.0, oeps=2.6, use_body=True)
+guard = layered_part('guard', 452, 560, [(0, 0.45, 1.8, False), (6.0, 0.80, 2.2, False), (16.0, 1.0, 2.2, False)], 1.3, osig=5.0, oeps=7.5, use_body=True, kgroove=0)
+reduce(guard, 880)
 finish(guard, 0.0, 'GEO-sword_guard')
 
 gr = grip()
 # cap: octagonal flared pommel body
 cap = cap_body()
-spike_prof = [(650, 10), (662, 8), (676, 5.5), (692, 2.5), (704, 0.0)]
-spk = lathe_prof('GEO-sword_pommel_spike', spike_prof, 12)
+spike_prof = [(650, 9), (668, 6.5), (688, 3), (704, 0.0)]
+spk = lathe_prof('GEO-sword_pommel_spike', spike_prof, 8)
 horns = []
 cz = Cz(480)
 for sx in (-1, 1):
@@ -335,7 +357,7 @@ for sx in (-1, 1):
 # long thin forward/back prongs seen in the edge-on view (row ~511)
 for sy in (-1, 1):
     horns.append(tube(f'GEO-prong_{sy}', (CX, 511, Cz(511) + sy * 5), (CX, 511, Cz(511) + sy * 16),
-                      (CX, 511, Cz(511) + sy * 29), 6.5, 0.3, n=14, ring=6))
+                      (CX, 511, Cz(511) + sy * 29), 6.5, 0.3))
 horn = join(horns, 'GEO-sword_guard_horns')
 g1 = gem('gem_guard', 139.7, 478.8, 8, 12, 5.5, 20)
 g2 = gem('gem_cap', 139.4, 641.4, 4.5, 6.5, 3.2, 21)
