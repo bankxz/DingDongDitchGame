@@ -324,13 +324,18 @@ print('glow tris', sum(len(p.vertices) - 2 for p in glow.data.polygons))
 # ------------------------------------------------------------------ materials + look calibration
 def img(path, cs):
     im = bpy.data.images.load(os.path.abspath(path), check_existing=False); im.colorspace_settings.name = cs; im.pack(); return im
+BASE_ATLAS = np.array(Image.open(f'{TEXDIR}/sword_basecolor.png').convert('RGB')).astype(np.float32) / 255.0
+def bake_gain(gain):
+    lin = np.power(BASE_ATLAS, 2.2) * gain
+    Image.fromarray((np.power(np.clip(lin, 0, 1), 1 / 2.2) * 255 + 0.5).astype(np.uint8)).save(f'{TEXDIR}/sword_basecolor_cal.png')
+
 def build_mats(gain, glow_strength):
+    bake_gain(gain)
     for m in list(bpy.data.materials): bpy.data.materials.remove(m)
     mat = bpy.data.materials.new('MAT-sword_body'); mat.use_nodes = True
     nt = mat.node_tree; bs = nt.nodes['Principled BSDF']
-    tb = nt.nodes.new('ShaderNodeTexImage'); tb.image = img(f'{TEXDIR}/sword_basecolor.png', 'sRGB'); tb.interpolation = 'Linear'
-    hsv = nt.nodes.new('ShaderNodeHueSaturation'); hsv.inputs['Value'].default_value = gain
-    nt.links.new(tb.outputs['Color'], hsv.inputs['Color']); nt.links.new(hsv.outputs['Color'], bs.inputs['Base Color'])
+    tb = nt.nodes.new('ShaderNodeTexImage'); tb.image = img(f'{TEXDIR}/sword_basecolor_cal.png', 'sRGB'); tb.interpolation = 'Linear'
+    nt.links.new(tb.outputs['Color'], bs.inputs['Base Color'])
     bs.inputs['Metallic'].default_value = 0.0; bs.inputs['Roughness'].default_value = 0.7
     bs.inputs['Specular IOR Level'].default_value = 0.1
     gmat = bpy.data.materials.new('MAT-sword_glow'); gmat.use_nodes = True
@@ -377,6 +382,7 @@ for it in range(6):
     gain = float(np.clip(gain * REFSTAT['lum_mean'] / max(st['lum_mean'], 1), 0.5, 2.5))
     gl = float(np.clip(gl * (REFSTAT['lum_p95'] / max(st['lum_p95'], 1)) ** 1.5, 0.5, 12.0))
 build_mats(gain, gl)
+os.replace(f'{TEXDIR}/sword_basecolor_cal.png', f'{TEXDIR}/sword_basecolor.png') if False else None
 json.dump(dict(ref=REFSTAT, history=history, final=dict(gain=gain, glow=gl)), open('look_fit_report.json', 'w'), indent=1)
 bpy.data.objects.remove(cam); sc.render.film_transparent = False
 bpy.ops.object.select_all(action='DESELECT'); bob.select_set(True); glow.select_set(True)
