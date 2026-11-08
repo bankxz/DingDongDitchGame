@@ -258,6 +258,55 @@ def link(name, cz, phi, w=18.0, h=26.0, r=4.0, nseg=40, nring=10):
     return make_obj(name, verts, faces)
 
 
+def tube(name, p0, p1, p2, r0, r1, n=18, ring=8):
+    """Tapered curved horn along a quadratic path; points are (x_px,row_px,depth_px)."""
+    P = [np.array(p, float) for p in (p0, p1, p2)]
+    pts = [(1 - t) ** 2 * P[0] + 2 * (1 - t) * t * P[1] + t * t * P[2] for t in np.linspace(0, 1, n)]
+    verts = []; faces = []
+    for i, p in enumerate(pts):
+        tan = (pts[min(i + 1, n - 1)] - pts[max(i - 1, 0)]); tan /= np.linalg.norm(tan)
+        a = np.cross(tan, [1, 0, 0]);
+        if np.linalg.norm(a) < 1e-3: a = np.cross(tan, [0, 1, 0])
+        a /= np.linalg.norm(a); b = np.cross(tan, a)
+        r = r0 + (r1 - r0) * (i / (n - 1)) ** 0.8
+        for k in range(ring):
+            t = 2 * math.pi * k / ring
+            q = p + (a * math.cos(t) + b * math.sin(t)) * r
+            verts.append(W(q[0], q[1], q[2]))
+    for i in range(n - 1):
+        for k in range(ring):
+            a_ = i * ring + k; b_ = i * ring + (k + 1) % ring
+            faces.append((a_, b_, b_ + ring, a_ + ring))
+    tip = len(verts); verts.append(W(*pts[-1]))
+    for k in range(ring):
+        faces.append(((n - 1) * ring + k, (n - 1) * ring + (k + 1) % ring, tip))
+    base = len(verts); verts.append(W(*pts[0]))
+    for k in range(ring):
+        faces.append((base, (k + 1) % ring, k))
+    return make_obj(name, verts, faces)
+
+
+def spike(name, ya, yb, r0, segs=24):
+    """Faceted downward pommel spike (lathe) with a flared collar."""
+    verts = []; faces = []; ys = np.linspace(ya, yb, 16)
+    for j, y in enumerate(ys):
+        t = (y - ya) / (yb - ya)
+        r = r0 * (1 - t) ** 0.9 * (1 + 0.25 * math.sin(math.pi * min(t * 2.5, 1)))
+        for sgm in range(segs):
+            a = 2 * math.pi * sgm / segs
+            rr = r * (1 + 0.08 * math.cos(4 * a))
+            verts.append(W(CX + rr * math.cos(a), y, rr * math.sin(a)))
+    for j in range(len(ys) - 1):
+        for sgm in range(segs):
+            a = j * segs + sgm; b = j * segs + (sgm + 1) % segs
+            faces.append((a, b, b + segs, a + segs))
+    tip = len(verts); verts.append(W(CX, ys[-1], 0))
+    for sgm in range(segs):
+        a = (len(ys) - 1) * segs + sgm; b = (len(ys) - 1) * segs + (sgm + 1) % segs
+        faces.append((a, b, tip))
+    return make_obj(name, verts, faces)
+
+
 def drop_islands(ob, min_verts=150):
     bm = bmesh.new(); bm.from_mesh(ob.data)
     seen = set(); kill = []
@@ -289,21 +338,20 @@ bpy.ops.wm.read_factory_settings(use_empty=True)
 blade, _ = heightfield('blade', Y0, 452, prof_blade, up=2, groove=2.4, relief=1.6)
 guard, _ = heightfield('guard', 452, 560, prof_guard, up=2, groove=2.0, relief=3.0)
 cap, _ = heightfield('cap', 624, 656, prof_round, up=2, groove=1.0)
-pommel, _ = heightfield('pommel', 792, Y1 + 1, prof_pommel, up=2, groove=1.6, relief=1.5)
 gr = grip()
-links = []
-for i, cz in enumerate([689.5, 730.5, 772.5]):
-    links.append(link(f'GEO-chain_big_{i}', cz, math.radians(45), w=22.0, h=26.0, r=3.6))
-for i, cz in enumerate([667, 710.5, 751.5, 791.5]):
-    links.append(link(f'GEO-chain_small_{i}', cz, math.radians(135), w=9.0, h=20.0, r=2.4))
-chain = join(links, 'GEO-sword_chain')
+spk = spike('GEO-sword_pommel_spike', 638, 700, 13.0)
+horns = []
+for sx in (-1, 1):
+    for sy in (-1, 1):
+        horns.append(tube(f'GEO-horn_{sx}_{sy}', (CX + sx * 13, 486, sy * 9), (CX + sx * 15, 492, sy * 27),
+                          (CX + sx * 11, 466, sy * 26), 4.2, 0.6))
+horn = join(horns, 'GEO-sword_guard_horns')
 g1 = gem('gem_guard', 139.7, 478.8, 8, 12, 5.5, 20)
-g2 = gem('gem_cap', 139.4, 641.4, 3.5, 5, 2.5, 8)
-g3 = gem('gem_pommel', 139.8, 823.4, 6, 8, 4, 9)
-gems = join([g1, g2, g3], 'GEO-sword_gems')
-for _o in (blade, guard, cap, pommel): drop_islands(_o)
+g2 = gem('gem_cap', 139.4, 641.4, 4.5, 6.5, 3.2, 10)
+gems = join([g1, g2], 'GEO-sword_gems')
+for _o in (blade, guard, cap): drop_islands(_o)
 blade.name = 'GEO-sword_blade'; guard.name = 'GEO-sword_guard'; gr.name = 'GEO-sword_grip'
-cap.name = 'GEO-sword_cap'; pommel.name = 'GEO-sword_pommel'
+cap.name = 'GEO-sword_cap'
 
 mat = bpy.data.materials.new('MAT-clay_untextured'); mat.use_nodes = True
 bs = mat.node_tree.nodes['Principled BSDF']
