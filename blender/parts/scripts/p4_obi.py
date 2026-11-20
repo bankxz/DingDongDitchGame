@@ -55,7 +55,7 @@ bands=[(ZB,ZB+(ZT-ZB)*0.40,0.00,0.0),(ZB+(ZT-ZB)*0.33,ZB+(ZT-ZB)*0.72,0.045,0.00
 for (za,zb,tilt,grow) in bands:
     Rm=Matrix.Rotation(tilt,3,'Y'); zc=(za+zb)/2; rings=[]
     for z,k in ((za,0.0),(za+0.02,0.012),(zb-0.02,0.012),(zb,0.0)):
-        rr=se(1.008+grow*0.3+k*0.3,0.556+grow*0.3+k*0.3,-0.535-grow*0.3-k*0.3,0,8,72)
+        rr=se(1.008+grow*0.3+k*0.3,0.556+grow*0.3+k*0.3,-0.535-grow*0.3-k*0.3,0,5,72)
         rr=[(p[0],p[1]+(0.055+grow+k*0.5)*math.exp(-(p[0]/0.33)**2) if p[1]>0 else p[1],p[2]) for p in rr]
         rings.append([tuple(Rm@V((p[0],p[1],z-zc))+V((0,0,zc))) for p in rr])
     K.loft(rings,BLK,cap0=BLK,cap1=BLK)
