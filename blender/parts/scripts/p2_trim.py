@@ -51,9 +51,25 @@ def prism(part,vs,tr,view,lift,mat_,sink=0.006):
 cnt={'gold':0,'cloud':0}
 for name,lift,mt in (('cloud',0.010,CL),('gold',0.024,M['Gold'])):
     for vw,vs,tr in D[name]:
+        if name=='gold' and vs[:,1].mean()>690: continue
         for view in (['SL','SR'] if vw=='S' else [vw]):
             cnt[name]+=prism(T,vs,tr,view,lift,mt)
 print('projected tris',cnt)
+# ---- hand-cleaned cloud scroll curves -> uniform bevelled gold strips on the coat
+CUR=pickle.load(open('/tmp/w/parts/cloud_curves.pkl','rb')); ncs=0
+for vw,a in CUR:
+    for view in (['SL','SR'] if vw=='S' else [vw]):
+        run=[];rn=[]
+        def flush():
+            global ncs
+            if len(run)>1: strip(T,run,rn,2.9/121,0.024,M['Gold']); ncs+=1
+        for px,py in a:
+            hh=hit(view,px,py)
+            if hh is None:
+                flush(); run=[]; rn=[]; continue
+            run.append(tuple(hh[0])); rn.append(hh[1])
+        flush()
+print('cloud strips',ncs)
 # ---- hem band from the hem geometry (continuous, follows every fold)
 HEMS=pickle.load(open('/tmp/w/parts/hem.pkl','rb'))
 for ro,ri,last4 in HEMS:
