@@ -79,6 +79,12 @@ def half_outline(y,sx,N=220,only_vs=False):
         sn=math.sin(pi*u)**0.75
         dep=deps[j]*(1-u)+deps[j+1]*u
         off=(amps[j]*sn-dep*(1-sn))*(g**0.85)*(1 if f>0 else 0)
+        # big concave hollow at the back corner under the arm (inverse of the old bulge)
+        if f>0:
+            a0,a1=vs[2],vs[6]; um=(t-a0)/(a1-a0+1e-9)
+            if 0<um<1:
+                C=0.19*_ss((y-602)/18)*(1-0.45*_ss((y-680)/170))
+                off-=C*math.sin(pi*um)**1.4
         x,yy=base_pt(y,t,hx,yf,yb,n); cy=(yf+yb)/2
         nx,ny=x,(yy-cy); L=math.hypot(nx,ny)+1e-9
         pts.append((x+off*nx/L,yy+off*ny/L)); zoff.append(1-sn)
