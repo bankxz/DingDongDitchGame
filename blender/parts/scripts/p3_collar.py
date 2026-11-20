@@ -22,7 +22,7 @@ def t_front(hx,hy,cy,n,xv):
 N=72; TH=0.04
 LV=[  # (z, hx, hy, cy, n)  base -> top, slight outward flare
     (3.985,0.88,0.555,-0.01,6),(4.05,0.90,0.57,-0.01,6),(4.12,0.95,0.605,-0.015,6),(4.185,1.0,0.635,-0.02,6)]
-def ring(lv,off,xf=0.31):
+def ring(lv,off,xf=0.60):
     z,hx,hy,cy,n=lv; hx-=off; hy-=off
     t0=t_front(hx,hy,cy,n,xf); ts=np.linspace(t0,2*pi-t0,N)
     pts=[]
@@ -38,18 +38,12 @@ for i in range(len(LV)-1):
     for k in range(N-1):
         C.face([O[i][k],O[i][k+1],O[i+1][k+1],O[i+1][k]],M['Purple'])
         C.face([I[i][k+1],I[i][k],I[i+1][k],I[i+1][k+1]],M['Lining'])
-    for e in (0,N-1): C.face([O[i][e],I[i][e],I[i+1][e],O[i+1][e]],M['Gold'])
 for k in range(N-1):
     C.face([O[-1][k+1],O[-1][k],I[-1][k],I[-1][k+1]],M['Gold'])
     C.face([O[0][k],O[0][k+1],I[0][k+1],I[0][k]],M['Purple'])
 # gold rim: bevelled strip capping the top edge (wraps both faces), and down the two front edges
 top=[V(((a[0]+b[0])/2,(a[1]+b[1])/2,(a[2]+b[2])/2)) for a,b in zip(O[-1],I[-1])]
 strip(C,[tuple(p) for p in top],[V((0,0,1))]*len(top),TH*0.5+0.022,0.022,M['Gold'])
-for e in (0,N-1):
-    pts=[V(((O[i][e][0]+I[i][e][0])/2,(O[i][e][1]+I[i][e][1])/2,O[i][e][2])) for i in range(len(LV))]
-    tang=(V(O[0][e+(1 if e==0 else -1)])-V(O[0][e])); tang.z=0; tang.normalize()
-    strip(C,[tuple(p) for p in pts],[-tang]*len(pts),TH*0.5+0.02,0.02,M['Gold'])
-# ---- purple lapel facings on the coat front (projected from the front view, same as the gold trim)
 coat=bpy.data.objects['Gear_Torso']
 dg=bpy.context.evaluated_depsgraph_get(); bm=bmesh.new(); bm.from_object(coat,dg); bm.transform(coat.matrix_world)
 tree=BVHTree.FromBMesh(bm); bm.free()
@@ -89,16 +83,21 @@ def flap(sx):
         ring.append(B[-1]-N[-1]*0.004)                       # outer edge wall down to the coat
         return ring
     S=[sect(r,H) for r,H in R]; n=len(S[0])
-    # continue the flap up into the collar: sections rise to the collar top, laid against the collar's front face
-    def collar_y(z): return float(np.interp(z,[3.985,4.05,4.12,4.185],[0.545,0.56,0.588,0.615]))
-    top=S[0]; baseB=R[0][0][0][0]; ext=[]
-    for zt in (4.15,4.11,4.07,4.035):
-        dy=collar_y(zt)+0.006-min(p.y for p in top)
-        dy=max(dy,0.0)
-        ext.append([p+V((0,dy,zt-baseB.z)) for p in top])
+    # the flap rises and BECOMES the collar's front: same height/slant/flare as the collar (collar wall stops behind it)
+    def ss(u): u=min(1,max(0,u)); return u*u*(3-2*u)
+    def ztop(x): return 4.185-0.055*ss((abs(x)-0.35)/0.6)
+    def cfy(z): return float(np.interp(z,[3.985,4.05,4.12,4.185],[0.545,0.56,0.588,0.615]))
+    base=S[0]; y0=min(p.y for p in base); ext=[]
+    for t in (1.0,0.8,0.6,0.4,0.2):
+        sec=[]
+        for p in base:
+            z=p.z+t*(ztop(p.x)-p.z); dy=max(0.0,cfy(z)+0.004-y0)*t
+            sec.append(V((p.x,p.y+dy,z)))
+        ext.append(sec)
     S=ext+S
-    R=[(R[0][0],R[0][1])]*len(ext)+R
-    TOPZ=[4.15,4.11,4.07,4.035]
+    R=[R[0]]*len(ext)+R
+    TOPSEC=ext[0]
+    OUTCOL[sx]=[(V(sec[-2]),V(sec[-1])) for sec in S[:len(ext)+4]]
     for i in range(len(S)-1):
         for j in range(n-1):
             m=M['Gold'] if j<6 else (M['Purple'] if j<n-2 else M['Gold'])
@@ -106,17 +105,34 @@ def flap(sx):
             C.face(q if sx>0 else q[::-1],m)
     # caps
     for i in (0,len(S)-1):
-        ring=[tuple(p) for p in S[i]]; C.face(ring if i==0 else ring[::-1],M['Purple'])
+        ring=[tuple(p) for p in S[i]]; C.face(ring if i==0 else ring[::-1],M['Gold'] if i==0 else M['Purple'])
+    tp=[V(p) for p in TOPSEC[1:-1]]
+    strip(C,[tuple(p) for p in tp],[V((0,0,1))]*len(tp),0.03,0.02,M['Gold'])
     # gold trim on the flap's outer edge (bevelled strip on the top surface edge)
     pts=[];nr=[]
-    for i,(r,H) in enumerate(R):
-        p,nn=r[-1]; q,_=r[-2]; D=(p-q).normalized()
-        if i<len(TOPZ):
-            dz=TOPZ[i]-r[0][0].z; dy=max(0.0,float(np.interp(TOPZ[i],[3.985,4.05,4.12,4.185],[0.545,0.56,0.588,0.615]))+0.006-min(pp.y for pp in S[len(TOPZ)]))
-            p=p+V((0,dy,dz))
-        pts.append(tuple(p+nn*H-D*0.03)); nr.append(nn)
+    for i in range(len(S)):
+        p=S[i][-2]; q=S[i][-3]; D=(p-q).normalized(); nn=R[i][0][-1][1]
+        pts.append(tuple(p-D*0.03)); nr.append(nn)
     strip(C,pts,nr,0.032,0.016,M['Gold'])
+OUTCOL={}
 for sx in (1,-1): flap(sx)
+# ---- bridge: collar wall ends weld into the flap's outer edge (one continuous piece)
+for sx,e in ((1,0),(-1,N-1)):
+    col=sorted(OUTCOL[sx],key=lambda q:q[0].z)
+    zs=[q[0].z for q in col]
+    def at(z,which):
+        z=min(max(z,zs[0]),zs[-1]); k=max(0,min(len(zs)-2,int(np.searchsorted(zs,z))-1))
+        t=(z-zs[k])/max(1e-6,zs[k+1]-zs[k]); return col[k][which].lerp(col[k+1][which],t)
+    for i in range(len(LV)):
+        pass
+    L=len(LV)
+    FT=[at(O[i][e][2],0) for i in range(L)]; FB=[at(O[i][e][2],1) for i in range(L)]
+    for i in range(L-1):
+        q=[O[i][e],O[i+1][e],tuple(FT[i+1]),tuple(FT[i])]; C.face(q if sx<0 else q[::-1],M['Purple'])
+        q=[I[i][e],tuple(FB[i]),tuple(FB[i+1]),I[i+1][e]]; C.face(q if sx<0 else q[::-1],M['Lining'])
+    q=[O[-1][e],I[-1][e],tuple(FB[-1]),tuple(FT[-1])]; C.face(q if sx<0 else q[::-1],M['Gold'])
+    a_=V(((O[-1][e][0]+I[-1][e][0])/2,(O[-1][e][1]+I[-1][e][1])/2,O[-1][e][2])); b_=(FT[-1]+FB[-1])/2
+    strip(C,[tuple(a_.lerp(b_,t)) for t in np.linspace(0,1,5)],[V((0,0,1))]*5,TH*0.5+0.022,0.022,M['Gold'])
 # remove the old flat traced lapel line/chevron from the coat trim (the folded flap replaces it)
 tr=bpy.data.objects['Trim_Torso']; bmt=bmesh.new(); bmt.from_mesh(tr.data)
 mw=tr.matrix_world; kill=[]
