@@ -1,5 +1,6 @@
 import sys; sys.path.insert(0,'/tmp/w/parts')
-import bpy
+import bpy, os
+NOFOLD=os.environ.get('NOFOLD')=='1'
 from common import *
 SRC,OUT=sys.argv[-2:]
 bpy.ops.wm.open_mainfile(filepath=SRC)
@@ -11,7 +12,7 @@ I=lambda tab,y: float(np.interp(y,[a for a,b in tab],[b for a,b in tab]))
 # ---- measured from the sheet (px rows -> studs) ----
 OPL=[(372,250),(500,250),(540,240),(566,226),(612,201),(660,193),(708,183),(756,171),(804,158),(852,147)]
 OPR=[(372,323),(500,326),(540,338),(566,352),(612,373),(660,380),(708,389),(756,399),(804,411),(852,413)]
-HX=[(372,1.06),(596,1.06),(606,1.10),(618,1.22),(630,1.34),(640,1.385),(660,1.45),(700,1.555),(750,1.695),(800,1.84),(840,1.965),(852,2.0)]
+HX=[(372,1.06),(540,1.07),(575,1.17),(600,1.28),(618,1.34),(630,1.365),(640,1.385),(660,1.45),(700,1.555),(750,1.695),(800,1.84),(840,1.965),(852,2.0)]
 YB=[(372,-0.57),(560,-0.60),(612,-0.70),(648,-0.785),(696,-0.88),(744,-0.98),(792,-1.08),(828,-1.19),(852,-1.23)]
 YF=[(372,0.565),(560,0.60),(620,0.61),(852,0.61)]
 def _ss(x): x=float(np.clip(x,0,1)); return x*x*(3-2*x)
@@ -70,8 +71,10 @@ def half_outline(y,sx,N=220,only_vs=False):
     vs=sorted(vs)
     if (y,sx) in VCACHE: vs=VCACHE[(y,sx)]
     if only_vs: return vs,None,None,None
-    amps=[0.035,0.06,0.045,0.05,-0.07,0.045,0.05]   # crest per lobe (front, front-side, side, side-back, back-side, back, back-centre)
+    amps=[0.035,0.06,0.045,0.05,-0.05,0.045,0.05]
+    if NOFOLD: amps=[0]*7   # crest per lobe (front, front-side, side, side-back, back-side, back, back-centre)
     deps=[0.0,0.035,0.05,0.045,0.07,0.04,0.045,0.06] # valley depth per valley point
+    if NOFOLD: deps=[0]*8
     pts=[];zoff=[];seam_k=None
     ts=np.linspace(vs[0],pi,N)
     for t in ts:
@@ -83,7 +86,7 @@ def half_outline(y,sx,N=220,only_vs=False):
         if f>0:
             a0,a1=vs[2],vs[6]; um=(t-a0)/(a1-a0+1e-9)
             if 0<um<1:
-                C=0.19*_ss((y-602)/18)*(1-0.45*_ss((y-680)/170))
+                C=(0 if NOFOLD else 0.11)*_ss((y-602)/18)*(1-0.45*_ss((y-680)/170))
                 off-=C*math.sin(pi*um)**1.4
         x,yy=base_pt(y,t,hx,yf,yb,n); cy=(yf+yb)/2
         nx,ny=x,(yy-cy); L=math.hypot(nx,ny)+1e-9
@@ -91,7 +94,7 @@ def half_outline(y,sx,N=220,only_vs=False):
     seam_t=vs[4]
     return pts,zoff,ts,seam_t
 NF=64; NB=40
-HEMS=[]
+HEMS=[]; EDGES={}; OPEN={}; OPENI={}
 def build():
     T=Part('Gear_Torso','Torso')
     Rf={1:[],-1:[]}; Rb={1:[],-1:[]}
@@ -162,6 +165,8 @@ def build():
         return rings
     def shell(R,closed_end_flags):
         Ri=inner(R)
+        sxk=1 if R[0][0][0]>0 else -1
+        OPEN[sxk]=R; OPENI[sxk]=[ri[0] for ri in Ri]
         for i in range(len(R)-1):
             for k in range(len(R[0])-1):
                 T.face([R[i][k],R[i][k+1],R[i+1][k+1],R[i+1][k]],M['Marble'])
@@ -190,10 +195,16 @@ def build():
             for k in range(n_-1):
                 a,b=top[k],top[k+1]
                 na=(a[0]*0.58,a[1]*0.85,a[2]+0.035); nb=(b[0]*0.58,b[1]*0.85,b[2]+0.035)
+                if k==0: EDGES.setdefault(sx,{})['neck0']=na
+                EDGES.setdefault(sx,{}).setdefault('neck',[]).append(na)
+                if k==n_-2: EDGES[sx]['neck'].append(nb)
                 T.face([b,a,na,nb],M['Marble'])
     return T
 ob=build().build()
-import pickle; pickle.dump(HEMS,open('/tmp/w/parts/hem.pkl','wb'))
+import pickle
+if not NOFOLD:
+    pickle.dump(HEMS,open('/tmp/w/parts/hem.pkl','wb'))
+    pickle.dump(dict(edges=EDGES,open={sx:[[list(p) for p in r[:3]] for r in OPEN[sx]] for sx in OPEN},openi={sx:[list(r) for r in OPENI[sx]] for sx in OPENI}),open('/tmp/w/parts/edges.pkl','wb'))
 for p in ob.data.polygons: p.use_smooth=True
 try: ob.data.set_sharp_from_angle(angle=math.radians(75))
 except Exception as e: print('sharp',e)

@@ -5,9 +5,13 @@ from mathutils.bvhtree import BVHTree
 SRC,OUT=sys.argv[-2:]
 bpy.ops.wm.open_mainfile(filepath=SRC)
 M=mats(); CL=mat('Cloud',(0.78,0.66,0.90),0,0.4)
-coat=bpy.data.objects['Gear_Torso']
-dg=bpy.context.evaluated_depsgraph_get(); bm=bmesh.new(); bm.from_object(coat,dg); bm.transform(coat.matrix_world)
-tree=BVHTree.FromBMesh(bm); bm.free()
+def tree_of(ob):
+    dg=bpy.context.evaluated_depsgraph_get(); bm=bmesh.new(); bm.from_object(ob,dg); bm.transform(ob.matrix_world)
+    t=BVHTree.FromBMesh(bm); bm.free(); return t
+tree=tree_of(bpy.data.objects['Gear_Torso'])
+with bpy.data.libraries.load('/tmp/w/parts/P2proxy.blend') as (src,dst): dst.objects=['Gear_Torso']
+px_ob=dst.objects[0]; px_ob.name='ProxyCoat'; bpy.context.scene.collection.objects.link(px_ob)
+ptree=tree_of(px_ob); bpy.data.objects.remove(px_ob)
 D=pickle.load(open('/tmp/w/parts/trim_polys.pkl','rb'))
 def ray(view,px,py):
     z=Zmap(py)
@@ -16,20 +20,20 @@ def ray(view,px,py):
     if view=='SL': return V((-20,(722-px)/121,z)),V((1,0,0))
     return V((20,(722-px)/121,z)),V((-1,0,0))
 def hit(view,px,py):
-    o,d=ray(view,px,py); h=tree.ray_cast(o,d,60)
+    o,d=ray(view,px,py); h=ptree.ray_cast(o,d,60)          # 1) land on the smooth (fold-free) proxy: continuous, no occlusion
     if h[0] is None: return None
     n=h[1].copy()
     if n.dot(d)>0: n=-n
-    if n.dot(-d)<0.05: return None
-    p0=h[0]; ang=math.degrees(math.atan2(abs(p0.x),p0.y+0.25))   # 0 front .. 180 back, by position (fold normals don't fragment it)
-    own='F' if ang<62 else ('B' if ang>128 else ('SR' if p0.x>0 else 'SL'))
-    if own!=view: return None
-    p=h[0]
-    if view=='F' and p.y<0.25: return None
-    if view=='B' and p.y>-0.25: return None
-    if view=='SL' and p.x>-0.4: return None
-    if view=='SR' and p.x<0.4: return None
-    return p,n
+    dots={'F':n.y,'B':-n.y,'SL':-n.x,'SR':n.x}
+    if dots[view]<max(dots.values())-0.03 or dots[view]<0.05: return None
+    p0=h[0]; c=V((0,-0.05,p0.z)); r=V((p0.x,p0.y+0.05,0))
+    if r.length<1e-6: return None
+    r.normalize()
+    h2=tree.ray_cast(c+r*4.0,-r,8.0)                          # 2) drop radially onto the real folded coat
+    if h2[0] is None: return None
+    n2=h2[1].copy()
+    if n2.dot(r)<0: n2=-n2
+    return h2[0],n2
 T=Part('Trim_Torso','Torso'); G=Part('Glow_Torso','Torso')
 def prism(part,vs,tr,view,lift,mat_,sink=0.006):
     hs=[hit(view,px,py) for px,py in vs]
@@ -59,6 +63,23 @@ for ro,ri,last4 in HEMS:
         n=V(ro[k])-V(ri[k]); n=n.normalized() if n.length>1e-9 else V((0,1,0))
         pts.append(tuple(p+up*0.055)); nr.append(n)
     strip(T,pts,nr,0.05,0.022,M['Gold'])
+# ---- front edge binding: hem -> up the opening -> round the neck line -> down the other opening
+E=pickle.load(open('/tmp/w/parts/edges.pkl','rb'))
+def edge_strip(sx):
+    rows=E['open'][sx]; inn=E['openi'][sx]; pts=[];nr=[]
+    for i in range(len(rows)-1,-1,-1):
+        p=V(rows[i][0]); q=V(rows[i][2]); dvec=(q-p).normalized(); n=(V(rows[i][0])-V(inn[i])).normalized()
+        pts.append(p+dvec*0.035); nr.append(n)
+    return pts,nr
+PATH=[];NR=[]
+p1,n1=edge_strip(1); PATH+=p1; NR+=n1
+for sx,rev in ((1,False),(-1,True)):
+    nk=[V(q) for q in E['edges'][sx]['neck']]
+    if rev: nk=nk[::-1]
+    for q in nk: PATH.append(q+V((0,0,0.004))); NR.append(V((0,0,1)))
+p2,n2=edge_strip(-1); PATH+=p2[::-1]; NR+=n2[::-1]
+# densify corners: insert blended normals
+strip(T,[tuple(q) for q in PATH],NR,0.05,0.024,M['Gold'])
 # ---- back centre motif (measured, symmetric about x=1180)
 def mir(pl): return [(2*1180-x,y) for x,y in pl]
 MOT=[([(1140,388),(1140,705),(1095,736),(1090,766)],5.5),

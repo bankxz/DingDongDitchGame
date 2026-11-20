@@ -32,6 +32,13 @@ for x in range(W):
     ys=np.nonzero(Fm[640:900,x]&(lumS[640:900,x]>105))[0]
     if len(ys): hemx[640+ys.max()-17:640+ys.max()+3,x]=True
 reg&=~cv2.resize(hemx.astype(np.uint8),(W*K,H*K),interpolation=cv2.INTER_NEAREST).astype(bool)
+OPL=[(372,250),(500,250),(540,240),(566,226),(612,201),(660,193),(708,183),(756,171),(804,158),(852,147),(880,145)]
+OPR=[(372,323),(500,326),(540,338),(566,352),(612,373),(660,380),(708,389),(756,399),(804,411),(852,413),(880,415)]
+yyK,xxK=np.mgrid[0:H*K,0:W*K]; yS=yyK/K; xS=xxK/K
+itp=lambda tab,y: np.interp(y,[a for a,b in tab],[b for a,b in tab])
+bind=(xS<560)&(yS>366)&((np.abs(xS-itp(OPL,yS)+4)<12)|(np.abs(xS-itp(OPR,yS)-4)<12))
+bind|=(xS>=560)&(xS<905)&(xS<674)&(yS>596)
+reg&=~bind
 G=clean(gold&reg,5,250,90)
 lav=(b>r+4)&(b>g+25)&(lum>128)&(lum<218)
 Gd=cv2.dilate(G.astype(np.uint8),np.ones((3,3),np.uint8)).astype(bool)
