@@ -64,12 +64,13 @@ def hit(px,py):
 I_=lambda tab,y: float(np.interp(y,[q[0] for q in tab],[q[1] for q in tab]))
 OPL=[(372,250),(500,250),(540,240),(566,226)]; OPR=[(372,323),(500,326),(540,338),(566,352)]
 def flap(sx):
-    rows=[374,375.5]+list(range(377,500,4))+list(range(500,549,3))+[549]
+    rows=sorted(set([374,375.5]+list(range(377,400,4))+list(range(400,452,2))+list(range(452,500,4))+list(range(500,549,3))+[549]))
     K=14; R=[]
     for y in rows:
-        if sx>0: xin=I_(OPL,y)-1; xout0=204
-        else:    xin=I_(OPR,y)+1; xout0=366
-        f=max(0.0,(y-500)/(549-500)); xout=xout0+(xin-xout0)*min(1,f*1.02)
+        notch=max(0.0,1-abs(y-425)/21.0)                 # jutting lapel point (sheet chevron, tip at y425)
+        if sx>0: xin=I_(OPL,y)-1; xout0=204-21*notch
+        else:    xin=I_(OPR,y)+1; xout0=366+21*notch
+        f=max(0.0,(y-500)/(549-500)); f=f*f*(3-2*f); xout=xout0+(xin-xout0)*min(1,f*1.02)
         if abs(xout-xin)<1.2: xout=xin+(-1.2 if sx>0 else 1.2)
         H=0.065-0.035*f
         row=[]
@@ -102,5 +103,34 @@ def flap(sx):
         p,nn=r[-1]; q,_=r[-2]; D=(p-q).normalized(); pts.append(tuple(p+nn*H-D*0.03)); nr.append(nn)
     strip(C,pts,nr,0.032,0.016,M['Gold'])
 for sx in (1,-1): flap(sx)
+# remove the old flat traced lapel line/chevron from the coat trim (the folded flap replaces it)
+tr=bpy.data.objects['Trim_Torso']; bmt=bmesh.new(); bmt.from_mesh(tr.data)
+mw=tr.matrix_world; kill=[]
+for f in bmt.faces:
+    c=mw@f.calc_center_median()
+    if c.y<0.3: continue
+    yy=372+(4-c.z)*130; ax=abs(c.x)
+    if 372<=yy<=549:
+        ex=abs(XF(I_(OPL,yy))) if c.x>0 else abs(XF(I_(OPR,yy)))
+        notch=max(0.0,1-abs(yy-425)/21.0)
+        xo=abs(XF(204-21*notch)) if c.x>0 else abs(XF(366+21*notch))
+        if ex+0.13<ax<xo+0.06: kill.append(f)
+    elif 549<yy<=580 and 0.56<ax<0.74: kill.append(f)
+bmesh.ops.delete(bmt,geom=kill,context='FACES')
+# drop leftover fragments (small islands) on the upper front
+bmt.faces.ensure_lookup_table(); unv=set(range(len(bmt.faces))); frag=[]
+while unv:
+    st=[unv.pop()]; g=[st[0]]
+    while st:
+        f=bmt.faces[st.pop()]
+        for e in f.edges:
+            for h in e.link_faces:
+                if h.index in unv: unv.discard(h.index); st.append(h.index); g.append(h.index)
+    cs=[mw@bmt.faces[i].calc_center_median() for i in g]
+    lo=V((min(c.x for c in cs),min(c.y for c in cs),min(c.z for c in cs))); hi=V((max(c.x for c in cs),max(c.y for c in cs),max(c.z for c in cs)))
+    cen=(lo+hi)/2
+    if (hi-lo).length<0.15 and cen.y>0.3 and cen.z>Zmap(600): frag+=[bmt.faces[i] for i in g]
+bmesh.ops.delete(bmt,geom=frag,context='FACES'); print('fragments removed',len(frag))
+bmt.to_mesh(tr.data); bmt.free(); print('removed old lapel trim faces',len(kill))
 ob=C.build(); print('collar tris',sum(len(p.vertices)-2 for p in ob.data.polygons))
 bpy.ops.wm.save_as_mainfile(filepath=OUT)
