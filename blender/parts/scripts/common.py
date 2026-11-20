@@ -7,6 +7,7 @@ def XF(px): return (280-px)/S
 MAT={}
 def mat(name,col,metal=0.0,rough=0.6,emit=0.0):
     if name in MAT: return MAT[name]
+    if name in bpy.data.materials: MAT[name]=bpy.data.materials[name]; return MAT[name]
     m=bpy.data.materials.new(name); m.use_nodes=True; b=m.node_tree.nodes['Principled BSDF']
     lin=tuple(c**2.2 for c in col)
     b.inputs['Base Color'].default_value=(*lin,1); b.inputs['Metallic'].default_value=metal; b.inputs['Roughness'].default_value=rough
