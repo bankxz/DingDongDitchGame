@@ -11,11 +11,12 @@ I=lambda tab,y: float(np.interp(y,[a for a,b in tab],[b for a,b in tab]))
 # ---- measured from the sheet (px rows -> studs) ----
 OPL=[(372,250),(500,250),(540,240),(566,226),(612,201),(660,193),(708,183),(756,171),(804,158),(852,147)]
 OPR=[(372,323),(500,326),(540,338),(566,352),(612,373),(660,380),(708,389),(756,399),(804,411),(852,413)]
-HX=[(372,1.06),(600,1.06),(612,1.12),(630,1.37),(660,1.45),(700,1.555),(750,1.695),(800,1.84),(840,1.965),(852,2.0)]
+HX=[(372,1.06),(596,1.06),(606,1.10),(618,1.22),(630,1.34),(640,1.385),(660,1.45),(700,1.555),(750,1.695),(800,1.84),(840,1.965),(852,2.0)]
 YB=[(372,-0.57),(560,-0.60),(612,-0.70),(648,-0.785),(696,-0.88),(744,-0.98),(792,-1.08),(828,-1.19),(852,-1.23)]
 YF=[(372,0.565),(560,0.60),(620,0.61),(852,0.61)]
-F=lambda y: float(np.clip((y-612)/(700-612),0,1))**0.8          # flare/fold strength
-G=lambda y: float(np.clip((y-640)/(852-640),0,1))                # folds deepen toward the hem
+def _ss(x): x=float(np.clip(x,0,1)); return x*x*(3-2*x)
+F=lambda y: _ss((y-600)/(720-600))          # flare/fold strength (smooth ramp)
+G=lambda y: _ss((y-605)/(852-605))                # folds fade in from the waist and deepen toward the hem
 HEM=lambda yy: 858-18*np.exp(-((yy+0.56)/0.09)**2)+(-7*np.clip((-yy-0.56)/0.66,0,1))   # front 858, seam notch 840, back 851
 ROWS=[372,400,450,500,560,600,606,612,618,624,630]+list(range(638,852,8))+[852]
 TH=0.035
@@ -29,18 +30,28 @@ def chaikin(P,it=2,keep=()):
 def resample(P,n):
     P=np.array(P); L=np.r_[0,np.cumsum(np.linalg.norm(np.diff(P,axis=0),axis=1))]
     s=np.linspace(0,L[-1],n); return np.c_[np.interp(s,L,P[:,0]),np.interp(s,L,P[:,1])]
-NN=[(372,8),(600,7),(625,4.0),(660,2.9),(760,2.6),(852,2.5)]
+NN=[(372,8),(590,7.5),(615,5.5),(640,3.8),(680,3.0),(760,2.6),(852,2.5)]
 def base_pt(y,t,hx,yf,yb,n):
     cy=(yf+yb)/2; hy=(yf-yb)/2
     st,ct=math.sin(t),math.cos(t)
     return (hx*math.copysign(abs(st)**(2/n),st), cy+hy*math.copysign(abs(ct)**(2/n),ct))
 def t_for(y,hx,yf,yb,n,cond):
     best=None
-    for k in range(1,2000):
-        t=pi*k/2000; p=base_pt(y,t,hx,yf,yb,n); c=cond(p)
+    for k in range(1,1200):
+        t=pi*k/1200; p=base_pt(y,t,hx,yf,yb,n); c=cond(p)
         if best is None or c<best[0]: best=(c,t)
-    return best[1]
-def half_outline(y,sx,N=220):
+    t=best[1]
+    for _ in range(30):          # refine continuously
+        lo,hi=t-pi/1200,t+pi/1200
+        for tt in np.linspace(lo,hi,21):
+            c=cond(base_pt(y,tt,hx,yf,yb,n))
+            if c<best[0]: best=(c,tt)
+        t=best[1]
+    return t
+VCACHE={}
+def _valleys(y,sx):
+    pts,zo,ts,seam_t=half_outline(y,sx,N=8,only_vs=True); return pts
+def half_outline(y,sx,N=220,only_vs=False):
     """outline for one side (+x mirrored by sx) from the front opening round to the back centre, built from fold lobes"""
     f=F(y); g=G(y); n=I(NN,y)
     AS,AB=0.07*f,0.05*f                       # lobe crest heights (side, back)
@@ -57,7 +68,9 @@ def half_outline(y,sx,N=220):
         t_for(y,hx,yf,yb,n,lambda p: abs(p[0]-0.74)+(0 if p[1]<-0.4 else 9)),
         pi]
     vs=sorted(vs)
-    amps=[0.035,0.06,0.045,0.05,0.06,0.045,0.05]   # crest per lobe (front, front-side, side, side-back, back-side, back, back-centre)
+    if (y,sx) in VCACHE: vs=VCACHE[(y,sx)]
+    if only_vs: return vs,None,None,None
+    amps=[0.035,0.06,0.045,0.05,-0.07,0.045,0.05]   # crest per lobe (front, front-side, side, side-back, back-side, back, back-centre)
     deps=[0.0,0.035,0.05,0.045,0.07,0.04,0.045,0.06] # valley depth per valley point
     pts=[];zoff=[];seam_k=None
     ts=np.linspace(vs[0],pi,N)
@@ -65,7 +78,7 @@ def half_outline(y,sx,N=220):
         j=min(np.searchsorted(vs,t,side='right')-1,len(vs)-2); u=(t-vs[j])/(vs[j+1]-vs[j]+1e-9)
         sn=math.sin(pi*u)**0.75
         dep=deps[j]*(1-u)+deps[j+1]*u
-        off=(amps[j]*sn-dep*(1-sn))*(0.35+0.65*g)*(1 if f>0 else 0)
+        off=(amps[j]*sn-dep*(1-sn))*(g**0.85)*(1 if f>0 else 0)
         x,yy=base_pt(y,t,hx,yf,yb,n); cy=(yf+yb)/2
         nx,ny=x,(yy-cy); L=math.hypot(nx,ny)+1e-9
         pts.append((x+off*nx/L,yy+off*ny/L)); zoff.append(1-sn)
@@ -76,15 +89,25 @@ def build():
     T=Part('Gear_Torso','Torso')
     Rf={1:[],-1:[]}; Rb={1:[],-1:[]}
     ZO={1:[],-1:[]}
+    NT=NF+NB
+    # pre-pass: valley angles per row, smoothed along the rows so folds run cleanly (no sawtooth)
+    for sx in (1,-1):
+        raw=[]
+        for y in ROWS:
+            VCACHE.pop((y,sx),None); half_outline.__globals__['_cap']=True
+            raw.append(_valleys(y,sx))
+        raw=np.array(raw)
+        sm=raw.copy()
+        for j in range(1,raw.shape[1]-1):
+            col=raw[:,j]; k=3
+            sm[:,j]=np.convolve(np.pad(col,(k,k),mode='edge'),np.ones(2*k+1)/(2*k+1),mode='valid')
+        for i,y in enumerate(ROWS): VCACHE[(y,sx)]=list(np.sort(sm[i]))
     for y in ROWS:
         z=Zmap(y)
         for sx in (1,-1):
             pts,zo,ts,seam_t=half_outline(y,sx)
-            ks=int(np.argmin(np.abs(ts-seam_t)))
-            fr=resample(pts[:ks+3],NF); bk=resample(pts[ks-2:],NB)
-            zf=np.interp(np.linspace(0,1,NF),np.linspace(0,1,ks+3),zo[:ks+3]); zb=np.interp(np.linspace(0,1,NB),np.linspace(0,1,len(zo)-ks+2),zo[ks-2:])
-            Rf[sx].append([(sx*p[0],p[1],z) for p in fr]); Rb[sx].append([(sx*p[0]*0.995,p[1]+0.008,z) for p in bk])
-            ZO[sx].append((zf,zb))
+            fr=resample(pts,NT); zf=np.interp(np.linspace(0,1,NT),np.linspace(0,1,len(zo)),zo)
+            Rf[sx].append([(sx*p[0],p[1],z) for p in fr]); ZO[sx].append((zf,None))
     # hem heights per point (only bottom row moves); vent opening at back centre
     def hem_adjust(R,last,zo=None):
         out=[]
@@ -101,13 +124,13 @@ def build():
         R[last]=out
     last=len(ROWS)-1
     for sx in (1,-1):
-        hem_adjust(Rf[sx],last,ZO[sx][last][0]); hem_adjust(Rb[sx],last,ZO[sx][last][1])
+        hem_adjust(Rf[sx],last,ZO[sx][last][0])
         # vent: split from y=790 down, centre points pulled apart
         for i,y in enumerate(ROWS):
             if y>=790:
                 v=0.04*(y-790)/(852-790)
-                p=Rb[sx][i][-1]; Rb[sx][i][-1]=(p[0]+sx*v,p[1],p[2])
-                p=Rb[sx][i][-2]; Rb[sx][i][-2]=(p[0]+sx*v*0.5,p[1],p[2])
+                p=Rf[sx][i][-1]; Rf[sx][i][-1]=(p[0]+sx*v,p[1],p[2])
+                p=Rf[sx][i][-2]; Rf[sx][i][-2]=(p[0]+sx*v*0.5,p[1],p[2])
     def inner(R):
         out=[]
         for i,ring in enumerate(R):
@@ -138,6 +161,7 @@ def build():
                 T.face([Ri[i][k+1],Ri[i][k],Ri[i+1][k],Ri[i+1][k+1]],M['Lining'])
         for e,mt in closed_end_flags:
             for i in range(len(R)-1):
+                if e>0 and ROWS[i+1]<790: continue
                 T.face([R[i][e],Ri[i][e],Ri[i+1][e],R[i+1][e]],mt)
         rl=roll(R[-1],Ri[-1])
         prev=R[-1]
@@ -150,11 +174,10 @@ def build():
         for k in range(len(R[0])-1): T.face([R[0][k+1],R[0][k],Ri[0][k],Ri[0][k+1]],M['Marble'])
         return Ri
     for sx in (1,-1):
-        shell(Rf[sx],[(0,M['Marble']),(NF-1,M['Marble'])])
-        shell(Rb[sx],[(0,M['Marble']),(NB-1,M['Marble'])])
+        shell(Rf[sx],[(0,M['Marble']),(NF+NB-1,M['Marble'])])
     # shoulder band: from coat top to neck (collar sits here in part 3)
     for sx in (1,-1):
-        for R,n_ in ((Rf[sx],NF),(Rb[sx],NB)):
+        for R,n_ in ((Rf[sx],NF+NB),):
             top=R[0]
             for k in range(n_-1):
                 a,b=top[k],top[k+1]
@@ -163,7 +186,7 @@ def build():
     return T
 ob=build().build()
 for p in ob.data.polygons: p.use_smooth=True
-try: ob.data.set_sharp_from_angle(angle=math.radians(50))
+try: ob.data.set_sharp_from_angle(angle=math.radians(75))
 except Exception as e: print('sharp',e)
 print('coat tris',sum(len(p.vertices)-2 for p in ob.data.polygons))
 bpy.ops.wm.save_as_mainfile(filepath=OUT)
