@@ -100,8 +100,8 @@ for sx in (1,-1):
         CD.build_on(T,M,CL,sm,s0,hz,scale,flip if sx>0 else not flip)
 # ---- back centre motif (measured, symmetric about x=1180)
 def mir(pl): return [(2*1180-x,y) for x,y in pl]
-MOT=[([(1140,388),(1140,705),(1095,736),(1090,766)],5.5),
-     ([(1172,392),(1172,532)],5.0),([(1172,605),(1172,731),(1160,746),(1160,800),(1170,815),(1170,842)],5.5),
+MOT=[([(1140,373),(1140,705),(1095,736),(1090,766)],5.5),
+     ([(1172,373),(1172,532)],5.0),([(1172,605),(1172,731),(1160,746),(1160,800),(1170,815),(1170,842)],5.5),
      ([(1131,571),(1180,522),(1229,571)],6.0),([(1131,571),(1172,609)],6.0),
      ([(1151,573),(1180,546),(1209,573)],5.0),([(1151,573),(1172,594)],5.0)]
 def lay(pl,hw,part,mat_,h=0.024):
@@ -115,6 +115,21 @@ def lay(pl,hw,part,mat_,h=0.024):
         if hh is None: continue
         run.append(tuple(hh[0])); rn.append(hh[1])
     if len(run)>1: strip(part,run,rn,hw,h,mat_)
+# rails continue over the shoulder band into the neck binding
+def to_neck(px):
+    xw=(px-1179.5)/121
+    top=hit('B',px,374)
+    if top is None: return
+    nk=[]
+    for sx in (1,-1): nk+=[V(q) for q in E['edges'][sx]['neck'] if q[1]<0]
+    q=min(nk,key=lambda v: abs(v.x-xw)+ (0 if v.y<-0.2 else 9))
+    a=top[0]; b=V((xw,q.y,q.z+0.004)); pts=[];nr=[]
+    for k in range(9):
+        t=k/8; pts.append(tuple(a.lerp(b,t))); nr.append(top[1].lerp(V((0,0,1)),t).normalized())
+    return pts,nr
+for px_,w in ((1140,5.5),(1172,5.0),(1188,5.0),(1220,5.5)):
+    r=to_neck(px_)
+    if r: strip(T,r[0],r[1],w/2/121,0.024,M['Gold'])
 for i,(pl,w) in enumerate(MOT):
     lay(pl,w/2/121,T,M['Gold'])
     if i not in (3,5): lay(mir(pl),w/2/121,T,M['Gold'])
