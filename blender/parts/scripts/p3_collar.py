@@ -60,20 +60,47 @@ def hit(px,py):
     if n.dot(d)>0: n=-n
     if n.y<0.3: return None
     return h[0],n
-FAC=[[(245,377),(245,500),(238,530),(220,551),(208,542),(208,377)],
-     [(328,377),(330,500),(336,530),(352,551),(364,542),(364,377)]]
-for poly in FAC:
-    vs=[tuple(map(float,p)) for p in poly]; segs=[(i,(i+1)%len(vs)) for i in range(len(vs))]
-    t=tri_safe(vs,segs,[],3.0)
-    vv,tr=t; hs=[hit(px,py) for px,py in vv]
-    ec={}
-    for t3 in tr:
-        for a,b in ((t3[0],t3[1]),(t3[1],t3[2]),(t3[2],t3[0])): k=(min(a,b),max(a,b)); ec[k]=ec.get(k,0)+1
-    for t3 in tr:
-        if any(hs[i] is None for i in t3): continue
-        tp=[tuple(hs[i][0]+hs[i][1]*0.012) for i in t3]; bt=[tuple(hs[i][0]-hs[i][1]*0.004) for i in t3]
-        C.face(tp,M['Purple']); C.face(bt[::-1],M['Purple'])
-        for a,b in ((t3[0],t3[1]),(t3[1],t3[2]),(t3[2],t3[0])):
-            if ec[(min(a,b),max(a,b))]==1: C.face([tp[t3.index(a)] if False else tuple(hs[a][0]+hs[a][1]*0.012),tuple(hs[b][0]+hs[b][1]*0.012),tuple(hs[b][0]-hs[b][1]*0.004),tuple(hs[a][0]-hs[a][1]*0.004)],M['Purple'])
+# ---- turned-back lapel flaps: coat edge rolls over (gold roll) and the flap lies on the chest (purple lining), gold outer edge
+I_=lambda tab,y: float(np.interp(y,[q[0] for q in tab],[q[1] for q in tab]))
+OPL=[(372,250),(500,250),(540,240),(566,226)]; OPR=[(372,323),(500,326),(540,338),(566,352)]
+def flap(sx):
+    rows=[374,375.5]+list(range(377,500,4))+list(range(500,549,3))+[549]
+    K=14; R=[]
+    for y in rows:
+        if sx>0: xin=I_(OPL,y)-1; xout0=204
+        else:    xin=I_(OPR,y)+1; xout0=366
+        f=max(0.0,(y-500)/(549-500)); xout=xout0+(xin-xout0)*min(1,f*1.02)
+        if abs(xout-xin)<1.2: xout=xin+(-1.2 if sx>0 else 1.2)
+        H=0.065-0.035*f
+        row=[]
+        for k in range(K):
+            px=xin+(xout-xin)*k/(K-1); h=hit(px,y)
+            if h is None: break
+            row.append((V(h[0]),V(h[1])))
+        if len(row)==K: R.append((row,H))
+    def sect(row,H):
+        B=[p for p,n in row]; N=[n for p,n in row]
+        D=(B[1]-B[0]).normalized()
+        cc=B[0]+N[0]*H*0.5; ring=[]
+        for j in range(7):                                  # roll: from coat surface over to the flap top
+            a=math.pi*j/6; ring.append(cc-N[0]*(H*0.5*math.cos(a))-D*(H*0.5*math.sin(a))+D*0.0)
+        for k in range(1,K): ring.append(B[k]+N[k]*H)        # flap top
+        ring.append(B[-1]-N[-1]*0.004)                       # outer edge wall down to the coat
+        return ring
+    S=[sect(r,H) for r,H in R]; n=len(S[0])
+    for i in range(len(S)-1):
+        for j in range(n-1):
+            m=M['Gold'] if j<6 else (M['Purple'] if j<n-2 else M['Gold'])
+            q=[tuple(S[i][j]),tuple(S[i][j+1]),tuple(S[i+1][j+1]),tuple(S[i+1][j])]
+            C.face(q if sx>0 else q[::-1],m)
+    # caps
+    for i in (0,len(S)-1):
+        ring=[tuple(p) for p in S[i]]; C.face(ring if i==0 else ring[::-1],M['Purple'])
+    # gold trim on the flap's outer edge (bevelled strip on the top surface edge)
+    pts=[];nr=[]
+    for r,H in R:
+        p,nn=r[-1]; q,_=r[-2]; D=(p-q).normalized(); pts.append(tuple(p+nn*H-D*0.03)); nr.append(nn)
+    strip(C,pts,nr,0.032,0.016,M['Gold'])
+for sx in (1,-1): flap(sx)
 ob=C.build(); print('collar tris',sum(len(p.vertices)-2 for p in ob.data.polygons))
 bpy.ops.wm.save_as_mainfile(filepath=OUT)
