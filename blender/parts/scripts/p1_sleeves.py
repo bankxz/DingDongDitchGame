@@ -1,57 +1,109 @@
 import sys; sys.path.insert(0,'/tmp/w/parts')
-import bpy
+import bpy, pickle
 from common import *
 SRC,OUT=sys.argv[-2:]
 bpy.ops.wm.open_mainfile(filepath=SRC)
 M=mats()
-# --- measured from the sheet (front view right sleeve, px): outer edge 39 (->33 at cuff), inner edge 148 (->150), top 372, cuff 570-588 gold, 588-600 purple
+E=pickle.load(open('/tmp/w/parts/sleeve_lines.pkl','rb'))['edges']
 ZT=Zmap(372); ZC0=Zmap(570); ZC1=Zmap(588); ZP=Zmap(600)
-HX_T,HX_B=0.535,0.565   # half width top/bottom (bell)
-HY_T,HY_B=0.540,0.560
-CY=-0.03; R=0.06; TH=0.035
+HX0,HY0=0.535,0.540; CY0=-0.03; R=0.065; TH=0.035
+F0=E['F'][377]; S0=E['S'][377]
+def prof(z):
+    """measured curved profile: half sizes + centre offset at height z (sheet rows; below 566 hold)"""
+    py=int(round(min(max(372+(4-z)*130,377),566)))
+    fi,fo=E['F'][py]; si,so=E['S'][py]
+    wf=(fi-fo)/(F0[0]-F0[1]); ws=(so-si)/(S0[1]-S0[0])
+    cshift=((fi+fo)-(F0[0]+F0[1]))/2*(2*HX0/(F0[0]-F0[1]))       # +ve = towards torso
+    cys=((si+so)-(S0[0]+S0[1]))/2*(2*HY0/(S0[1]-S0[0]))          # +ve = towards back
+    return HX0*wf,HY0*ws,cshift,-cys
+def ring_pts(sx,z,extra=0.0,inset=0.0,seg=6):
+    hx,hy,cs,cyo=prof(z); hx+=extra-inset; hy+=extra-inset; r=max(0.02,R-inset)
+    cx=sx*(1.51-cs); cy=CY0+cyo
+    # order: front face inner->outer, corner, side front->back, corner, back outer->inner, corner, inner back->front, corner
+    so_=sx  # outer direction in x
+    def arc(ccx,ccy,a0,a1):
+        return [(ccx+r*math.cos(math.radians(a0+(a1-a0)*k/seg)),ccy+r*math.sin(math.radians(a0+(a1-a0)*k/seg))) for k in range(seg+1)]
+    xo=cx+so_*(hx-r); xi=cx-so_*(hx-r); yf=cy+(hy-r); yb=cy-(hy-r)
+    if sx>0:
+        pts=arc(xo,yf,90,0)+arc(xo,yb,0,-90)+arc(xi,yb,-90,-180)+arc(xi,yf,180,90)
+    else:
+        pts=arc(xo,yf,90,180)+arc(xo,yb,180,270)+arc(xi,yb,270,360)+arc(xi,yf,0,90)
+    return [(p[0],p[1],z) for p in pts], (cx,cy,hx,hy,r)
+def surf(sx,face,u,z,lift=0.0):
+    """point+normal on the outer surface. face 0 front(u inner->outer),1 side(front->back),2 back(outer->inner),3 inner(back->front); u may run past 0..1 into the corners"""
+    hx,hy,cs,cyo=prof(z); cx=sx*(1.51-cs); cy=CY0+cyo
+    # build the 2D rounded rect perimeter, parametrise by face spans between corner midpoints
+    pts,_=ring_pts(sx,z,seg=12); P=np.array([p[:2] for p in pts]); n=len(P); per=12+1
+    # corner midpoints indices: each arc has 13 pts; arcs order: front-outer, back-outer, back-inner, front-inner
+    mids=[per//2, per+per//2, 2*per+per//2, 3*per+per//2]
+    # face spans: front: from mid of arc3 (front-inner) -> mid arc0 ; side: mid0->mid1 ; back: mid1->mid2 ; inner: mid2->mid3
+    seq=np.vstack([P,P]); L=np.r_[0,np.cumsum(np.linalg.norm(np.diff(seq,axis=0),axis=1))]
+    starts={0:mids[3],1:mids[0]+n,2:mids[1]+n,3:mids[2]+n}; ends={0:mids[0]+n,1:mids[1]+n,2:mids[2]+n,3:mids[3]+n}
+    a=L[starts[face]]; b=L[ends[face]]
+    if face==0: a=L[mids[3]]; b=L[mids[0]+n]
+    s=a+(b-a)*u
+    s=s%L[n] if s>=L[n] else s
+    k=np.searchsorted(L,s)-1; k=min(max(k,0),len(seq)-2); f=(s-L[k])/(L[k+1]-L[k]+1e-12)
+    p=seq[k]+(seq[k+1]-seq[k])*f; t=seq[k+1]-seq[k]; t=t/np.linalg.norm(t)
+    nn=np.array([t[1],-t[0]])
+    if np.dot(nn,p-np.array([cx,cy]))<0: nn=-nn
+    N=V((nn[0],nn[1],0.0))
+    return V((p[0],p[1],z))+N*lift, N
+def fpx(py,px,view):
+    i,o=E[view][int(min(max(round(py),377),566))]
+    return (px-i)/(o-i)
+def path(sx,segs,step=0.02):
+    """segs: list of (face,u,z) control points; densify along straight lines in (face-param,z) space -> 3D pts,normals"""
+    # convert to a continuous perimeter coordinate T=face+u
+    out=[];nrm=[]
+    ctrl=[(f+u,z) for f,u,z in segs]
+    for (t0,z0),(t1,z1) in zip(ctrl[:-1],ctrl[1:]):
+        nseg=max(2,int(max(abs(t1-t0)*1.1,abs(z1-z0))/step))
+        for k in range(nseg+(1 if (t1,z1)==ctrl[-1] else 0)):
+            t=t0+(t1-t0)*k/nseg; z=z0+(z1-z0)*k/nseg
+            face=int(math.floor(t))%4; u=t-math.floor(t)
+            p,n=surf(sx,face,u,z); out.append(tuple(p)); nrm.append(n)
+    return out,nrm
 def sleeve(bone,sx):
     P=Part('Gear_'+bone.replace(' ',''),bone); G=Part('Glow_'+bone.replace(' ',''),bone)
-    cx=sx*1.51
-    def ring(z,inset=0.0,extra=0.0):
-        f=(ZT-z)/(ZT-ZP); hx=HX_T+(HX_B-HX_T)*f+extra-inset; hy=HY_T+(HY_B-HY_T)*f+extra-inset
-        return rrect(cx+sx*0.006*f,CY,hx,hy,max(0.02,R-inset),z)
-    # outer shell with rounded shoulder (fillet r=0.06)
-    zs=[ZP,ZC1,ZC0,3.0,3.5,ZT-R]
-    rings=[ring(z) for z in zs]
-    for k in range(1,4):
-        a=math.radians(90*k/4); rings.append(ring(ZT-R+R*math.sin(a),inset=R*(1-math.cos(a))))
-    rings.append(ring(ZT,inset=R*0.999))
+    zs=[ZP,ZC1,ZC0]+list(np.linspace(Zmap(566),ZT-R,14))
+    rings=[ring_pts(sx,z)[0] for z in zs]
+    for k in range(1,5):
+        a=math.radians(90*k/5); rings.append(ring_pts(sx,ZT-R+R*math.sin(a),inset=R*(1-math.cos(a)))[0])
+    rings.append(ring_pts(sx,ZT,inset=R*0.999)[0])
     P.loft(rings,M['Marble'],cap1=M['Marble'])
-    inner=[ring(z,inset=TH) for z in (ZP,3.92)]
+    inner=[ring_pts(sx,z,inset=TH)[0] for z in (ZP,Zmap(566),3.3,3.9)]
     P.loft(inner,M['Lining'],cap1=M['Lining'])
-    o0=rings[0]; i0=inner[0]
-    for j in range(len(o0)):
-        k=(j+1)%len(o0); P.face([o0[k],o0[j],i0[j],i0[k]],M['Lining'])
-    # cuff: gold band (chamfered) + diamond facets, purple glow band below
+    for j in range(len(rings[0])):
+        k=(j+1)%len(rings[0]); P.face([rings[0][k],rings[0][j],inner[0][j],inner[0][k]],M['Lining'])
     zm=(ZC0+ZC1)/2
-    cb=[ring(ZC1,extra=0.012),ring(ZC1+0.014,extra=0.028),ring(zm,extra=0.036),ring(ZC0-0.014,extra=0.028),ring(ZC0,extra=0.012)]
-    P.loft(cb,M['Gold'],cap0=M['Gold'],cap1=M['Gold'])
-    G.loft([ring(ZP,extra=0.016),ring(ZP+0.012,extra=0.032),ring(ZC1-0.004,extra=0.032),ring(ZC1+0.004,extra=0.02)],M['Glow'],cap0=M['Glow'],cap1=M['Glow'])
-    # --- gold lines on front & back faces: polylines in sheet px for the RIGHT sleeve front (outer edge x39, inner 148)
-    LINES=[[(57,377),(58,488)],[(36,455),(59,489)],[(61,426),(107,408),(134,377)],[(61,451),(120,426),(147,390)]]
-    def face_pt(px,py,face_sign):
-        z=Zmap(py); u=(148-px)/(148-39)     # 0 inner .. 1 outer
-        f=(ZT-z)/(ZT-ZP); hx=HX_T+(HX_B-HX_T)*f; hy=HY_T+(HY_B-HY_T)*f
-        x=cx+sx*(-hx+2*hx*u); y=CY+face_sign*hy
-        return (x,y,z)
-    for fs in (1,-1):
-        n=V((0,fs,0))
-        for L in LINES:
-            strip(P,[face_pt(px,py,fs) for px,py in L],n,0.036,0.02,M['Gold'])
-    # outer side face: double band at y 455-470 + vertical strip near back edge (side view, left arm: front x668 back x787)
-    def side_pt(px,py):
-        z=Zmap(py); u=(px-668)/(787-668)     # 0 front .. 1 back
-        f=(ZT-z)/(ZT-ZP); hx=HX_T+(HX_B-HX_T)*f; hy=HY_T+(HY_B-HY_T)*f
-        return (cx+sx*hx,CY+hy-2*hy*u,z)
-    n=V((sx,0,0))
+    P.loft([ring_pts(sx,ZC1,extra=0.012)[0],ring_pts(sx,ZC1+0.014,extra=0.028)[0],ring_pts(sx,zm,extra=0.036)[0],ring_pts(sx,ZC0-0.014,extra=0.028)[0],ring_pts(sx,ZC0,extra=0.012)[0]],M['Gold'],cap0=M['Gold'],cap1=M['Gold'])
+    G.loft([ring_pts(sx,ZP,extra=0.016)[0],ring_pts(sx,ZP+0.012,extra=0.032)[0],ring_pts(sx,ZC1-0.004,extra=0.032)[0],ring_pts(sx,ZC1+0.004,extra=0.02)[0]],M['Glow'],cap0=M['Glow'],cap1=M['Glow'])
+    Z=lambda py: Zmap(py)
+    HW=0.036; HH=0.02
+    for face,mirror in ((0,False),(2,True)):
+        # front pattern measured on the right sleeve front (px); back face uses the same pattern measured from the outer edge
+        def U(px,py):
+            u=fpx(py,px,'F')               # 0 inner .. 1 outer on the front
+            return (1-u) if mirror else u  # back face runs outer->inner
+        def pt(px,py): return (face,U(px,py),Z(py))
+        bar=[pt(57,377),pt(58,430),pt(60,487)]
+        p,n=path(sx,bar); strip(P,p,n,HW*1.05,HH,M['Gold'])
+        # tail: from bar foot to the outer edge, then wraps round the corner onto the side face (joins the double band)
+        if not mirror: tail=[pt(60,489),(0,1.0,Z(461)),(1,0.04,Z(461))]
+        else: tail=[pt(60,489),(2,0.0,Z(461)),(1,0.96,Z(461))]
+        p,n=path(sx,tail); strip(P,p,n,HW*1.05,HH,M['Gold'])
+        # line A: up to the top edge then over the shoulder fillet
+        A=[pt(62,428),pt(108,407),pt(133,377)]
+        p,n=path(sx,A); strip(P,p,n,HW*0.85,HH,M['Gold'])
+        # line B: to the inner edge, then wraps onto the inner face
+        if not mirror: B=[pt(62,452),pt(121,425),(0,0.0,Z(390)),(-1,0.85,Z(386))]
+        else: B=[pt(62,452),pt(121,425),(2,1.0,Z(390)),(3,0.15,Z(386))]
+        p,n=path(sx,B); strip(P,p,n,HW*0.85,HH,M['Gold'])
+    # side face: double band (front corner -> back corner) and vertical strip near the back edge
     for py in (458.5,467.5):
-        strip(P,[side_pt(670,py),side_pt(785,py)],n,0.028,0.018,M['Gold'])
-    strip(P,[side_pt(782,402),side_pt(782,455)],n,0.03,0.02,M['Gold'])
+        p,n=path(sx,[(1,0.02,Z(py)),(1,0.98,Z(py))]); strip(P,p,n,0.028,0.018,M['Gold'])
+    p,n=path(sx,[(1,(782-668)/119,Z(402)),(1,(782-668)/119,Z(457))]); strip(P,p,n,0.03,0.02,M['Gold'])
     return P,G
 objs=[]
 for bone,sx in (('Right Arm',1),('Left Arm',-1)):
