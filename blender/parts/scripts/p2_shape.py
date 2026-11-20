@@ -17,7 +17,7 @@ YF=[(372,0.565),(560,0.60),(620,0.61),(852,0.61)]
 F=lambda y: float(np.clip((y-612)/(700-612),0,1))**0.8          # flare/fold strength
 G=lambda y: float(np.clip((y-640)/(852-640),0,1))                # folds deepen toward the hem
 HEM=lambda yy: 858-18*np.exp(-((yy+0.56)/0.09)**2)+(-7*np.clip((-yy-0.56)/0.66,0,1))   # front 858, seam notch 840, back 851
-ROWS=[372,400,450,500,560,600,612,620,630,645,660,680,700,725,750,775,800,820,840,852]
+ROWS=[372,400,450,500,560,600,606,612,618,624,630]+list(range(638,852,8))+[852]
 TH=0.035
 def chaikin(P,it=2,keep=()):
     for _ in range(it):
@@ -29,50 +29,79 @@ def chaikin(P,it=2,keep=()):
 def resample(P,n):
     P=np.array(P); L=np.r_[0,np.cumsum(np.linalg.norm(np.diff(P,axis=0),axis=1))]
     s=np.linspace(0,L[-1],n); return np.c_[np.interp(s,L,P[:,0]),np.interp(s,L,P[:,1])]
-def front_poly(y,sx):
-    """front panel cross-section (+x side when sx=1): opening -> front crease -> side folds -> seam"""
-    hx=I(HX,y); yf=I(YF,y); yb=I(YB,y); f=F(y); g=G(y)
-    xo=XF(I(OPL,y)) if sx>0 else -XF(I(OPR,y))
-    xo=abs(xo)
-    df=0.15*f; ys=-0.56 if f>0 else yb+0.05     # seam depth
-    pts=[(xo,yf),((xo+hx-df)/2,yf+0.025*f),(hx-df,yf),
-         (hx-0.015*f,0.33),(hx,0.08),(hx-0.05*g-0.01*f,-0.07),(hx,-0.21),(hx-0.02*f,-0.40),(hx-0.05*f,ys)]
-    if f==0:   # torso-tight: rounded rectangle quarter (front-right corner -> side -> back-right corner)
-        pts=[(xo,yf),(hx-0.06,yf),(hx,yf-0.06),(hx,yb+0.06),(hx-0.06,yb),(0.0,yb)]
-        return pts,False
-    return pts,True
-def back_poly(y):
-    hx=I(HX,y); yb=I(YB,y); f=F(y); g=G(y)
-    return [(hx-0.07*f,-0.53),(hx-0.10*f,(yb-0.53)/2),(hx-0.30*f,yb),(0.5*(hx-0.30*f),yb-0.02*f),(0.0,yb)]
-NF=40; NB=24
+NN=[(372,8),(600,7),(625,4.0),(660,2.9),(760,2.6),(852,2.5)]
+def base_pt(y,t,hx,yf,yb,n):
+    cy=(yf+yb)/2; hy=(yf-yb)/2
+    st,ct=math.sin(t),math.cos(t)
+    return (hx*math.copysign(abs(st)**(2/n),st), cy+hy*math.copysign(abs(ct)**(2/n),ct))
+def t_for(y,hx,yf,yb,n,cond):
+    best=None
+    for k in range(1,2000):
+        t=pi*k/2000; p=base_pt(y,t,hx,yf,yb,n); c=cond(p)
+        if best is None or c<best[0]: best=(c,t)
+    return best[1]
+def half_outline(y,sx,N=220):
+    """outline for one side (+x mirrored by sx) from the front opening round to the back centre, built from fold lobes"""
+    f=F(y); g=G(y); n=I(NN,y)
+    AS,AB=0.07*f,0.05*f                       # lobe crest heights (side, back)
+    hx=I(HX,y)-AS; yf=I(YF,y); yb=I(YB,y)+AB
+    xo=abs(XF(I(OPL,y))) if sx>0 else abs(XF(I(OPR,y)))
+    t0=t_for(y,hx,yf,yb,n,lambda p: abs(p[0]-xo)+(0 if p[1]>0 else 9))
+    # valley positions (measured): front crease, side creases (+0.08,-0.21), seam -0.56, back strip crease, back fold x~0.74
+    vs=[t0,
+        t_for(y,hx,yf,yb,n,lambda p: abs(p[0]-(hx-0.15))+(0 if p[1]>0.2 else 9)),
+        t_for(y,hx,yf,yb,n,lambda p: abs(p[1]-0.08)+(0 if p[0]>0.5 else 9)),
+        t_for(y,hx,yf,yb,n,lambda p: abs(p[1]+0.21)+(0 if p[0]>0.5 else 9)),
+        t_for(y,hx,yf,yb,n,lambda p: abs(p[1]+0.56)+(0 if p[0]>0.5 else 9)),
+        t_for(y,hx,yf,yb,n,lambda p: abs(p[0]-(hx-0.30))+(0 if p[1]<-0.4 else 9)),
+        t_for(y,hx,yf,yb,n,lambda p: abs(p[0]-0.74)+(0 if p[1]<-0.4 else 9)),
+        pi]
+    vs=sorted(vs)
+    amps=[0.035,0.06,0.045,0.05,0.06,0.045,0.05]   # crest per lobe (front, front-side, side, side-back, back-side, back, back-centre)
+    deps=[0.0,0.035,0.05,0.045,0.07,0.04,0.045,0.06] # valley depth per valley point
+    pts=[];zoff=[];seam_k=None
+    ts=np.linspace(vs[0],pi,N)
+    for t in ts:
+        j=min(np.searchsorted(vs,t,side='right')-1,len(vs)-2); u=(t-vs[j])/(vs[j+1]-vs[j]+1e-9)
+        sn=math.sin(pi*u)**0.75
+        dep=deps[j]*(1-u)+deps[j+1]*u
+        off=(amps[j]*sn-dep*(1-sn))*(0.35+0.65*g)*(1 if f>0 else 0)
+        x,yy=base_pt(y,t,hx,yf,yb,n); cy=(yf+yb)/2
+        nx,ny=x,(yy-cy); L=math.hypot(nx,ny)+1e-9
+        pts.append((x+off*nx/L,yy+off*ny/L)); zoff.append(1-sn)
+    seam_t=vs[4]
+    return pts,zoff,ts,seam_t
+NF=64; NB=40
 def build():
     T=Part('Gear_Torso','Torso')
     Rf={1:[],-1:[]}; Rb={1:[],-1:[]}
+    ZO={1:[],-1:[]}
     for y in ROWS:
         z=Zmap(y)
         for sx in (1,-1):
-            P,fl=front_poly(y,sx)
-            if not fl:
-                Q=resample(chaikin(P,2),NF+NB-1); fr=Q[:NF]; bk=Q[NF-1:]
-            else:
-                fr=resample(chaikin(P,2),NF); bk=resample(chaikin(back_poly(y),2),NB)
-            Rf[sx].append([(sx*p[0],p[1],z) for p in fr]); Rb[sx].append([(sx*p[0],p[1],z) for p in bk])
+            pts,zo,ts,seam_t=half_outline(y,sx)
+            ks=int(np.argmin(np.abs(ts-seam_t)))
+            fr=resample(pts[:ks+3],NF); bk=resample(pts[ks-2:],NB)
+            zf=np.interp(np.linspace(0,1,NF),np.linspace(0,1,ks+3),zo[:ks+3]); zb=np.interp(np.linspace(0,1,NB),np.linspace(0,1,len(zo)-ks+2),zo[ks-2:])
+            Rf[sx].append([(sx*p[0],p[1],z) for p in fr]); Rb[sx].append([(sx*p[0]*0.995,p[1]+0.008,z) for p in bk])
+            ZO[sx].append((zf,zb))
     # hem heights per point (only bottom row moves); vent opening at back centre
-    def hem_adjust(R,last):
+    def hem_adjust(R,last,zo=None):
         out=[]
-        for p in R[last]:
+        for kk,p in enumerate(R[last]):
             ax=abs(p[0])
             if p[1]>-0.5:   # front panel
                 yy=866-8*np.clip((ax-1.75)/0.25,0,1)
             else:           # back panel
                 yy=862-6*np.clip((ax-1.7)/0.3,0,1)
             yy-=16*np.exp(-((p[1]+0.56)/0.09)**2)        # side-seam notch
+            if zo is not None: yy+=14*zo[kk]               # fold valleys hang lower: scalloped hem
             xs=p[0]-np.sign(p[0])*0.10*np.clip((ax-1.6)/0.4,0,1)
             out.append((xs,p[1],Zmap(yy)))
         R[last]=out
     last=len(ROWS)-1
     for sx in (1,-1):
-        hem_adjust(Rf[sx],last); hem_adjust(Rb[sx],last)
+        hem_adjust(Rf[sx],last,ZO[sx][last][0]); hem_adjust(Rb[sx],last,ZO[sx][last][1])
         # vent: split from y=790 down, centre points pulled apart
         for i,y in enumerate(ROWS):
             if y>=790:
@@ -133,5 +162,8 @@ def build():
                 T.face([b,a,na,nb],M['Marble'])
     return T
 ob=build().build()
+for p in ob.data.polygons: p.use_smooth=True
+try: ob.data.set_sharp_from_angle(angle=math.radians(50))
+except Exception as e: print('sharp',e)
 print('coat tris',sum(len(p.vertices)-2 for p in ob.data.polygons))
 bpy.ops.wm.save_as_mainfile(filepath=OUT)
