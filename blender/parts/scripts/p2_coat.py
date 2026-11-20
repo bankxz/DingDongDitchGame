@@ -25,10 +25,21 @@ def dense(r,N=720,off=0.0):
     t=np.linspace(0,2*pi,N,endpoint=False); s,c=np.sin(t),np.cos(t)
     x=hx*np.sign(s)*np.abs(s)**(2/n); y=cy+hy*np.sign(c)*np.abs(c)**(2/n)
     return x,y,t
+FOLDS=[(pi,0.14,-0.10),(pi-0.42,0.22,0.06),(pi+0.42,0.22,0.06),(pi-0.80,0.16,-0.05),(pi+0.80,0.16,-0.05),
+       (1.45,0.16,-0.08),(2*pi-1.45,0.16,-0.08),(1.15,0.18,0.05),(2*pi-1.15,0.18,0.05),(1.78,0.18,0.05),(2*pi-1.78,0.18,0.05),
+       (0.80,0.24,0.055),(2*pi-0.80,0.24,0.055),(0.50,0.14,-0.03),(2*pi-0.50,0.14,-0.03)]                                  # front panel ridges
+def fold_off(ts,z):
+    f=np.clip((Zmap(612)-z)/(Zmap(612)-Zmap(852)),0,1)**1.1
+    o=np.zeros_like(ts)
+    for t0,w,a in FOLDS:
+        d=np.angle(np.exp(1j*(ts-t0))); o+=a*np.exp(-(d/w)**2)
+    return o*f
 def arc_param(r,ts,off=0.0):
     cy=(r['yf']+r['yb'])/2; hy=(r['yf']-r['yb'])/2-off; hx=r['hx']-off; n=r['n']
-    s,c=np.sin(ts),np.cos(ts)
-    return hx*np.sign(s)*np.abs(s)**(2/n), cy+hy*np.sign(c)*np.abs(c)**(2/n)
+    ts=np.asarray(ts,float); s,c=np.sin(ts),np.cos(ts)
+    x=hx*np.sign(s)*np.abs(s)**(2/n); y=cy+hy*np.sign(c)*np.abs(c)**(2/n)
+    o=fold_off(ts,r['z']); dx=x; dy=y-cy; L=np.hypot(dx,dy)+1e-9
+    return x+o*dx/L, y+o*dy/L
 def t_at_x(r,xv,front=True):
     x,y,t=dense(r); cy=(r['yf']+r['yb'])/2
     m=(y>=cy) if front else (y<cy)
@@ -172,6 +183,103 @@ def build():
     if cur: groups.append(cur)
     for g_ in groups: hem_band(rings_o[last],rings_i[last],g_)
     for side in (0,1): hem_band(HO[lb][side],HI[lb][side],list(range(len(HO[lb][side]))))
+    # ================= traced gold trim + cloud plates, laid onto the coat surface
+    import pickle
+    from mathutils.bvhtree import BVHTree
+    D=pickle.load(open('/tmp/w/parts/coat_trims.pkl','rb'))
+    tree=BVHTree.FromPolygons([V(v) for v in T.v],[ids for ids,_ in T.f])
+    def ray(view,px,py):
+        z=Zmap(py)
+        if view=='F': return V((XF(px),20,z)),V((0,-1,0))
+        if view=='B': return V(((px-1179.5)/121,-20,z)),V((0,1,0))
+        if view=='SL': return V((-20,(722-px)/121,z)),V((1,0,0))
+        return V((20,(722-px)/121,z)),V((-1,0,0))
+    def hit(view,px,py):
+        o,d=ray(view,px,py); h=tree.ray_cast(o,d,60)
+        if h[0] is None: return None
+        n=h[1].copy()
+        if n.dot(d)>0: n=-n
+        if n.dot(-d)<0.25: return None
+        return h[0],n
+    nst=0
+    def in_motif(vw,poly):
+        if vw!='B': return False
+        x=poly[:,0].mean(); y=poly[:,1].mean()
+        return (1085<x<1275 and y<768) or (1148<x<1212 and y<846)
+    for vw,poly,wpx in D['lines']:
+        if in_motif(vw,poly): continue
+        views=['SL','SR'] if vw=='S' else [vw]
+        pts=[poly[0]]
+        for a_,b_ in zip(poly[:-1],poly[1:]):
+            dd=np.linalg.norm(b_-a_); k=max(1,int(dd/2.0))
+            for q in range(1,k+1): pts.append(a_+(b_-a_)*q/k)
+        hw=max(wpx,4.0)/2/121
+        for view in views:
+            run=[];rn=[]
+            for px,py in pts:
+                h=hit(view,px,py)
+                if h is None:
+                    if len(run)>1: strip(T,run,rn,hw,0.02,M['Gold']); nst+=1
+                    run=[];rn=[]; continue
+                run.append(tuple(h[0])); rn.append(h[1])
+            if len(run)>1: strip(T,run,rn,hw,0.02,M['Gold']); nst+=1
+    CL=mat('Cloud',(0.78,0.66,0.90),0,0.4)
+    npl=0
+    for vw,vs,tr in D['cloud_tris']:
+        views=['SL','SR'] if vw=='S' else [vw]
+        for view in views:
+            hs=[hit(view,px,py) for px,py in vs]
+            kept=[t3 for t3 in tr if all(hs[i] is not None for i in t3)]
+            ec={}
+            for t3 in kept:
+                for a_,b_ in ((t3[0],t3[1]),(t3[1],t3[2]),(t3[2],t3[0])): k=(min(a_,b_),max(a_,b_)); ec[k]=ec.get(k,0)+1
+            for t3 in kept:
+                top=[tuple(hs[i][0]+hs[i][1]*0.008) for i in t3]; bot=[tuple(hs[i][0]-hs[i][1]*0.004) for i in t3]
+                T.face(top,CL); T.face(bot[::-1],CL)
+                for a_,b_ in ((t3[0],t3[1]),(t3[1],t3[2]),(t3[2],t3[0])):
+                    if ec[(min(a_,b_),max(a_,b_))]==1:
+                        T.face([tuple(hs[a_][0]+hs[a_][1]*0.008),tuple(hs[b_][0]+hs[b_][1]*0.008),tuple(hs[b_][0]-hs[b_][1]*0.004),tuple(hs[a_][0]-hs[a_][1]*0.004)],CL)
+                npl+=1
+    # ---- back centre motif, measured (back-view px), symmetric about x=1180
+    def mir(pl): return [(2*1180-x,y) for x,y in pl]
+    MOT=[([(1140,388),(1140,705),(1095,736),(1090,766)],5.5),
+         ([(1172,392),(1172,532)],5.0),([(1172,605),(1172,731),(1160,746),(1160,800),(1170,815),(1170,842)],5.5),
+         ([(1131,571),(1180,522),(1229,571)],6.0),([(1131,571),(1172,609)],6.0),
+         ([(1151,573),(1180,546),(1209,573)],5.0),([(1151,573),(1172,594)],5.0)]
+    G=Part('Glow_Torso','Torso')
+    def lay(pl,hw,part,mat_,h=0.02):
+        pts=[pl[0]]
+        for a_,b_ in zip(pl[:-1],pl[1:]):
+            a_=np.array(a_,float); b_=np.array(b_,float); k=max(1,int(np.linalg.norm(b_-a_)/2))
+            for q in range(1,k+1): pts.append(a_+(b_-a_)*q/k)
+        run=[];rn=[]
+        for px,py in pts:
+            hh=hit('B',px,py)
+            if hh is None: continue
+            run.append(tuple(hh[0])); rn.append(hh[1])
+        if len(run)>1: strip(part,run,rn,hw,h,mat_)
+    for pl,w in MOT:
+        lay(pl,w/2/121,T,M['Gold']); 
+        if pl[0][0]!=1180: lay(mir(pl) if pl!=MOT[3][0] and pl!=MOT[5][0] else pl,w/2/121,T,M['Gold'])
+    for pl in ([(1180,490),(1180,786)],): lay(pl,2.4/121,G,M['Glow'],0.026)
+    # glow plates: diamond core and lower lozenge (raised discs projected)
+    def plate(poly_px,part,mat_,lift):
+        c=np.mean(poly_px,0); ring=[]
+        for px,py in poly_px:
+            hh=hit('B',px,py); 
+            if hh is None: return
+            ring.append(hh)
+        hc=hit('B',*c)
+        if hc is None: return
+        top=[tuple(h_[0]+h_[1]*lift) for h_ in ring]; ct=tuple(hc[0]+hc[1]*lift)
+        bot=[tuple(h_[0]-h_[1]*0.004) for h_ in ring]
+        for i in range(len(ring)):
+            j=(i+1)%len(ring); part.face([top[i],top[j],ct],mat_); part.face([top[j],top[i],bot[i],bot[j]],mat_)
+        part.face(bot[::-1],mat_)
+    plate([(1180,552),(1203,573),(1180,592),(1157,573)],G,M['Glow'],0.012)
+    plate([(1180,742),(1196,750),(1196,800),(1180,812),(1164,800),(1164,750)],G,M['Glow'],0.008)
+    G.build()
+    print('trim strips',nst,'cloud tris',npl)
     return T
 ob=build().build()
 print('coat tris',sum(len(p.vertices)-2 for p in ob.data.polygons))
