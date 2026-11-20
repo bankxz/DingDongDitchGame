@@ -49,27 +49,13 @@ def prism(part,vs,tr,view,lift,mat_,sink=0.006):
             if ec[(min(a,b),max(a,b))]==1: part.face([top(a),top(b),bot(b),bot(a)],mat_)
     return len(kept)
 cnt={'gold':0,'cloud':0}
-for name,lift,mt in (('cloud',0.010,CL),('gold',0.024,M['Gold'])):
+for name,lift,mt in (('gold',0.024,M['Gold']),):
     for vw,vs,tr in D[name]:
         if name=='gold' and vs[:,1].mean()>690: continue
         for view in (['SL','SR'] if vw=='S' else [vw]):
             cnt[name]+=prism(T,vs,tr,view,lift,mt)
 print('projected tris',cnt)
-# ---- hand-cleaned cloud scroll curves -> uniform bevelled gold strips on the coat
-CUR=pickle.load(open('/tmp/w/parts/cloud_curves.pkl','rb')); ncs=0
-for vw,a in CUR:
-    for view in (['SL','SR'] if vw=='S' else [vw]):
-        run=[];rn=[]
-        def flush():
-            global ncs
-            if len(run)>1: strip(T,run,rn,2.9/121,0.024,M['Gold']); ncs+=1
-        for px,py in a:
-            hh=hit(view,px,py)
-            if hh is None:
-                flush(); run=[]; rn=[]; continue
-            run.append(tuple(hh[0])); rn.append(hh[1])
-        flush()
-print('cloud strips',ncs)
+
 # ---- hem band from the hem geometry (continuous, follows every fold)
 HEMS=pickle.load(open('/tmp/w/parts/hem.pkl','rb'))
 for ro,ri,last4 in HEMS:
@@ -96,6 +82,22 @@ for sx,rev in ((1,False),(-1,True)):
 p2,n2=edge_strip(-1); PATH+=p2[::-1]; NR+=n2[::-1]
 # densify corners: insert blended normals
 strip(T,[tuple(q) for q in PATH],NR,0.05,0.024,M['Gold'])
+# ---- original cloud-scroll design, wrapped on the coat
+import clouds_design as CD
+def hemz_fn(sx):
+    pts=[]
+    for ro,ri,l4 in HEMS:
+        for q in ro:
+            if q[0]*sx>=-1e-6: pts.append((math.atan2(abs(q[0]),q[1]+0.05),q[2]))
+    pts.sort(); a=np.array(pts)
+    # smooth the scallops so the clouds sit level
+    zs=np.convolve(np.pad(a[:,1],(6,6),mode='edge'),np.ones(13)/13,mode='valid')
+    return lambda t: float(np.interp(t,a[:,0],zs))
+for sx in (1,-1):
+    sm=CD.SurfMap(ptree,tree,sx); hz=hemz_fn(sx)
+    for theta_c,scale,flip in ((66,0.95,False),(97,1.12,True),(134,1.28,False)):
+        s0=sm.s_of_theta(math.radians(theta_c),0.75)
+        CD.build_on(T,M,CL,sm,s0,hz,scale,flip if sx>0 else not flip)
 # ---- back centre motif (measured, symmetric about x=1180)
 def mir(pl): return [(2*1180-x,y) for x,y in pl]
 MOT=[([(1140,388),(1140,705),(1095,736),(1090,766)],5.5),

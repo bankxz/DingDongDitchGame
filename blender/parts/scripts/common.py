@@ -74,6 +74,12 @@ def rrect(cx,cy,hx,hy,r,z,seg=3):
     return pts
 def strip(part,pts3,nrm,hw,h,m,depth=0.006):
     """bevelled raised strip along a polyline lying on a planar-ish surface with normal nrm (per point list or single)"""
+    if not isinstance(nrm,list): nrm=[nrm]*len(pts3)
+    q=[(pts3[0],nrm[0])]
+    for p_,n_ in zip(pts3[1:],nrm[1:]):
+        if (V(p_)-V(q[-1][0])).length>0.004: q.append((p_,n_))
+    pts3=[a for a,b in q]; nrm=[b for a,b in q]
+    if len(pts3)<2: return
     L=len(pts3); rings=[]
     for i in range(L):
         n=nrm[i] if isinstance(nrm,list) else nrm
@@ -81,7 +87,8 @@ def strip(part,pts3,nrm,hw,h,m,depth=0.006):
         # miter at interior corners
         if 0<i<L-1:
             t1=(V(pts3[i])-V(pts3[i-1])).normalized(); t2=(V(pts3[i+1])-V(pts3[i])).normalized()
-            s1=t1.cross(n).normalized(); s2=t2.cross(n).normalized(); sd=(s1+s2); sd=sd/ max(1e-6,sd.dot(s1))
+            s1=t1.cross(n).normalized(); s2=t2.cross(n).normalized(); sd=(s1+s2)
+            sd=sd/max(0.5,sd.dot(s1)) if sd.length>1e-6 else s1
         ring=[p-sd*hw-n*depth,p+sd*hw-n*depth,p+sd*hw+n*h*0.6,p+sd*hw*0.6+n*h,p-sd*hw*0.6+n*h,p-sd*hw+n*h*0.6]
         rings.append([tuple(q) for q in ring])
     part.loft(rings,m,cap0=m,cap1=m)
