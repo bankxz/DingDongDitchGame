@@ -77,7 +77,7 @@ for py,dep,w,tw in SEC:
     rings.append(ring)
 K.loft(rings,BLK2,cap0=BLK2,cap1=BLK2)
 # fold ridges across the obi front (diagonal creases), visible between the lapels
-for (p0,p1) in (((215,540),(330,560)),((225,575),(330,553)),((215,592),(320,580)),((240,528),(320,540))):
+for (p0,p1) in (((238,540),(330,560)),((238,575),(330,553)),((240,592),(320,580)),((245,528),(320,540))):
     pts=[];nr=[]
     for t in np.linspace(0,1,14):
         px=p0[0]+(p1[0]-p0[0])*t; py=p0[1]+(p1[1]-p0[1])*t; x=XF(px); z=Zmap(py)

@@ -118,6 +118,22 @@ def build():
             pts,zo,ts,seam_t=half_outline(y,sx)
             fr=resample(pts,NT); zf=np.interp(np.linspace(0,1,NT),np.linspace(0,1,len(zo)),zo)
             Rf[sx].append([(sx*p[0],p[1],z) for p in fr]); ZO[sx].append((zf,None))
+    # vertical fairing: remove the waist ridge where the flare meets the folds (smooth x,y along each column)
+    for sx in (1,-1):
+        A=np.array(Rf[sx])            # rows x pts x 3
+        zrow=np.array([Zmap(y) for y in ROWS])
+        w=np.array([1.0 if 560<=y<=740 else 0.0 for y in ROWS])
+        for _ in range(40):
+            B=A.copy()
+            B[1:-1,:,:2]=A[1:-1,:,:2]+0.5*w[1:-1,None,None]*((A[:-2,:,:2]*(zrow[1:-1]-zrow[2:])[:,None,None]+A[2:,:,:2]*(zrow[:-2]-zrow[1:-1])[:,None,None])/((zrow[:-2]-zrow[2:])[:,None,None])-A[1:-1,:,:2])
+            A=B
+        # inverted bulge: a soft waist groove all around (dips in, then the skirt flares out below it)
+        for i,y in enumerate(ROWS):
+            g=0.07*math.exp(-((y-603)/16.0)**2)
+            if g<1e-4: continue
+            c=np.array([0.0,-0.05]); v=A[i,:,:2]-c; L=np.linalg.norm(v,axis=1,keepdims=True)+1e-9
+            A[i,:,:2]=A[i,:,:2]-v/L*g
+        Rf[sx]=[[tuple(p) for p in row] for row in A]
     # hem heights per point (only bottom row moves); vent opening at back centre
     def hem_adjust(R,last,zo=None):
         out=[]
