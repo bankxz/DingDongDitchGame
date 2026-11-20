@@ -16,33 +16,41 @@ def prof(z):
     cshift=((fi+fo)-(F0[0]+F0[1]))/2*(2*HX0/(F0[0]-F0[1]))       # +ve = towards torso
     cys=((si+so)-(S0[0]+S0[1]))/2*(2*HY0/(S0[1]-S0[0]))          # +ve = towards back
     return HX0*wf,HY0*ws,cshift,-cys
-def ring_pts(sx,z,extra=0.0,inset=0.0,seg=6):
+BF,BS=0.045,0.025   # face bulge: front/back, sides (soft fabric, not flat planes)
+SEG=8; NF=10
+def ring_pts(sx,z,extra=0.0,inset=0.0,seg=SEG):
     hx,hy,cs,cyo=prof(z); hx+=extra-inset; hy+=extra-inset; r=max(0.02,R-inset)
     cx=sx*(1.51-cs); cy=CY0+cyo
-    # order: front face inner->outer, corner, side front->back, corner, back outer->inner, corner, inner back->front, corner
-    so_=sx  # outer direction in x
+    fx=hx-r; fy=hy-r
     def arc(ccx,ccy,a0,a1):
         return [(ccx+r*math.cos(math.radians(a0+(a1-a0)*k/seg)),ccy+r*math.sin(math.radians(a0+(a1-a0)*k/seg))) for k in range(seg+1)]
-    xo=cx+so_*(hx-r); xi=cx-so_*(hx-r); yf=cy+(hy-r); yb=cy-(hy-r)
+    def flat(p0,p1,axis,sign,b):
+        out=[]
+        for k in range(1,NF+1):
+            t=k/(NF+1); x=p0[0]+(p1[0]-p0[0])*t; y=p0[1]+(p1[1]-p0[1])*t
+            w=1-(2*t-1)**2
+            if axis=='y': y+=sign*b*w
+            else: x+=sign*b*w
+            out.append((x,y))
+        return out
+    so=sx
+    xo=cx+so*fx; xi=cx-so*fx; yf=cy+fy; yb=cy-fy
     if sx>0:
-        pts=arc(xo,yf,90,0)+arc(xo,yb,0,-90)+arc(xi,yb,-90,-180)+arc(xi,yf,180,90)
+        A0=arc(xo,yf,90,0); A1=arc(xo,yb,0,-90); A2=arc(xi,yb,-90,-180); A3=arc(xi,yf,180,90)
     else:
-        pts=arc(xo,yf,90,180)+arc(xo,yb,180,270)+arc(xi,yb,270,360)+arc(xi,yf,0,90)
+        A0=arc(xo,yf,90,180); A1=arc(xo,yb,180,270); A2=arc(xi,yb,270,360); A3=arc(xi,yf,0,90)
+    pts=A0+flat(A0[-1],A1[0],'x',so,BS)+A1+flat(A1[-1],A2[0],'y',-1,BF)+A2+flat(A2[-1],A3[0],'x',-so,BS*0.6)+A3+flat(A3[-1],A0[0],'y',1,BF)
     return [(p[0],p[1],z) for p in pts], (cx,cy,hx,hy,r)
 def surf(sx,face,u,z,lift=0.0):
-    """point+normal on the outer surface. face 0 front(u inner->outer),1 side(front->back),2 back(outer->inner),3 inner(back->front); u may run past 0..1 into the corners"""
     hx,hy,cs,cyo=prof(z); cx=sx*(1.51-cs); cy=CY0+cyo
-    # build the 2D rounded rect perimeter, parametrise by face spans between corner midpoints
-    pts,_=ring_pts(sx,z,seg=12); P=np.array([p[:2] for p in pts]); n=len(P); per=12+1
-    # corner midpoints indices: each arc has 13 pts; arcs order: front-outer, back-outer, back-inner, front-inner
-    mids=[per//2, per+per//2, 2*per+per//2, 3*per+per//2]
-    # face spans: front: from mid of arc3 (front-inner) -> mid arc0 ; side: mid0->mid1 ; back: mid1->mid2 ; inner: mid2->mid3
+    pts,_=ring_pts(sx,z,seg=12); P=np.array([p[:2] for p in pts]); n=len(P); blk=13+NF
+    mids=[i*blk+6 for i in range(4)]        # arc midpoints: front-outer, back-outer, back-inner, front-inner
     seq=np.vstack([P,P]); L=np.r_[0,np.cumsum(np.linalg.norm(np.diff(seq,axis=0),axis=1))]
-    starts={0:mids[3],1:mids[0]+n,2:mids[1]+n,3:mids[2]+n}; ends={0:mids[0]+n,1:mids[1]+n,2:mids[2]+n,3:mids[3]+n}
-    a=L[starts[face]]; b=L[ends[face]]
-    if face==0: a=L[mids[3]]; b=L[mids[0]+n]
+    spans={0:(mids[3],mids[0]+n),1:(mids[0],mids[1]),2:(mids[1],mids[2]),3:(mids[2],mids[3])}
+    i0,i1=spans[face]; a=L[i0]; b=L[i1]
     s=a+(b-a)*u
-    s=s%L[n] if s>=L[n] else s
+    while s<0: s+=L[n]
+    while s>=2*L[n]-1e-9: s-=L[n]
     k=np.searchsorted(L,s)-1; k=min(max(k,0),len(seq)-2); f=(s-L[k])/(L[k+1]-L[k]+1e-12)
     p=seq[k]+(seq[k+1]-seq[k])*f; t=seq[k+1]-seq[k]; t=t/np.linalg.norm(t)
     nn=np.array([t[1],-t[0]])
@@ -90,8 +98,8 @@ def sleeve(bone,sx):
         bar=[pt(57,377),pt(58,430),pt(60,487)]
         p,n=path(sx,bar); strip(P,p,n,HW*1.05,HH,M['Gold'])
         # tail: from bar foot to the outer edge, then wraps round the corner onto the side face (joins the double band)
-        if not mirror: tail=[pt(60,489),(0,1.0,Z(461)),(1,0.04,Z(461))]
-        else: tail=[pt(60,489),(2,0.0,Z(461)),(1,0.96,Z(461))]
+        if not mirror: tail=[pt(60,489),(0,0.97,Z(462)),(1,0.10,Z(463))]
+        else: tail=[pt(60,489),(2,0.03,Z(462)),(1,0.90,Z(463))]
         p,n=path(sx,tail); strip(P,p,n,HW*1.05,HH,M['Gold'])
         # line A: up to the top edge then over the shoulder fillet
         A=[pt(62,428),pt(108,407),pt(133,377)]
@@ -102,7 +110,7 @@ def sleeve(bone,sx):
         p,n=path(sx,B); strip(P,p,n,HW*0.85,HH,M['Gold'])
     # side face: double band (front corner -> back corner) and vertical strip near the back edge
     for py in (458.5,467.5):
-        p,n=path(sx,[(1,0.02,Z(py)),(1,0.98,Z(py))]); strip(P,p,n,0.028,0.018,M['Gold'])
+        p,n=path(sx,[(1,0.06,Z(py)),(1,0.94,Z(py))]); strip(P,p,n,0.028,0.018,M['Gold'])
     p,n=path(sx,[(1,(782-668)/119,Z(402)),(1,(782-668)/119,Z(457))]); strip(P,p,n,0.03,0.02,M['Gold'])
     return P,G
 objs=[]

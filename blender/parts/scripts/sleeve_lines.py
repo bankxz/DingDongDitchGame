@@ -11,7 +11,9 @@ def edges_rows(kind):
     for y in range(377,572):
         if kind=='F':  o=np.nonzero(F[y,0:100])[0].min(); i=140+int(np.argmin(lum[y,140:162])); rows[y]=(i,o)       # u=0 inner, 1 outer
         if kind=='B':  o=905+np.nonzero(F[y,905:1000])[0].min(); i=1040+int(np.argmin(lum[y,1040:1064])); rows[y]=(i,o)
-        if kind=='S':  rows[y]=(668-(y>500)*(y-500)*6/68, 787+(y>500)*(y-500)*5/68)    # u=0 front, 1 back
+        if kind=='S':
+            ms=[(378,668),(470,668),(514,666.5),(530,665),(546,664),(562,663),(571,662)]; mb=[(378,787.5),(470,787.5),(514,788),(530,790),(546,791),(562,791.5),(571,792)]
+            rows[y]=(float(np.interp(y,[a for a,b in ms],[b for a,b in ms])),float(np.interp(y,[a for a,b in mb],[b for a,b in mb])))
     ys=np.array(sorted(rows)); a=np.array([rows[y] for y in ys],float)
     # robust smooth fit (cubic) of each edge vs row -> no lumps
     fit=[]
