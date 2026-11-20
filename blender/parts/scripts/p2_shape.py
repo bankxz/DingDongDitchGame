@@ -91,6 +91,7 @@ def half_outline(y,sx,N=220,only_vs=False):
     seam_t=vs[4]
     return pts,zoff,ts,seam_t
 NF=64; NB=40
+HEMS=[]
 def build():
     T=Part('Gear_Torso','Torso')
     Rf={1:[],-1:[]}; Rb={1:[],-1:[]}
@@ -169,6 +170,7 @@ def build():
             for i in range(len(R)-1):
                 if e>0 and ROWS[i+1]<790: continue
                 T.face([R[i][e],Ri[i][e],Ri[i+1][e],R[i+1][e]],mt)
+        HEMS.append((list(R[-1]),list(Ri[-1]),[list(r) for r in R[-4:]]))
         rl=roll(R[-1],Ri[-1])
         prev=R[-1]
         for j,rr in enumerate(rl):
@@ -191,6 +193,7 @@ def build():
                 T.face([b,a,na,nb],M['Marble'])
     return T
 ob=build().build()
+import pickle; pickle.dump(HEMS,open('/tmp/w/parts/hem.pkl','wb'))
 for p in ob.data.polygons: p.use_smooth=True
 try: ob.data.set_sharp_from_angle(angle=math.radians(75))
 except Exception as e: print('sharp',e)

@@ -14,7 +14,7 @@ def mat(name,col,metal=0.0,rough=0.6,emit=0.0):
     if emit: b.inputs['Emission Color'].default_value=(*lin,1); b.inputs['Emission Strength'].default_value=emit
     m.diffuse_color=(*lin,1); m.metallic=metal; m.roughness=rough; MAT[name]=m; return m
 def mats():
-    return dict(Marble=mat('Marble',(0.93,0.90,0.97),0,0.35),Gold=mat('Gold',(0.90,0.68,0.30),0.9,0.3),
+    return dict(Marble=mat('Marble',(0.93,0.90,0.97),0,0.35),Gold=mat('Gold',(0.90,0.68,0.30),0.55,0.35),
         Lining=mat('Lining',(0.40,0.20,0.60)),Glow=mat('GlowPurple',(0.80,0.42,1.0),0,0.4,3.0),
         Purple=mat('Purple',(0.36,0.18,0.52)),Navy=mat('Navy',(0.17,0.15,0.30),0,0.8),Black=mat('Black',(0.06,0.055,0.07),0,0.7),
         White=mat('WhiteCloth',(0.95,0.94,0.97)),Hair=mat('Hair',(0.94,0.92,0.98),0,0.5),Skin=mat('Skin',(0.96,0.80,0.68),0,0.8))
