@@ -89,6 +89,16 @@ def flap(sx):
         ring.append(B[-1]-N[-1]*0.004)                       # outer edge wall down to the coat
         return ring
     S=[sect(r,H) for r,H in R]; n=len(S[0])
+    # continue the flap up into the collar: sections rise to the collar top, laid against the collar's front face
+    def collar_y(z): return float(np.interp(z,[3.985,4.05,4.12,4.185],[0.545,0.56,0.588,0.615]))
+    top=S[0]; baseB=R[0][0][0][0]; ext=[]
+    for zt in (4.15,4.11,4.07,4.035):
+        dy=collar_y(zt)+0.006-min(p.y for p in top)
+        dy=max(dy,0.0)
+        ext.append([p+V((0,dy,zt-baseB.z)) for p in top])
+    S=ext+S
+    R=[(R[0][0],R[0][1])]*len(ext)+R
+    TOPZ=[4.15,4.11,4.07,4.035]
     for i in range(len(S)-1):
         for j in range(n-1):
             m=M['Gold'] if j<6 else (M['Purple'] if j<n-2 else M['Gold'])
@@ -99,8 +109,12 @@ def flap(sx):
         ring=[tuple(p) for p in S[i]]; C.face(ring if i==0 else ring[::-1],M['Purple'])
     # gold trim on the flap's outer edge (bevelled strip on the top surface edge)
     pts=[];nr=[]
-    for r,H in R:
-        p,nn=r[-1]; q,_=r[-2]; D=(p-q).normalized(); pts.append(tuple(p+nn*H-D*0.03)); nr.append(nn)
+    for i,(r,H) in enumerate(R):
+        p,nn=r[-1]; q,_=r[-2]; D=(p-q).normalized()
+        if i<len(TOPZ):
+            dz=TOPZ[i]-r[0][0].z; dy=max(0.0,float(np.interp(TOPZ[i],[3.985,4.05,4.12,4.185],[0.545,0.56,0.588,0.615]))+0.006-min(pp.y for pp in S[len(TOPZ)]))
+            p=p+V((0,dy,dz))
+        pts.append(tuple(p+nn*H-D*0.03)); nr.append(nn)
     strip(C,pts,nr,0.032,0.016,M['Gold'])
 for sx in (1,-1): flap(sx)
 # remove the old flat traced lapel line/chevron from the coat trim (the folded flap replaces it)
