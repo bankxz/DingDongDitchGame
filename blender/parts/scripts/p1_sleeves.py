@@ -5,7 +5,7 @@ SRC,OUT=sys.argv[-2:]
 bpy.ops.wm.open_mainfile(filepath=SRC)
 M=mats()
 E=pickle.load(open('/tmp/w/parts/sleeve_lines.pkl','rb'))['edges']
-ZT=Zmap(372); ZC0=Zmap(570); ZC1=Zmap(588); ZP=Zmap(600)
+ZT=Zmap(372)+0.045; ZC0=Zmap(570); ZC1=Zmap(588); ZP=Zmap(600)
 HX0,HY0=0.535,0.540; CY0=-0.03; R=0.065; TH=0.035
 F0=E['F'][377]; S0=E['S'][377]
 def prof(z):
@@ -80,7 +80,7 @@ def sleeve(bone,sx):
         a=math.radians(90*k/5); rings.append(ring_pts(sx,ZT-R+R*math.sin(a),inset=R*(1-math.cos(a)))[0])
     rings.append(ring_pts(sx,ZT,inset=R*0.999)[0])
     P.loft(rings,M['Marble'],cap1=M['Marble'])
-    inner=[ring_pts(sx,z,inset=TH)[0] for z in (ZP,Zmap(566),3.3,3.9)]
+    inner=[ring_pts(sx,z,inset=TH)[0] for z in (ZP,Zmap(566),3.3,4.008)]
     P.loft(inner,M['Lining'],cap1=M['Lining'])
     for j in range(len(rings[0])):
         k=(j+1)%len(rings[0]); P.face([rings[0][k],rings[0][j],inner[0][j],inner[0][k]],M['Lining'])
@@ -95,19 +95,35 @@ def sleeve(bone,sx):
             u=fpx(py,px,'F')               # 0 inner .. 1 outer on the front
             return (1-u) if mirror else u  # back face runs outer->inner
         def pt(px,py): return (face,U(px,py),Z(py))
-        bar=[pt(57,377),pt(58,430),pt(60,487)]
+        bar=[(face,U(57,377),ZT-R+0.004),pt(58,430),pt(60,487)]
         p,n=path(sx,bar); strip(P,p,n,HW*1.05,HH,M['Gold'])
         # tail: from bar foot to the outer edge, then wraps round the corner onto the side face (joins the double band)
         if not mirror: tail=[pt(60,489),(0,0.97,Z(462)),(1,0.10,Z(463))]
         else: tail=[pt(60,489),(2,0.03,Z(462)),(1,0.90,Z(463))]
         p,n=path(sx,tail); strip(P,p,n,HW*1.05,HH,M['Gold'])
         # line A: up to the top edge then over the shoulder fillet
-        A=[pt(62,428),pt(108,407),pt(133,377)]
+        A=[pt(62,428),pt(108,407),(face,U(133,377),ZT-R+0.004)]
         p,n=path(sx,A); strip(P,p,n,HW*0.85,HH,M['Gold'])
         # line B: to the inner edge, then wraps onto the inner face
         if not mirror: B=[pt(62,452),pt(121,425),(0,0.0,Z(390)),(-1,0.85,Z(386))]
         else: B=[pt(62,452),pt(121,425),(2,1.0,Z(390)),(3,0.15,Z(386))]
         p,n=path(sx,B); strip(P,p,n,HW*0.85,HH,M['Gold'])
+    # --- trim over the top of the arm: front end -> up the shoulder fillet -> across the top -> down to the back end
+    def over_top(u_front):
+        pf,nf=surf(sx,0,u_front,ZT-R); pb,nb=surf(sx,2,1-u_front,ZT-R)
+        up=V((0,0,1)); pts=[];nr=[]
+        for k in range(0,7):
+            a=math.radians(90*k/6); pts.append(tuple(pf-nf*R*(1-math.cos(a))+up*R*math.sin(a))); nr.append((nf*math.cos(a)+up*math.sin(a)).normalized())
+        a0=V(pts[-1]); b0=pb-nb*R+up*R
+        for k in range(1,8):
+            t=k/8; pts.append(tuple(a0.lerp(b0,t))); nr.append(up)
+        for k in range(6,-1,-1):
+            a=math.radians(90*k/6); pts.append(tuple(pb-nb*R*(1-math.cos(a))+up*R*math.sin(a))); nr.append((nb*math.cos(a)+up*math.sin(a)).normalized())
+        return pts,nr
+    for px_,hw in ((57,HW*1.05),(133,HW*0.85)):
+        pts,nr=over_top(fpx(377,px_,'F')); strip(P,pts,nr,hw,HH,M['Gold'])
+    # line B: join front and back ends along the inner face
+    p,n=path(sx,[(-1,0.85,Z(386)),(-1,0.15,Z(386))]); strip(P,p,n,HW*0.85,HH,M['Gold'])
     # side face: double band (front corner -> back corner) and vertical strip near the back edge
     for py in (458.5,467.5):
         p,n=path(sx,[(1,0.06,Z(py)),(1,0.94,Z(py))]); strip(P,p,n,0.028,0.018,M['Gold'])
