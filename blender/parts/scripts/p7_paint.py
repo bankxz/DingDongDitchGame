@@ -23,6 +23,7 @@ PAL={
  'BootEdge':((0.10,0.10,0.15),(0.24,0.23,0.32),(0.40,0.39,0.50)),
  'WhiteCloth':((0.72,0.70,0.80),(0.92,0.91,0.95),(1.0,1.0,1.0)),
  'Skin':((0.80,0.58,0.47),(0.96,0.79,0.67),(1.0,0.90,0.80)),
+ 'GlowPurple':((0.36,0.16,0.58),(0.58,0.34,0.84),(0.76,0.56,0.95)),
 }
 PAL={k:tuple(tuple(c**2.2 for c in t) for t in v) for k,v in PAL.items()}
 def fam(name):
@@ -86,6 +87,8 @@ for m in bpy.data.materials:
     if k and m.users: painted(m,k); done.add(m.name)
 print('painted',sorted(done))
 # ---- bake each gear object to its own texture (glow meshes stay plain for Neon)
+for o in bpy.data.objects:
+    if o.name.startswith('Glow_'): o.name='Gear_Band'+o.name[5:]
 objs=[o for o in bpy.data.objects if o.type=='MESH' and (o.name.startswith(('Gear_','Trim_'))) ]
 for ob in objs:
     for o in bpy.context.selected_objects: o.select_set(False)
