@@ -48,10 +48,10 @@ def leg(bone,sx):
         j=(k+1)%N; P.face([O[0][j],O[0][k],In[0][k],In[0][j]],HK)
     # boot (measured from the sheet): navy-black block, chamfered vertical edges, chamfered sole edge, soft top,
     # continuous gold band wrapping all the way round at z 0.061-0.110
-    x0,x1=0.10,1.17; yb_,yf_=-0.53,0.875; zt=Zmap(908); C=0.055
+    x0,x1=0.006,1.03; yb_,yf_=-0.53,0.53; zt=Zmap(908); C=0.055
     if sx<0: x0,x1=-x1,-x0
     cx=(x0+x1)/2; hx=(x1-x0)/2; cy=(yf_+yb_)/2; hy=(yf_-yb_)/2
-    def oc(z,inset=0.0,c=0.075): return [(p[0],p[1],z) for p in rrect(cx,cy,hx-inset,hy-inset,max(0.01,c-inset),0,4)]
+    def oc(z,inset=0.0,c=0.04): return [(p[0],p[1],z) for p in rrect(cx,cy,hx-inset,hy-inset,max(0.01,c-inset),0,4)]
     zb0,zb1=Zmap(948),Zmap(940)
     zb0,zb1=Zmap(950),Zmap(939)
     rings=[oc(0.0,0.03),oc(0.008,0.012),oc(0.022,0.0),oc(zb0-0.004,0.0),oc(zb0,0.008),oc(zb1,0.008),oc(zb1+0.004,0.0),
