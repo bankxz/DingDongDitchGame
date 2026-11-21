@@ -5,7 +5,7 @@ from mathutils.bvhtree import BVHTree
 SRC,OUT=sys.argv[-2:]
 bpy.ops.wm.open_mainfile(filepath=SRC)
 M=mats(); HK=mat('Hakama',(0.20,0.18,0.36),0,0.8); HKD=mat('HakamaDark',(0.11,0.10,0.21),0,0.85)
-BT=mat('Boot',(0.10,0.10,0.15),0,0.6)
+BT=mat('Boot',(0.17,0.16,0.25),0,0.55); BTL=mat('BootEdge',(0.30,0.29,0.40),0,0.45); BTD=mat('BootPanel',(0.13,0.12,0.20),0,0.6)
 for n in ('Gear_LeftLeg','Gear_RightLeg','Gear_HakamaWaist'):
     o=bpy.data.objects.get(n)
     if o: bpy.data.objects.remove(o)
@@ -46,21 +46,31 @@ def leg(bone,sx):
         P.face([a,b,mid(b,c),mid(a,d)],HK); P.face([mid(a,d),mid(b,c),c,d],HKD)
     for k in range(N):
         j=(k+1)%N; P.face([O[0][j],O[0][k],In[0][k],In[0][j]],HK)
-    # boot: rounded box, measured (x 0.06..1.16, y -0.53..0.875, z 0..0.307), bevel 0.045
-    x0,x1=0.06,1.16; yb_,yf_=-0.53,0.875; zt=Zmap(908); r=0.06
+    # boot (measured from the sheet): navy-black block, chamfered vertical edges, chamfered sole edge, soft top,
+    # continuous gold band wrapping all the way round at z 0.061-0.110
+    x0,x1=0.10,1.17; yb_,yf_=-0.53,0.875; zt=Zmap(908); C=0.055
     if sx<0: x0,x1=-x1,-x0
     cx=(x0+x1)/2; hx=(x1-x0)/2; cy=(yf_+yb_)/2; hy=(yf_-yb_)/2
-    def rr(z,inset):
-        return [(p[0],p[1],z) for p in rrect(cx,cy,hx-inset,hy-inset,max(0.02,r-inset),0,4)]
-    rings=[rr(0.0,0.035),rr(0.012,0.0),rr(zt-0.03,0.0),rr(zt-0.008,0.012),rr(zt,0.04)]
-    P.loft(rings,BT,cap0=BT,cap1=BT)
-    # gold band: four raised strips (inset from the corners), z 0.06..0.11
-    zb=(Zmap(948)+Zmap(940))/2
-    def face_strip(a,b,n):
-        strip(P,[tuple(V(a).lerp(V(b),t)) for t in np.linspace(0,1,6)],[V(n)]*6,0.026,0.014,M['Gold'])
-    ins=0.09
-    face_strip((x0+ins,yf_,zb),(x1-ins,yf_,zb),(0,1,0)); face_strip((x0+ins,yb_,zb),(x1-ins,yb_,zb),(0,-1,0))
-    face_strip((x1,yb_+ins,zb),(x1,yf_-ins,zb),(1,0,0)); face_strip((x0,yb_+ins,zb),(x0,yf_-ins,zb),(-1,0,0))
+    def oc(z,inset=0.0,c=0.075): return [(p[0],p[1],z) for p in rrect(cx,cy,hx-inset,hy-inset,max(0.01,c-inset),0,4)]
+    zb0,zb1=Zmap(948),Zmap(940)
+    zb0,zb1=Zmap(950),Zmap(939)
+    rings=[oc(0.0,0.03),oc(0.008,0.012),oc(0.022,0.0),oc(zb0-0.004,0.0),oc(zb0,0.008),oc(zb1,0.008),oc(zb1+0.004,0.0),
+           oc(zt-0.03,0.0),oc(zt-0.01,0.012),oc(zt,0.04)]
+    for i in range(len(rings)-1):
+        n=len(rings[i])
+        for k in range(n):
+            j=(k+1)%n
+            m=BTL if i in (0,7) else BT
+            P.face([rings[i][k],rings[i][j],rings[i+1][j],rings[i+1][k]],m)
+    P.face(rings[0][::-1],BT); P.face(rings[-1],BT)
+    # gold band: raised bevelled ring in the recess, continuous round the chamfered corners
+    zm=(zb0+zb1)/2; hh=(zb1-zb0)/2
+    GR=[oc(zb0+0.002,0.006),oc(zb0+0.012,-0.010),oc(zb1-0.012,-0.010),oc(zb1-0.002,0.006)]
+    for i in range(3):
+        n=len(GR[i])
+        for k in range(n):
+            j=(k+1)%n; P.face([GR[i][k],GR[i][j],GR[i+1][j],GR[i+1][k]],M['Gold'])
+    # subtle sole seam: thin dark groove line above the sole chamfer
     return P
 parts=[leg('Right Leg',1),leg('Left Leg',-1)]
 # hakama waist band (torso): from obi bottom to hip, joins both legs
