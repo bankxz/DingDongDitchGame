@@ -3,7 +3,7 @@ import math, numpy as np
 R=1200; SS=3; W=R*SS
 SK=(246,208,178)
 def P(px,py):
-    X=(288.5-px)/123*1.2; Z=3.95+(352-py)/112*1.1
+    X=(285.5-px)/123*1.2*0.72; Z=4.08+(352-py)/112*0.96
     return ((0.6-X)/1.2*W, (5.1-Z)/1.2*W)
 base=Image.new('RGB',(W,W),SK)
 def layer_paint(img,fn,color,blur=0,alpha=1.0):
@@ -30,7 +30,7 @@ def stroke(d,pts,w0,w1,taper_in=0.25,taper_out=0.35):
         L.append(tuple(np.array(p)+nn*w/2)); Rr.append(tuple(np.array(p)-nn*w/2))
     d.polygon(L+Rr[::-1],fill=255)
 # --- skin shading: side falloff, cheek warmth, under-brow and nose shadow
-layer_paint(base,lambda d:(d.rectangle([0,0,W*0.12,W],fill=255),d.rectangle([W*0.88,0,W,W],fill=255)),(226,172,144),blur=45,alpha=0.8)
+
 for cx in (250,320): layer_paint(base,lambda d,cx=cx:d.ellipse([P(cx-13,312)[0],P(0,309)[1],P(cx+13,312)[0],P(0,320)[1]]),(242,160,148),blur=10,alpha=0.35)
 layer_paint(base,lambda d:d.polygon([P(286,300),P(289,300),P(291,318),P(285,319)]),(226,170,145),blur=3,alpha=0.6)
 layer_paint(base,lambda d:d.ellipse([P(283,317)[0],P(0,316)[1],P(293,317)[0],P(0,320)[1]]),(214,152,128),blur=2,alpha=0.7)
